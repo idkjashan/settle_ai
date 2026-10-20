@@ -1,0 +1,63 @@
+{
+  "asset_id": "string",
+  "relative_path": "string",
+  "image_width": "integer|null",
+  "image_height": "integer|null",
+  "category": "subtle_damage|multi_vehicle|collision_damage|part_boundaries|occlusion|reflections_false_positives|undamaged_controls|unknown",
+  "damage_present": "yes|no|uncertain|unknown",
+  "damage_types": [
+    "dent",
+    "scratch",
+    "crack",
+    "broken_component",
+    "paint_damage",
+    "other"
+  ],
+  "vehicles": [
+    {
+      "vehicle_id": "string",
+      "bbox_xyxy": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "part_masks_or_polygons": [],
+      "notes": ""
+    }
+  ],
+  "damages": [
+    {
+      "damage_id": "string",
+      "vehicle_id": "string|null",
+      "damage_type": "dent|scratch|crack|broken_component|paint_damage|other|uncertain",
+      "part_name": "string|null",
+      "bbox_xyxy": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "polygon_xy": [],
+      "mask_path": "string|null",
+      "severity": "unrated|low|medium|high|uncertain",
+      "label_verified_by_human": false,
+      "confidence": "high|medium|low|unknown",
+      "notes": ""
+    }
+  ],
+  "conditions": {
+    "visibility": "clear|subtle|partially_hidden|tiny_in_frame|unknown",
+    "occlusion": "none|partial|heavy|unknown",
+    "lighting": "daylight|low_light|glare|mixed|unknown",
+    "image_quality": "sharp|blurred|low_resolution|unknown"
+  },
+  "evaluation_scope": "in_contract_keyframe|adversarial_out_of_contract|unknown",
+  "source": {
+    "source_url": "",
+    "license": "",
+    "attribution": "",
+    "verified": false
+  },
+  "notes": ""
+}

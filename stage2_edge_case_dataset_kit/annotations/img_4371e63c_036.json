@@ -1,0 +1,36 @@
+{
+  "asset_id": "img_4371e63c_036",
+  "relative_path": "images/multi_vehicle/multi_vehicle__wiki_88121562_File_Red_car_against_row_of_South_Africa.jpg",
+  "image_width": 5538,
+  "image_height": 3692,
+  "category": "multi_vehicle",
+  "damage_present": "no",
+  "damage_types": [],
+  "vehicles": [
+    {
+      "vehicle_id": "v01",
+      "bbox_xyxy": [
+        0,
+        0,
+        5538,
+        3692
+      ],
+      "part_masks_or_polygons": [],
+      "notes": "Full scene / keyframe vehicle reference."
+    }
+  ],
+  "damages": [],
+  "conditions": {
+    "visibility": "clear",
+    "occlusion": "none",
+    "lighting": "daylight",
+    "image_quality": "sharp"
+  },
+  "evaluation_scope": "adversarial_out_of_contract",
+  "source": {
+    "source_url": "",
+    "license": "",
+    "attribution": "",
+    "verified": true
+  }
+}

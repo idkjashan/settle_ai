@@ -81,6 +81,7 @@ class OemPart(Base):
     display_part_name: Mapped[str] = mapped_column(String(100), nullable=False)
     oem_part_number: Mapped[str] = mapped_column(String(40), nullable=False)
     part_material: Mapped[str] = mapped_column(String(20), nullable=False)
+    depreciation_rate_non_zero_dep: Mapped[Decimal] = mapped_column(Numeric(4, 2), default=Decimal("0.00"), nullable=False)
     oem_part_cost_inr: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     rr_labour_inr: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     denting_base_labour_inr: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
@@ -104,3 +105,6 @@ class UnrepairedClaim(Base):
     is_repaired_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     settled_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
+# Aliases matching Stage 2 & 3 LLD specifications
+OEMPartsCatalogue = OemPart
+UnrepairedClaimsLedger = UnrepairedClaim

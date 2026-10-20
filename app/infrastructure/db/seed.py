@@ -5,6 +5,56 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.infrastructure.db.session import engine, async_session_factory
 from app.infrastructure.db.models import Base, InsuredPolicy, OemPart, UnrepairedClaim
 
+HYUNDAI_CRETA_PARTS = [
+    ("front_bumper", "Front Bumper Cover", "86511-M0000", "plastic", Decimal("8800.00"), Decimal("850.00"), Decimal("1100.00"), Decimal("3800.00"), Decimal("800.00"), True, False),
+    ("back_bumper", "Rear Bumper Cover", "86611-M0000", "plastic", Decimal("8200.00"), Decimal("850.00"), Decimal("1100.00"), Decimal("3600.00"), Decimal("800.00"), True, False),
+    ("hood", "Front Bonnet / Hood Panel", "66400-M0000", "metal", Decimal("14200.00"), Decimal("1100.00"), Decimal("1600.00"), Decimal("4800.00"), Decimal("950.00"), True, False),
+    ("trunk", "Rear Trunk Lid Panel", "69200-M0000", "metal", Decimal("13500.00"), Decimal("1150.00"), Decimal("1500.00"), Decimal("4400.00"), Decimal("900.00"), True, False),
+    ("tailgate", "Rear Tailgate Assembly", "73700-M0000", "metal", Decimal("15800.00"), Decimal("1250.00"), Decimal("1600.00"), Decimal("4500.00"), Decimal("900.00"), True, False),
+    ("front_left_door", "Front Left Door Panel", "76003-M0000", "metal", Decimal("11500.00"), Decimal("950.00"), Decimal("1400.00"), Decimal("4200.00"), Decimal("850.00"), True, False),
+    ("front_right_door", "Front Right Door Panel", "76004-M0000", "metal", Decimal("11500.00"), Decimal("950.00"), Decimal("1400.00"), Decimal("4200.00"), Decimal("850.00"), True, False),
+    ("front_door", "Front Door Panel (Generic Alias)", "76003-M0000", "metal", Decimal("11500.00"), Decimal("950.00"), Decimal("1400.00"), Decimal("4200.00"), Decimal("850.00"), True, False),
+    ("back_left_door", "Rear Left Door Panel", "77003-M0000", "metal", Decimal("10800.00"), Decimal("900.00"), Decimal("1350.00"), Decimal("4000.00"), Decimal("850.00"), True, False),
+    ("back_right_door", "Rear Right Door Panel", "77004-M0000", "metal", Decimal("10800.00"), Decimal("900.00"), Decimal("1350.00"), Decimal("4000.00"), Decimal("850.00"), True, False),
+    ("back_door", "Rear Door Panel (Generic Alias)", "77003-M0000", "metal", Decimal("10800.00"), Decimal("900.00"), Decimal("1350.00"), Decimal("4000.00"), Decimal("850.00"), True, False),
+    ("left_mirror", "Left Outside Rear View Mirror", "87610-M0000", "assembly", Decimal("6400.00"), Decimal("450.00"), Decimal("0.00"), Decimal("900.00"), Decimal("400.00"), False, False),
+    ("right_mirror", "Right Outside Rear View Mirror", "87620-M0000", "assembly", Decimal("6400.00"), Decimal("450.00"), Decimal("0.00"), Decimal("900.00"), Decimal("400.00"), False, False),
+    ("front_left_light", "Front Left LED Headlamp", "92101-M0000", "assembly", Decimal("16500.00"), Decimal("650.00"), Decimal("0.00"), Decimal("0.00"), Decimal("0.00"), False, False),
+    ("front_right_light", "Front Right LED Headlamp", "92102-M0000", "assembly", Decimal("16500.00"), Decimal("650.00"), Decimal("0.00"), Decimal("0.00"), Decimal("0.00"), False, False),
+    ("front_light", "Front LED Headlamp Assembly (Generic Alias)", "92101-M0000", "assembly", Decimal("16500.00"), Decimal("650.00"), Decimal("0.00"), Decimal("0.00"), Decimal("0.00"), False, False),
+    ("back_left_light", "Rear Left Tail Lamp Assembly", "92401-M0000", "assembly", Decimal("7200.00"), Decimal("500.00"), Decimal("0.00"), Decimal("0.00"), Decimal("0.00"), False, False),
+    ("back_right_light", "Rear Right Tail Lamp Assembly", "92402-M0000", "assembly", Decimal("7200.00"), Decimal("500.00"), Decimal("0.00"), Decimal("0.00"), Decimal("0.00"), False, False),
+    ("back_light", "Rear Tail Lamp Assembly (Generic Alias)", "92401-M0000", "assembly", Decimal("7200.00"), Decimal("500.00"), Decimal("0.00"), Decimal("0.00"), Decimal("0.00"), False, False),
+    ("front_glass", "Front Laminated Windshield", "86110-M0000", "glass", Decimal("12400.00"), Decimal("1800.00"), Decimal("0.00"), Decimal("0.00"), Decimal("0.00"), False, True),
+    ("back_glass", "Rear Heated Windshield Glass", "87110-M0000", "glass", Decimal("9200.00"), Decimal("1500.00"), Decimal("0.00"), Decimal("0.00"), Decimal("0.00"), False, True),
+    ("wheel", "Alloy Wheel & Tire Assembly", "52910-M0000", "assembly", Decimal("18500.00"), Decimal("600.00"), Decimal("0.00"), Decimal("0.00"), Decimal("0.00"), False, True),
+]
+
+def generate_scaled_parts(make: str, model: str, part_num_prefix: str, multiplier: float) -> list[OemPart]:
+    m = Decimal(str(multiplier))
+    parts = []
+    for (key, name, pnum, mat, cost, rr, dent, paint, pdr, rep, safe) in HYUNDAI_CRETA_PARTS:
+        scaled_pnum = f"{part_num_prefix}-{key[:4].upper()}"
+        parts.append(
+            OemPart(
+                make=make,
+                model=model,
+                canonical_part_key=key,
+                display_part_name=name,
+                oem_part_number=scaled_pnum,
+                part_material=mat,
+                depreciation_rate_non_zero_dep=Decimal("0.00"),
+                oem_part_cost_inr=(cost * m).quantize(Decimal("0.01")),
+                rr_labour_inr=(rr * m).quantize(Decimal("0.01")),
+                denting_base_labour_inr=(dent * m).quantize(Decimal("0.01")),
+                full_panel_paint_inr=(paint * m).quantize(Decimal("0.01")),
+                pdr_or_polish_flat_inr=(pdr * m).quantize(Decimal("0.01")),
+                is_repairable=rep,
+                is_safety_critical=safe,
+            )
+        )
+    return parts
+
 async def seed_database() -> None:
     # 1. Create tables if they do not exist
     async with engine.begin() as conn:
@@ -42,7 +92,7 @@ async def seed_database() -> None:
             ),
             InsuredPolicy(
                 policy_id="POL-EXPIRED-002",
-                policy_status="ACTIVE",  # status says active but date expired
+                policy_status="ACTIVE",
                 policy_start_date=date(2024, 1, 1),
                 policy_end_date=date(2024, 12, 31),
                 max_cash_claims_per_year=2,
@@ -84,7 +134,7 @@ async def seed_database() -> None:
                 policy_start_date=date(2026, 1, 1),
                 policy_end_date=date(2026, 12, 31),
                 max_cash_claims_per_year=2,
-                cash_claims_ytd=2,  # Limit reached!
+                cash_claims_ytd=2,
                 registration_number="MH14EU4321",
                 vin_last_6="55443D",
                 make="Tata",
@@ -138,71 +188,36 @@ async def seed_database() -> None:
         ]
         session.add_all(policies)
 
-        # 3. Seed OEM Parts for Hyundai Creta
-        oem_parts = [
-            OemPart(
-                make="Hyundai", model="Creta", canonical_part_key="front_bumper",
-                display_part_name="Front Bumper Assembly", oem_part_number="86511-M0000",
-                part_material="plastic", oem_part_cost_inr=Decimal("4500.00"),
-                rr_labour_inr=Decimal("650.00"), denting_base_labour_inr=Decimal("900.00"),
-                full_panel_paint_inr=Decimal("3200.00"), pdr_or_polish_flat_inr=Decimal("650.00"),
-                is_repairable=True, is_safety_critical=False
-            ),
-            OemPart(
-                make="Hyundai", model="Creta", canonical_part_key="front_left_door",
-                display_part_name="Front Left Door Panel", oem_part_number="76003-M0000",
-                part_material="metal", oem_part_cost_inr=Decimal("11500.00"),
-                rr_labour_inr=Decimal("950.00"), denting_base_labour_inr=Decimal("1400.00"),
-                full_panel_paint_inr=Decimal("4200.00"), pdr_or_polish_flat_inr=Decimal("850.00"),
-                is_repairable=True, is_safety_critical=False
-            ),
-            OemPart(
-                make="Hyundai", model="Creta", canonical_part_key="front_right_door",
-                display_part_name="Front Right Door Panel", oem_part_number="76004-M0000",
-                part_material="metal", oem_part_cost_inr=Decimal("11500.00"),
-                rr_labour_inr=Decimal("950.00"), denting_base_labour_inr=Decimal("1400.00"),
-                full_panel_paint_inr=Decimal("4200.00"), pdr_or_polish_flat_inr=Decimal("850.00"),
-                is_repairable=True, is_safety_critical=False
-            ),
-            OemPart(
-                make="Hyundai", model="Creta", canonical_part_key="left_mirror",
-                display_part_name="Left Outside Rearview Mirror", oem_part_number="87610-M0000",
-                part_material="assembly", oem_part_cost_inr=Decimal("3800.00"),
-                rr_labour_inr=Decimal("400.00"), denting_base_labour_inr=Decimal("0.00"),
-                full_panel_paint_inr=Decimal("800.00"), pdr_or_polish_flat_inr=Decimal("400.00"),
-                is_repairable=False, is_safety_critical=False
-            ),
-            OemPart(
-                make="Hyundai", model="Creta", canonical_part_key="rear_bumper",
-                display_part_name="Rear Bumper Assembly", oem_part_number="86611-M0000",
-                part_material="plastic", oem_part_cost_inr=Decimal("4800.00"),
-                rr_labour_inr=Decimal("650.00"), denting_base_labour_inr=Decimal("900.00"),
-                full_panel_paint_inr=Decimal("3200.00"), pdr_or_polish_flat_inr=Decimal("650.00"),
-                is_repairable=True, is_safety_critical=False
-            ),
-            OemPart(
-                make="Hyundai", model="Creta", canonical_part_key="hood",
-                display_part_name="Engine Hood Bonnet", oem_part_number="66400-M0000",
-                part_material="metal", oem_part_cost_inr=Decimal("8500.00"),
-                rr_labour_inr=Decimal("850.00"), denting_base_labour_inr=Decimal("1500.00"),
-                full_panel_paint_inr=Decimal("4500.00"), pdr_or_polish_flat_inr=Decimal("900.00"),
-                is_repairable=True, is_safety_critical=False
-            ),
-            OemPart(
-                make="Hyundai", model="Creta", canonical_part_key="front_windshield",
-                display_part_name="Laminated Front Windshield Glass", oem_part_number="86110-M0000",
-                part_material="glass", oem_part_cost_inr=Decimal("9800.00"),
-                rr_labour_inr=Decimal("1200.00"), denting_base_labour_inr=Decimal("0.00"),
-                full_panel_paint_inr=Decimal("0.00"), pdr_or_polish_flat_inr=Decimal("0.00"),
-                is_repairable=False, is_safety_critical=True
-            ),
-        ]
+        # 3. Seed 22 Canonical OEM Parts for Hyundai Creta, Maruti Swift (0.72x), and Tata Nexon (0.85x)
+        oem_parts: list[OemPart] = []
+        for (key, name, pnum, mat, cost, rr, dent, paint, pdr, rep, safe) in HYUNDAI_CRETA_PARTS:
+            oem_parts.append(
+                OemPart(
+                    make="Hyundai",
+                    model="Creta",
+                    canonical_part_key=key,
+                    display_part_name=name,
+                    oem_part_number=pnum,
+                    part_material=mat,
+                    depreciation_rate_non_zero_dep=Decimal("0.00"),
+                    oem_part_cost_inr=cost,
+                    rr_labour_inr=rr,
+                    denting_base_labour_inr=dent,
+                    full_panel_paint_inr=paint,
+                    pdr_or_polish_flat_inr=pdr,
+                    is_repairable=rep,
+                    is_safety_critical=safe,
+                )
+            )
+
+        oem_parts.extend(generate_scaled_parts("Maruti", "Swift", "71811-M0000", 0.72))
+        oem_parts.extend(generate_scaled_parts("Tata", "Nexon", "5424-M0000", 0.85))
         session.add_all(oem_parts)
 
         # 4. Seed sample unrepaired claim record for double-claim prevention testing
         unrepaired = UnrepairedClaim(
             registration_number="MH12DE1433",
-            canonical_part_key="rear_bumper",
+            canonical_part_key="back_bumper",
             damage_class="dent",
             settled_amount_inr=Decimal("4200.00"),
             is_repaired_verified=False,
@@ -210,8 +225,7 @@ async def seed_database() -> None:
         session.add(unrepaired)
 
         await session.commit()
-        print("Database seeding completed successfully.")
+        print(f"Database seeding completed successfully. ({len(policies)} policies, {len(oem_parts)} OEM parts)")
 
 if __name__ == "__main__":
     asyncio.run(seed_database())
-

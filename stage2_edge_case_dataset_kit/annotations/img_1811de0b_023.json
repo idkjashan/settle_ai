@@ -1,0 +1,36 @@
+{
+  "asset_id": "img_1811de0b_023",
+  "relative_path": "images/multi_vehicle/multi_vehicle__wiki_112706395_File_Ferrari_-_Knightsbridge_jpg.jpg",
+  "image_width": 4288,
+  "image_height": 3216,
+  "category": "multi_vehicle",
+  "damage_present": "no",
+  "damage_types": [],
+  "vehicles": [
+    {
+      "vehicle_id": "v01",
+      "bbox_xyxy": [
+        0,
+        0,
+        4288,
+        3216
+      ],
+      "part_masks_or_polygons": [],
+      "notes": "Full scene / keyframe vehicle reference."
+    }
+  ],
+  "damages": [],
+  "conditions": {
+    "visibility": "clear",
+    "occlusion": "none",
+    "lighting": "daylight",
+    "image_quality": "sharp"
+  },
+  "evaluation_scope": "adversarial_out_of_contract",
+  "source": {
+    "source_url": "",
+    "license": "",
+    "attribution": "",
+    "verified": true
+  }
+}

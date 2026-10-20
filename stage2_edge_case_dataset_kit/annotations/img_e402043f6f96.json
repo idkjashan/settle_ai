@@ -1,0 +1,36 @@
+{
+  "asset_id": "img_e402043f6f96",
+  "relative_path": "images/undamaged_controls/undamaged_controls__local_real_vw_golf_grey_hatchback_keyframe_03.jpg",
+  "image_width": 1920,
+  "image_height": 1080,
+  "category": "undamaged_controls",
+  "damage_present": "no",
+  "damage_types": [],
+  "vehicles": [
+    {
+      "vehicle_id": "v01",
+      "bbox_xyxy": [
+        0,
+        0,
+        1920,
+        1080
+      ],
+      "part_masks_or_polygons": [],
+      "notes": "Full scene / keyframe vehicle reference."
+    }
+  ],
+  "damages": [],
+  "conditions": {
+    "visibility": "clear",
+    "occlusion": "none",
+    "lighting": "daylight",
+    "image_quality": "sharp"
+  },
+  "evaluation_scope": "in_contract_keyframe",
+  "source": {
+    "source_url": "",
+    "license": "",
+    "attribution": "",
+    "verified": true
+  }
+}

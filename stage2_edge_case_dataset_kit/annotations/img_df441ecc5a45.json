@@ -1,0 +1,36 @@
+{
+  "asset_id": "img_df441ecc5a45",
+  "relative_path": "images/reflections_false_positives/reflections_false_positives__local_scenario_05_keyframe_02.jpg",
+  "image_width": 1920,
+  "image_height": 1080,
+  "category": "reflections_false_positives",
+  "damage_present": "no",
+  "damage_types": [],
+  "vehicles": [
+    {
+      "vehicle_id": "v01",
+      "bbox_xyxy": [
+        0,
+        0,
+        1920,
+        1080
+      ],
+      "part_masks_or_polygons": [],
+      "notes": "Full scene / keyframe vehicle reference."
+    }
+  ],
+  "damages": [],
+  "conditions": {
+    "visibility": "clear",
+    "occlusion": "none",
+    "lighting": "glare",
+    "image_quality": "sharp"
+  },
+  "evaluation_scope": "in_contract_keyframe",
+  "source": {
+    "source_url": "",
+    "license": "",
+    "attribution": "",
+    "verified": true
+  }
+}

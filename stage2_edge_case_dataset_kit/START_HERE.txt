@@ -1,0 +1,15 @@
+1. Read README.md.
+2. Give ANTIGRAVITY_PROMPT.md to Antigravity along with this kit.
+3. Have Antigravity acquire real images and record their source/license metadata.
+4. Or put images in incoming/ using filename prefixes such as:
+   subtle_damage__example1.jpg
+   multi_vehicle__parkinglot1.jpg
+   collision_damage__example2.jpg
+   part_boundaries__example3.jpg
+   occlusion__example4.jpg
+   reflections_false_positives__example5.jpg
+   undamaged_controls__example6.jpg
+5. Run: python tools/organize_assets.py
+6. Antigravity must verify Stage 2's actual interface and run its own direct test harness.
+
+This starter kit contains no real-world images yet. It intentionally avoids fake samples and unverified labels.

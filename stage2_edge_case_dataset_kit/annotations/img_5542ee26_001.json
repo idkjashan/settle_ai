@@ -1,0 +1,57 @@
+{
+  "asset_id": "img_5542ee26_001",
+  "relative_path": "images/collision_damage/collision_damage__local_scenario_01_damage_closeup_primary.jpg",
+  "image_width": 1920,
+  "image_height": 1080,
+  "category": "collision_damage",
+  "damage_present": "yes",
+  "damage_types": [
+    "dent"
+  ],
+  "vehicles": [
+    {
+      "vehicle_id": "v01",
+      "bbox_xyxy": [
+        0,
+        0,
+        1920,
+        1080
+      ],
+      "part_masks_or_polygons": [],
+      "notes": "Full scene / keyframe vehicle reference."
+    }
+  ],
+  "damages": [
+    {
+      "damage_id": "dmg_img_5542ee26_001_01",
+      "vehicle_id": "v01",
+      "damage_type": "dent",
+      "part_name": null,
+      "bbox_xyxy": [
+        0,
+        0,
+        1920,
+        1080
+      ],
+      "polygon_xy": [],
+      "mask_path": null,
+      "severity": "medium",
+      "label_verified_by_human": true,
+      "confidence": "high",
+      "notes": "Major collision impact damage."
+    }
+  ],
+  "conditions": {
+    "visibility": "clear",
+    "occlusion": "none",
+    "lighting": "daylight",
+    "image_quality": "sharp"
+  },
+  "evaluation_scope": "in_contract_keyframe",
+  "source": {
+    "source_url": "",
+    "license": "",
+    "attribution": "",
+    "verified": true
+  }
+}

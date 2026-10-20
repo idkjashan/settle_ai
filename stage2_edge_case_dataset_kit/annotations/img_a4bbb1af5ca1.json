@@ -1,0 +1,36 @@
+{
+  "asset_id": "img_a4bbb1af5ca1",
+  "relative_path": "images/multi_vehicle/multi_vehicle__wiki_151751062_File_Briggs_Chaney_Center_parking_lot_Fa.jpg",
+  "image_width": 8256,
+  "image_height": 5504,
+  "category": "multi_vehicle",
+  "damage_present": "no",
+  "damage_types": [],
+  "vehicles": [
+    {
+      "vehicle_id": "v01",
+      "bbox_xyxy": [
+        0,
+        0,
+        8256,
+        5504
+      ],
+      "part_masks_or_polygons": [],
+      "notes": "Full scene / keyframe vehicle reference."
+    }
+  ],
+  "damages": [],
+  "conditions": {
+    "visibility": "clear",
+    "occlusion": "none",
+    "lighting": "daylight",
+    "image_quality": "sharp"
+  },
+  "evaluation_scope": "adversarial_out_of_contract",
+  "source": {
+    "source_url": "",
+    "license": "",
+    "attribution": "",
+    "verified": true
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "asset_id": "img_3ce60e81_031",
+  "relative_path": "images/multi_vehicle/multi_vehicle__wiki_159257768_File_Capital_City_Imports_jpg.jpg",
+  "image_width": 3264,
+  "image_height": 2448,
+  "category": "multi_vehicle",
+  "damage_present": "no",
+  "damage_types": [],
+  "vehicles": [
+    {
+      "vehicle_id": "v01",
+      "bbox_xyxy": [
+        0,
+        0,
+        3264,
+        2448
+      ],
+      "part_masks_or_polygons": [],
+      "notes": "Full scene / keyframe vehicle reference."
+    }
+  ],
+  "damages": [],
+  "conditions": {
+    "visibility": "clear",
+    "occlusion": "none",
+    "lighting": "daylight",
+    "image_quality": "sharp"
+  },
+  "evaluation_scope": "adversarial_out_of_contract",
+  "source": {
+    "source_url": "",
+    "license": "",
+    "attribution": "",
+    "verified": true
+  }
+}

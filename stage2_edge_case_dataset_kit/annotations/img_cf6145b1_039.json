@@ -1,0 +1,38 @@
+{
+  "asset_id": "img_cf6145b1_039",
+  "relative_path": "images/occlusion/occlusion__wiki_101265144_File_A_Minnesota_National_Guard_vehicle_.jpg",
+  "image_width": 5366,
+  "image_height": 3577,
+  "category": "occlusion",
+  "damage_present": "uncertain",
+  "damage_types": [
+    "uncertain"
+  ],
+  "vehicles": [
+    {
+      "vehicle_id": "v01",
+      "bbox_xyxy": [
+        0,
+        0,
+        5366,
+        3577
+      ],
+      "part_masks_or_polygons": [],
+      "notes": "Full scene / keyframe vehicle reference."
+    }
+  ],
+  "damages": [],
+  "conditions": {
+    "visibility": "clear",
+    "occlusion": "partial",
+    "lighting": "daylight",
+    "image_quality": "sharp"
+  },
+  "evaluation_scope": "adversarial_out_of_contract",
+  "source": {
+    "source_url": "",
+    "license": "",
+    "attribution": "",
+    "verified": false
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "asset_id": "img_9f238a22_043",
+  "relative_path": "images/occlusion/occlusion__wiki_13105524_File_Disused_car_park_-_geograph_org_uk_.jpg",
+  "image_width": 640,
+  "image_height": 480,
+  "category": "occlusion",
+  "damage_present": "uncertain",
+  "damage_types": [
+    "uncertain"
+  ],
+  "vehicles": [
+    {
+      "vehicle_id": "v01",
+      "bbox_xyxy": [
+        0,
+        0,
+        640,
+        480
+      ],
+      "part_masks_or_polygons": [],
+      "notes": "Full scene / keyframe vehicle reference."
+    }
+  ],
+  "damages": [],
+  "conditions": {
+    "visibility": "clear",
+    "occlusion": "partial",
+    "lighting": "daylight",
+    "image_quality": "sharp"
+  },
+  "evaluation_scope": "adversarial_out_of_contract",
+  "source": {
+    "source_url": "",
+    "license": "",
+    "attribution": "",
+    "verified": false
+  }
+}

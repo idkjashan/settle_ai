@@ -1,0 +1,36 @@
+{
+  "asset_id": "img_b8f87e98c901",
+  "relative_path": "images/multi_vehicle/multi_vehicle__wiki_14946582_File_Customer_parking__Homer__Alaska_jpg.jpg",
+  "image_width": 2816,
+  "image_height": 1584,
+  "category": "multi_vehicle",
+  "damage_present": "no",
+  "damage_types": [],
+  "vehicles": [
+    {
+      "vehicle_id": "v01",
+      "bbox_xyxy": [
+        0,
+        0,
+        2816,
+        1584
+      ],
+      "part_masks_or_polygons": [],
+      "notes": "Full scene / keyframe vehicle reference."
+    }
+  ],
+  "damages": [],
+  "conditions": {
+    "visibility": "clear",
+    "occlusion": "none",
+    "lighting": "daylight",
+    "image_quality": "sharp"
+  },
+  "evaluation_scope": "adversarial_out_of_contract",
+  "source": {
+    "source_url": "",
+    "license": "",
+    "attribution": "",
+    "verified": true
+  }
+}

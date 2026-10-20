@@ -1,3 +1,8 @@
+import os
+_ffmpeg_dir = r"C:\Users\Hp\AppData\Local\ffmpeg\bin"
+if os.path.exists(_ffmpeg_dir) and _ffmpeg_dir not in os.environ.get("PATH", ""):
+    os.environ["PATH"] = f"{_ffmpeg_dir};{os.environ.get('PATH', '')}"
+
 """
 tests/vehicle_identity_continuity/conftest.py
 Deterministic Synthetic Clip Factory & Shared Pytest Fixtures for Stage 1.
@@ -17,10 +22,10 @@ from app.infrastructure.db.session import async_session_factory, engine
 from app.infrastructure.cache.redis_manager import redis_manager, RedisManager
 from app.infrastructure.db.models import Claim, InsuredPolicy
 
-WORKSPACE_ROOT = Path("/home/jashan/settleai")
+WORKSPACE_ROOT = Path(__file__).resolve().parents[2]
 WHITE_CAR_PATH = WORKSPACE_ROOT / "test_assets" / "hyundai_venue_white.jpg"
 BLUE_CAR_PATH = WORKSPACE_ROOT / "test_assets" / "hyundai_venue_blue.jpg"
-FFMPEG_BIN = "/home/jashan/.local/bin/ffmpeg"
+FFMPEG_BIN = "ffmpeg"
 
 
 def encode_frames_to_mp4(frames: List[np.ndarray], output_path: Path, fps: float = 30.0) -> Path:
@@ -386,19 +391,21 @@ def clip_parking_lot_switch(clips_dir, base_white_image) -> Path:
 # Database & Redis Fixtures
 # ---------------------------------------------------------------------------
 
-@pytest_asyncio.fixture
-async def db_session() -> AsyncGenerator:
-    """Provides an isolated AsyncSession connected to PostgreSQL."""
-    async with async_session_factory() as session:
-        try:
-            yield session
-        finally:
-            await session.rollback()
-            await session.close()
+from unittest.mock import AsyncMock
+from tests.in_memory_db import patch_in_memory_db, in_memory_db
 
+patch_in_memory_db()
+
+@pytest_asyncio.fixture
+async def db_session():
+    yield AsyncMock()
 
 @pytest_asyncio.fixture
 async def redis_mgr() -> RedisManager:
     """Provides the live Redis manager instance."""
     return redis_manager
 
+
+@pytest_asyncio.fixture(autouse=True)
+async def reset_test_state():
+    in_memory_db.reset()

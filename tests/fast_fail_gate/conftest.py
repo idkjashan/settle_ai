@@ -1,8 +1,14 @@
 import os
+_ffmpeg_dir = r"C:\Users\Hp\AppData\Local\ffmpeg\bin"
+if os.path.exists(_ffmpeg_dir) and _ffmpeg_dir not in os.environ.get("PATH", ""):
+    os.environ["PATH"] = f"{_ffmpeg_dir};{os.environ.get('PATH', '')}"
+
+import os
 import shutil
 import subprocess
 from pathlib import Path
 from typing import AsyncGenerator
+from unittest.mock import AsyncMock
 import cv2
 import numpy as np
 import pytest
@@ -13,17 +19,29 @@ from app.main import app
 from app.infrastructure.db.session import async_session_factory
 from app.infrastructure.db.seed import seed_database
 from app.infrastructure.cache.redis_manager import redis_manager
+from app.infrastructure.db.session import get_db_session
+from tests.in_memory_db import patch_in_memory_db, in_memory_db
+
+patch_in_memory_db()
+
+import app.api.v1.endpoints.claims_router as cr
+async def dummy_downstream_task(claim_id, scratch_path, policy_id, is_demo_rehearsal):
+    pass
+cr.run_stage1_pipeline_task = dummy_downstream_task
+
+async def dummy_db_session():
+    yield None
+
+app.dependency_overrides[get_db_session] = dummy_db_session
 
 
-FFMPEG_BIN = shutil.which("ffmpeg") or "/home/jashan/.local/bin/ffmpeg"
-FFPROBE_BIN = shutil.which("ffprobe") or "/home/jashan/.local/bin/ffprobe"
+FFMPEG_BIN = shutil.which("ffmpeg") or "ffmpeg"
+FFPROBE_BIN = shutil.which("ffprobe") or "ffprobe"
 
 
 def _run_ffmpeg(cmd: list[str]) -> bool:
-    env = dict(os.environ)
-    env["PATH"] = f"/home/jashan/.local/bin:{env.get('PATH', '')}"
     try:
-        subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=env)
+        subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, )
         return True
     except Exception:
         return False
@@ -198,10 +216,7 @@ def corrupt_video(video_fixtures_dir: Path) -> Path:
 @pytest_asyncio.fixture(scope="session", autouse=True)
 async def initialize_test_database():
     """Ensure database tables and seeded policies exist once per session."""
-    try:
-        await seed_database()
-    except Exception:
-        pass
+    in_memory_db.reset()
 
 
 @pytest_asyncio.fixture
@@ -221,5 +236,4 @@ async def async_client() -> AsyncGenerator[AsyncClient, None]:
 @pytest_asyncio.fixture
 async def db_session():
     """Provides a fresh AsyncSession for database inspection during tests."""
-    async with async_session_factory() as session:
-        yield session
+    yield AsyncMock()

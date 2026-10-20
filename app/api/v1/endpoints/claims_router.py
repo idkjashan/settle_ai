@@ -47,6 +47,9 @@ async def run_stage1_pipeline_task(
                 color_val=color_grounding_validator,
                 tracker=object_tracker,
             )
+            # Step 1: Execute Stage 1
+            stage1_passed = False
+            telemetry = None
             try:
                 telemetry = await stage1_orch.execute(
                     claim_id=claim_id,
@@ -54,7 +57,8 @@ async def run_stage1_pipeline_task(
                     policy_id=policy_id,
                     is_demo_rehearsal=is_demo_rehearsal,
                 )
-                logger.info(f"Stage 1 background execution complete for {claim_id}: passed={telemetry.passed}")
+                stage1_passed = bool(telemetry and telemetry.passed)
+                logger.info(f"Stage 1 background execution complete for {claim_id}: passed={stage1_passed}")
             except Exception as e:
                 logger.error(f"Stage 1 background execution failed for {claim_id}: {e}", exc_info=True)
                 # ponytail: mark claim REJECTED_STAGE1_ERROR so it never hangs in PROCESSING state
@@ -78,6 +82,104 @@ async def run_stage1_pipeline_task(
                     )
                 except Exception as db_err:
                     logger.critical(f"Failed to record stage 1 crash in DB for {claim_id}: {db_err}")
+                return
+
+            # Step 2: Handoff to Stage 2 (Dual-Mask Segmentation)
+            if stage1_passed and telemetry and telemetry.tracking_report and telemetry.tracking_report.saved_keyframes:
+                logger.info(f"Handoff to Stage 2 Dual-Mask Segmentation for claim {claim_id}...")
+                from app.domain.vehicle_identity_continuity.schemas import Stage2HandoffPayload
+                from app.domain.dual_mask_segmentation.orchestrator import get_stage2_orchestrator
+                from app.domain.dual_mask_segmentation.exceptions import (
+                    Stage2Error,
+                    Stage2ModelCompatibilityError,
+                )
+
+                try:
+                    redis_client = await redis_manager.get_client()
+                except Exception:
+                    redis_client = None
+
+                try:
+                    stage2_payload = Stage2HandoffPayload(
+                        claim_id=claim_id,
+                        policy_id=policy_id,
+                        scratch_video_path=str(scratch_path),
+                        keyframe_paths={k: str(v) for k, v in telemetry.tracking_report.saved_keyframes.items()},
+                        vehicle_telemetry=telemetry,
+                    )
+                    stage2_orch = get_stage2_orchestrator(
+                        db_session=db,
+                        redis_client=redis_client,
+                    )
+                    stage3_payload = await stage2_orch.execute(stage2_payload)
+                    logger.info(
+                        f"Stage 2 background execution complete for {claim_id}: "
+                        f"{len(stage3_payload.grounded_parts)} parts grounded."
+                    )
+                except Stage2Error as s2e:
+                    # Expected domain guardrail escalation (ESC-03, ESC-05, ESC-06, ESC-07)
+                    # The orchestrator has already recorded the escalation in PostgreSQL and emitted the SSE event.
+                    logger.warning(
+                        f"Stage 2 guardrail escalation for claim {claim_id}: "
+                        f"code={s2e.escalation_code}, message={s2e.message}"
+                    )
+                except Stage2ModelCompatibilityError as s2_compat_err:
+                    logger.error(
+                        f"Stage 2 model compatibility failure for {claim_id}: {s2_compat_err.message}",
+                        exc_info=True,
+                    )
+                    try:
+                        await claim_repo.update_claim_stage(
+                            claim_id=claim_id,
+                            stage="STAGE_2_SEGMENTATION",
+                            status="REJECTED_STAGE2_ERROR",
+                            escalation_code=None,
+                            failure_codes=["S2_MODEL_COMPATIBILITY_ERROR"],
+                        )
+                    except Exception as db_err:
+                        logger.critical(
+                            f"Failed to record stage 2 model compatibility error in DB for {claim_id}: {db_err}"
+                        )
+                    try:
+                        await redis_manager.publish_event(
+                            claim_id=claim_id,
+                            event_name="STAGE_2_FAILED",
+                            payload={
+                                "claim_id": str(claim_id),
+                                "status": "REJECTED_STAGE2_ERROR",
+                                "failure_codes": ["S2_MODEL_COMPATIBILITY_ERROR"],
+                            },
+                        )
+                    except Exception as redis_err:
+                        logger.warning(
+                            f"Failed to publish stage 2 compatibility failure event for {claim_id}: {redis_err}"
+                        )
+                except Exception as s2_err:
+                    logger.error(f"Stage 2 unexpected execution failure for {claim_id}: {s2_err}", exc_info=True)
+                    try:
+                        await claim_repo.update_claim_stage(
+                            claim_id=claim_id,
+                            stage="STAGE_2_SEGMENTATION",
+                            status="REJECTED_STAGE2_ERROR",
+                            escalation_code=None,
+                            failure_codes=["STAGE_2_INTERNAL_ERROR"],
+                        )
+                    except Exception as db_err:
+                        logger.critical(f"Failed to record stage 2 crash in DB for {claim_id}: {db_err}")
+                    try:
+                        await redis_manager.publish_event(
+                            claim_id=claim_id,
+                            event_name="STAGE_2_FAILED",
+                            payload={
+                                "claim_id": str(claim_id),
+                                "status": "REJECTED_STAGE2_ERROR",
+                                "failure_codes": ["STAGE_2_INTERNAL_ERROR"],
+                            },
+                        )
+                    except Exception as redis_err:
+                        logger.warning(
+                            f"Failed to publish stage 2 unexpected failure event for {claim_id}: {redis_err}"
+                        )
     finally:
         # ponytail: prevent disk exhaustion by unlinking scratch file after pipeline completes
         if scratch_path and Path(scratch_path).exists():

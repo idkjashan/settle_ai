@@ -1,0 +1,36 @@
+{
+  "asset_id": "img_af2b270f_106",
+  "relative_path": "images/undamaged_controls/undamaged_controls__wiki_144977048_File_Dronning_Sonjas_KunstStall__Queen_S.jpg",
+  "image_width": 7284,
+  "image_height": 4980,
+  "category": "undamaged_controls",
+  "damage_present": "no",
+  "damage_types": [],
+  "vehicles": [
+    {
+      "vehicle_id": "v01",
+      "bbox_xyxy": [
+        0,
+        0,
+        7284,
+        4980
+      ],
+      "part_masks_or_polygons": [],
+      "notes": "Full scene / keyframe vehicle reference."
+    }
+  ],
+  "damages": [],
+  "conditions": {
+    "visibility": "clear",
+    "occlusion": "none",
+    "lighting": "daylight",
+    "image_quality": "sharp"
+  },
+  "evaluation_scope": "in_contract_keyframe",
+  "source": {
+    "source_url": "",
+    "license": "",
+    "attribution": "",
+    "verified": true
+  }
+}

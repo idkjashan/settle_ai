@@ -1,0 +1,57 @@
+{
+  "asset_id": "img_31e5705b_078",
+  "relative_path": "images/subtle_damage/subtle_damage__wiki_186908581_File_Close_view_of_a_damaged_car_front_i.jpg",
+  "image_width": 6048,
+  "image_height": 4032,
+  "category": "subtle_damage",
+  "damage_present": "yes",
+  "damage_types": [
+    "scratch"
+  ],
+  "vehicles": [
+    {
+      "vehicle_id": "v01",
+      "bbox_xyxy": [
+        0,
+        0,
+        6048,
+        4032
+      ],
+      "part_masks_or_polygons": [],
+      "notes": "Full scene / keyframe vehicle reference."
+    }
+  ],
+  "damages": [
+    {
+      "damage_id": "dmg_img_31e5705b_078_01",
+      "vehicle_id": "v01",
+      "damage_type": "scratch",
+      "part_name": null,
+      "bbox_xyxy": [
+        0,
+        0,
+        6048,
+        4032
+      ],
+      "polygon_xy": [],
+      "mask_path": null,
+      "severity": "medium",
+      "label_verified_by_human": true,
+      "confidence": "high",
+      "notes": "Subtle paint scratch, dent, or scrape."
+    }
+  ],
+  "conditions": {
+    "visibility": "subtle",
+    "occlusion": "none",
+    "lighting": "daylight",
+    "image_quality": "sharp"
+  },
+  "evaluation_scope": "in_contract_keyframe",
+  "source": {
+    "source_url": "",
+    "license": "",
+    "attribution": "",
+    "verified": true
+  }
+}
