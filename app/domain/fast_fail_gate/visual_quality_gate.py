@@ -29,10 +29,15 @@ class VisualQualityValidator:
 
         sampled_metrics = self._execute_single_pass_scan(video_path, container_report)
 
-        if not sampled_metrics:
+        # ponytail: quorum attack prevention — if video terminated early and did not yield all planned sample points, fail container parse
+        if not sampled_metrics or len(sampled_metrics) < len(self.settings.SAMPLE_NORMALIZED_TIMESTAMPS):
+            logger.warning(
+                f"Visual Quality on {video_path.name}: insufficient samples ({len(sampled_metrics)}/{len(self.settings.SAMPLE_NORMALIZED_TIMESTAMPS)})"
+            )
             return VisualGateReport(
                 passed=False,
                 failure_codes=[FastFailFailureCode.CONTAINER_PARSE_FAILED],
+                sampled_frames=sampled_metrics or [],
                 duration_ms=(time.perf_counter() - t0) * 1000.0,
             )
 

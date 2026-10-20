@@ -28,7 +28,7 @@ The Fast-Fail Gate intercepts these submissions immediately.
   2. An in-flight lock is set in Redis (`SET claim:lock:{sha256} {claim_id} NX EX 60`).
   3. **Tier-1 SQL Gate:** PostgreSQL 16 executes a single indexed query verifying that the policy status is `ACTIVE`, the current date is within the coverage window, the annual cash claim count has not exceeded the yearly cap, and the SHA-256 digest has not been used in a prior active or settled claim. If Tier-1 fails, execution short-circuits immediately.
   4. **Tier-2 Media Forensics Gate:** Sandboxed `ffprobe` inspects container and stream metadata to enforce resolution $\ge 720\text{p}$, duration between $5.0\text{s}$ and $60.0\text{s}$, framerate $\ge 15.0\text{ FPS}$ (frames per second), and the absence of non-linear editor signatures.
-  5. **Tier-2 Visual Quality Gate:** OpenCV executes a single-pass sequential packet scan (`cap.grab()`) to sample 5 interior frames at normalized timestamps $p \in \{0.10, 0.30, 0.50, 0.70, 0.90\}$, verifying mean YUV (Luminance Y, Chrominance U, Chrominance V) luminance $\mu_Y \in [45, 235]$ and scale-normalized Laplacian sharpness variance $\sigma^2_{\nabla^2 I} \ge 80$.
+  5. **Tier-2 Visual Quality Gate:** OpenCV executes a single-pass sequential packet scan (`cap.grab()`) to sample 5 interior frames at normalized timestamps $p \in \{0.10, 0.30, 0.50, 0.70, 0.90\}$, verifying mean YUV (Luminance Y, Chrominance U, Chrominance V) luminance $\mu_Y \in [45, 220]$ and scale-normalized Laplacian sharpness variance $\sigma^2_{\nabla^2 I} \ge 80$.
 * **What comes out:** Either a fast-fail JSON (JavaScript Object Notation) payload (`HTTP 200 OK`, `passed=false`, `escalation_code="ESC-00"`, with actionable user remediation) or a success acknowledgement (`HTTP 202 Accepted`, `passed=true`, and an SSE (Server-Sent Events) stream URL).
 * **What is stored where:**
   * Rejected videos: Scratch file is unlinked immediately (`os.unlink`); Redis lock is deleted; an audit row with `claim_status = 'REJECTED_FAST_FAIL'` is logged in PostgreSQL if the policy exists. No bytes are sent to S3.
@@ -67,6 +67,11 @@ During the red-team audit between Draft v2.0 and Frozen v2.1, 8 critical failure
 | **6** | **Dual-Mode OpenCV Seeking Inaccuracy** | Calling `cap.set(cv2.CAP_PROP_POS_FRAMES, idx)` is non-deterministic on Variable Frame Rate (VFR) smartphone video and crashes on unindexed WebRTC WebM streams. | Replaced with a **Single-Pass Demuxer `grab()` Loop**: calling `cap.grab()` advances container packet pointers in $< 4\text{ ms}$ for 450 frames without decoding pixel buffers, decoding (`cap.retrieve()`) strictly at the 5 target sample frames. |
 | **7** | **Synchronous S3 Upload Latency Spike** | Uploading 25 MB to S3 within the synchronous HTTP handler adds $500\text{--}2500\text{ ms}$, breaching the $\le 400\text{ ms}$ SLA. | `POST /upload` validates the local scratch file and returns `HTTP 202` in $< 180\text{ ms}$. S3 upload executes in a FastAPI background task concurrently with `vehicle_identity_continuity` reading from local scratch. |
 | **8** | **Duration Boundary Ambiguity** | HLD diagrams specified `5s-45s` while text specified `5s-60s`. | Unified: Hard architectural rejection gate is $5.0\text{s} \le \text{duration} \le 60.0\text{s}$. Customer guidance prompts for a 15-second walkaround ($5\text{--}45\text{s}$ optimal). |
+| **9** | **Overexposed Video Ceiling Permitting Washed-Out Frames** | An overly lenient upper luminance ceiling ($\mu_Y \le 235.0$) permitted severe daylight overexposure ($\mu_Y \approx 224$), washing out fine paint scratches, clearcoat swirls, and shallow dent shadows. | **Tightened Luminance Upper Ceiling to $\mu_Y \le 220.0$** (`FAST_FAIL_MAX_LUMINANCE_Y = 220.0`), rejecting blinding glare and washouts via `VIDEO_TOO_BRIGHT`. |
+| **10** | **Truncated Video Quorum Attack False Pass** | Containers declaring $15\text{s}$ duration but containing only 1–2 decodable frames scaled down OpenCV sample count and passed visual quality because sample 0 was clean. | **Enforced Mandatory 5-Sample Quorum:** If `len(sampled_metrics) < len(SAMPLE_NORMALIZED_TIMESTAMPS)`, emit `CONTAINER_PARSE_FAILED` immediately, blocking corrupt/truncated streams. |
+| **11** | **Null-Tag Crash on Corrupt Container Streams** | In `container_forensics.py`, probing streams with empty or absent tag dictionaries (`tags=None`) triggered unhandled `TypeError: NoneType is not iterable`. | Wrapped metadata tag retrieval in `video_stream.get("tags") or {}` and robust dimension integer parsing with `(ValueError, TypeError)` exception guards. |
+| **12** | **In-Flight Redis Deduplication Lock Race Window** | Releasing the Redis in-flight lock before database commit permitted concurrent duplicate uploads with identical video bytes to slip past uniqueness checks. | **Ordered Lock Handoff:** In `FastFailGateOrchestrator.execute()`, moved Redis lock release to execute strictly *after* `claim_repo.create_claim()` has committed to PostgreSQL. |
+| **13** | **Background Task Exception Orphans & Disk Leaks** | Unhandled exceptions inside background Stage 1 coroutines left claims permanently stuck in `PROCESSING` and orphaned video files in `/tmp/autosettle_ingest/`. | In `claims_router.py`, wrapped background pipeline execution in `try ... finally` with explicit `scratch_path.unlink()`, and added global `except Exception` handler transitioning claim to `REJECTED_STAGE1_ERROR` (`ESC-02`) and emitting `STAGE_1_FAILED` SSE. |
 
 ### 1.5 HLD-to-LLD Traceability Matrix
 
@@ -76,7 +81,7 @@ During the red-team audit between Draft v2.0 and Frozen v2.1, 8 critical failure
 | **`REQ-S0-02`** | Compute SHA-256 hash to block duplicate video submissions immediately. | `ScratchIngestService` + `PolicyAndDedupeGate.validate_dedupe()` | Redis `claim:lock:{sha256}` + PostgreSQL partial index `idx_claims_unique_active_video_sha256` | `T0-09`, `T0-10`, `T0-11`, `T0-12` |
 | **`REQ-S0-03`** | Inspect container tags via `ffprobe`; reject edited videos (`CapCut`, `InShot`, `Adobe Premiere`, `DaVinci`, `FFmpeg-splice`). | `ContainerForensicsValidator.validate()` | `claims.fast_fail_telemetry -> container_gate` (`JSONB`) | `T0-13`, `T0-14` |
 | **`REQ-S0-04`** | Enforce resolution $\ge 720\text{p}$, duration $5.0\text{s}\text{--}60.0\text{s}$, and framerate $\ge 15.0\text{ FPS}$. | `ContainerForensicsValidator` + `VisualQualityValidator` (WebRTC duration fallback) | `claims.fast_fail_telemetry -> container_gate` (`JSONB`) | `T0-01`, `T0-02`, `T0-03`, `T0-15`, `T0-16`, `T0-17` |
-| **`REQ-S0-05`** | Sample 5 interior frames; reject if mean YUV luminance $\mu_Y < 45$ or $\mu_Y > 235$. | `VisualQualityValidator._evaluate_luminance()` | `claims.fast_fail_telemetry -> visual_gate` (`JSONB`) | `T0-18`, `T0-19` |
+| **`REQ-S0-05`** | Sample 5 interior frames; reject if mean YUV luminance $\mu_Y < 45$ or $\mu_Y > 220$. | `VisualQualityValidator._evaluate_luminance()` | `claims.fast_fail_telemetry -> visual_gate` (`JSONB`) | `T0-18`, `T0-19` |
 | **`REQ-S0-06`** | Compute 720p-normalized Laplacian sharpness $\sigma^2_{\nabla^2 I}$; reject if $< 80$ across quorum. | `VisualQualityValidator._evaluate_sharpness()` | `claims.fast_fail_telemetry -> visual_gate` (`JSONB`) | `T0-04`, `T0-20` |
 | **`REQ-S0-07`** | Return actionable user remediation on failure (`ESC-00`). | `RemediationMapper.map_failures()` | `claims.escalation_code = 'ESC-00'`, `claims.claim_status = 'REJECTED_FAST_FAIL'` | `T0-05` through `T0-21` |
 | **`REQ-S0-08`** | Provide rapid rehearsal reset and safe demo re-runs without duplicate lockout. | `demo_router.py` + `is_demo_rehearsal` flag | `POST /api/v1/demo/reset` + `claims.is_demo_rehearsal` | `T0-11` |
@@ -172,7 +177,7 @@ flowchart TD
 
     subgraph Tier2_Gates["4. Tier-2 Media Forensic Gates (< 250ms Threadpool CPU)"]
         G4["ContainerForensicsValidator (ffprobe)\n(Res >= 720p, Dur 5-60s, FPS >= 15, Editor Tag Check)"]
-        G5["VisualQualityValidator (OpenCV)\n(Single-Pass 5-Frame YUV [45, 235] + 720p Laplacian >= 80)"]
+        G5["VisualQualityValidator (OpenCV)\n(Single-Pass 5-Frame YUV [45, 220] + 720p Laplacian >= 80)"]
     end
 
     subgraph Routing_Handoff["5. Two-Phase Decision & Asynchronous Handoff"]
@@ -181,7 +186,7 @@ flowchart TD
         
         Fail_Action["Fast-Fail Handler (ESC-00):\n1. os.unlink local scratch file\n2. DEL claim:lock:{sha256} from Redis\n3. INSERT claim (status='REJECTED_FAST_FAIL') in PostgreSQL\n4. Return HTTP 200 with Remediation JSON"]
         
-        Pass_Action["Pass Handler (HTTP 202 Accepted):\n1. INSERT claim (status='PROCESSING') in PostgreSQL\n2. PUBLISH claim:events:{claim_id} 'FAST_FAIL_GATE_PASSED' to Redis SSE\n3. Retain local /tmp file lease for vehicle_identity_continuity\n4. Dispatch BackgroundTask: Upload /tmp -> S3 + Run vehicle_identity_continuity"]
+        Pass_Action["Pass Handler (HTTP 202 Accepted):\n1. INSERT claim (status='PROCESSING') in PostgreSQL\n2. DEL claim:lock:{sha256} from Redis (Post-Commit Lock Release)\n3. PUBLISH claim:events:{claim_id} 'FAST_FAIL_GATE_PASSED' to Redis SSE\n4. Retain local /tmp file lease for vehicle_identity_continuity\n5. Dispatch BackgroundTask: Upload /tmp -> S3 + Run vehicle_identity_continuity"]
     end
 
     C1 & C2 -- "Multipart POST /api/v1/claims/upload" --> I1
@@ -331,11 +336,12 @@ sequenceDiagram
 
     Orch->>Pool: run_in_threadpool(validate_media, path, sha256, size)
     Pool->>Pool: 1. ffprobe subprocess (Res >= 720p, Dur 5-60s, FPS >= 15, No Editor Tags)
-    Pool->>Pool: 2. OpenCV Single-Pass grab() Loop (Luminance [45, 235], Laplacian >= 80)
+    Pool->>Pool: 2. OpenCV Single-Pass grab() Loop (Luminance [45, 220], Laplacian >= 80, 5-Sample Quorum)
     Pool-->>Orch: (ContainerGateReport, VisualGateReport) -> All Passed
 
     Orch->>DB: INSERT claims (status='PROCESSING', current_stage='STAGE_1_IDENTITY', telemetry)
     DB-->>Orch: Success
+    Orch->>Redis: DEL claim:lock:{sha256} (Released AFTER DB Commit)
     Orch->>Redis: PUBLISH claim:events:{claim_id} (FAST_FAIL_GATE_PASSED)
     
     Orch->>Ingest: lease.transfer_to_downstream() [Prevents /tmp deletion]
@@ -710,14 +716,15 @@ The application must execute `seed.py` on startup to idempotently insert (`ON CO
        * If not `ret` or `frame_bgr is None`: continue.
        * **Luminance Calculation ($\mu_{Y, i}$):** Convert BGR (Blue, Green, Red) to YUV using `cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2YUV)`. Extract channel 0 ($Y$ channel):
          $$\mu_{Y, i} = \frac{1}{H \cdot W} \sum_{u=1}^H \sum_{v=1}^W Y_i(u, v)$$
-         Flag `is_dark = (mean_y < 45.0)` and `is_overexposed = (mean_y > 235.0)`.
+         Flag `is_dark = (mean_y < 45.0)` and `is_overexposed = (mean_y > 220.0)`.
        * **720p-Normalized Laplacian Sharpness ($\sigma^2_{\nabla^2 I, i}$):**
          Let $s = \min(H, W)$. If $s > 720$, resize $Y_i$ using `cv2.INTER_AREA` by scaling factor $\frac{720}{s}$ to normalize for camera sensor resolution:
          $$\sigma^2_{\nabla^2 I, i} = \text{Var}\left(\text{cv2.Laplacian}(Y_{\text{norm}, i}, \text{cv2.CV_64F})\right)$$
          Flag `is_blurry = (laplacian_var < 80.0)`.
-  7. **Quorum Evaluation across Sampled Frames:**
+  7. **Quorum & Sample Integrity Evaluation:**
+     * **Sample Quorum Integrity:** If fewer than the planned 5 interior frames could be retrieved (`len(sampled_metrics) < len(SAMPLE_NORMALIZED_TIMESTAMPS)`), immediately emit `CONTAINER_PARSE_FAILED`. This blocks truncated containers (which declare a full duration in metadata but only hold 1–2 decodable frames) from evading detection via partial sample counts.
      * `VIDEO_TOO_DARK`: Emitted if aggregate $\frac{1}{N}\sum \mu_{Y,i} < 45.0$ OR $\ge 3$ of 5 frames have `is_dark == True`.
-     * `VIDEO_OVEREXPOSED`: Emitted if aggregate $\frac{1}{N}\sum \mu_{Y,i} > 235.0$ OR $\ge 3$ of 5 frames have `is_overexposed == True`.
+     * `VIDEO_TOO_BRIGHT`: Emitted if aggregate $\frac{1}{N}\sum \mu_{Y,i} > 220.0$ OR $\ge 3$ of 5 frames have `is_overexposed == True`.
      * `VIDEO_TOO_BLURRY`: Emitted if $\max_i(\sigma^2_{\nabla^2 I, i}) < 80.0$ (all frames blurry) OR fewer than 2 frames have `is_blurry == False`.
 
 ### 5.6 `RemediationMapper` (`app/domain/fast_fail_gate/remediation_mapper.py`)
@@ -821,7 +828,7 @@ All operational thresholds are defined in `app/core/config.py` using `pydantic_s
 | `FAST_FAIL_MIN_FPS` | `float` | `15.0` | Minimum allowable framerate (blocks low-rate photo slideshows). |
 | `FAST_FAIL_SAMPLE_POSITIONS` | `tuple` | `(0.1, 0.3, 0.5, 0.7, 0.9)` | Normalized frame timestamps for interior OpenCV sampling. |
 | `FAST_FAIL_MIN_LUMINANCE_Y` | `float` | `45.0` | Lower bound for mean YUV luminance (darkness gate). |
-| `FAST_FAIL_MAX_LUMINANCE_Y` | `float` | `235.0` | Upper bound for mean YUV luminance (glare / overexposure gate). |
+| `FAST_FAIL_MAX_LUMINANCE_Y` | `float` | `220.0` | Upper bound for mean YUV luminance (glare / overexposure gate). |
 | `FAST_FAIL_MIN_LAPLACIAN_VAR` | `float` | `80.0` | Lower bound for 720p-normalized Laplacian sharpness variance. |
 | `FAST_FAIL_MIN_VALID_FRAMES_QUORUM` | `int` | `2` | Minimum sampled frames (out of 5) that must pass visual checks. |
 
@@ -976,7 +983,7 @@ All operational thresholds are defined in `app/core/config.py` using `pydantic_s
 | `DURATION_OUT_OF_BOUNDS` | `duration < 5.0s` or `duration > 60.0s`. | `true` | `false` | `"Video duration must be between 5 and 60 seconds (aim for a steady 15-second walkaround from plate to dent)."` |
 | `FRAMERATE_TOO_LOW` | `fps < 15.0`. | `true` | `true` | `"Video framerate is too choppy (< 15 FPS). Please record a smooth, continuous video."` |
 | `VIDEO_TOO_DARK` | Mean $\mu_Y < 45$ or $\ge 3/5$ frames $< 45$. | `true` | `false` | `"Video is too dark to inspect paint depth. Please film in daylight or turn on your camera flash."` |
-| `VIDEO_OVEREXPOSED` | Mean $\mu_Y > 235$ or $\ge 3/5$ frames $> 235$. | `true` | `false` | `"Video is overexposed with strong glare. Please adjust your angle to avoid direct sunlight reflection."` |
+| `VIDEO_TOO_BRIGHT` | Mean $\mu_Y > 220$ or $\ge 3/5$ frames $> 220$. | `true` | `false` | `"Video is overexposed with strong glare. Please adjust your angle to avoid direct sunlight reflection."` |
 | `VIDEO_TOO_BLURRY` | Max $\sigma^2_{\nabla^2 I} < 80$ or $< 2/5$ frames $\ge 80$. | `true` | `false` | `"Video is too blurry due to camera motion. Please hold the camera steady and pause briefly on the damage."` |
 
 ---
@@ -1029,7 +1036,7 @@ ffmpeg -y -f lavfi -i testsrc2=size=1280x720:rate=30:duration=10 -c:v libx264 -p
 | `v7_short_3sec.mp4` | `-t 3.0` | Triggers `DURATION_OUT_OF_BOUNDS` (`duration=3.0s < 5.0s`). |
 | `v8_slideshow_8fps.mp4` | `-vf fps=8` | Triggers `FRAMERATE_TOO_LOW` (`fps=8.0 < 15.0`). |
 | `v9_night_dark.mp4` | `-vf eq=brightness=-0.75:contrast=0.25` | Triggers `VIDEO_TOO_DARK` ($\mu_Y < 45.0$). |
-| `v10_glare_overexposed.mp4` | `-vf eq=brightness=0.85:contrast=0.20` | Triggers `VIDEO_OVEREXPOSED` ($\mu_Y > 235.0$). |
+| `v10_glare_overexposed.mp4` | `-vf eq=brightness=0.85:contrast=0.20` | Triggers `VIDEO_TOO_BRIGHT` ($\mu_Y > 220.0$). |
 | `v11_motion_blur.mp4` | `-vf gblur=sigma=20` | Triggers `VIDEO_TOO_BLURRY` ($\sigma^2_{\nabla^2 I} < 15.0 < 80.0$). |
 | `fuzz_garbage.mp4` | 512 bytes of random bytes named `-malicious.mp4` | Triggers `CORRUPT_OR_UNREADABLE_MEDIA` and verifies `--` flag protection. |
 
@@ -1055,7 +1062,7 @@ ffmpeg -y -f lavfi -i testsrc2=size=1280x720:rate=30:duration=10 -c:v libx264 -p
 | **`T0-16`** | Duration Gate | `POL-HAPPY-001` + `v7_short_3sec.mp4` | `HTTP 200`, `passed=False`, `failure_codes=["DURATION_OUT_OF_BOUNDS"]`. |
 | **`T0-17`** | Framerate Gate | `POL-HAPPY-001` + `v8_slideshow_8fps.mp4` | `HTTP 200`, `passed=False`, `failure_codes=["FRAMERATE_TOO_LOW"]`. |
 | **`T0-18`** | Darkness Gate | `POL-HAPPY-001` + `v9_night_dark.mp4` | `HTTP 200`, `passed=False`, `failure_codes=["VIDEO_TOO_DARK"]`, $\mu_Y < 45.0$. |
-| **`T0-19`** | Glare Gate | `POL-HAPPY-001` + `v10_glare_overexposed.mp4` | `HTTP 200`, `passed=False`, `failure_codes=["VIDEO_OVEREXPOSED"]`, $\mu_Y > 235.0$. |
+| **`T0-19`** | Glare Gate | `POL-HAPPY-001` + `v10_glare_overexposed.mp4` | `HTTP 200`, `passed=False`, `failure_codes=["VIDEO_TOO_BRIGHT"]`, $\mu_Y > 220.0$. |
 | **`T0-20`** | Blurriness Gate | `POL-HAPPY-001` + `v11_motion_blur.mp4` | `HTTP 200`, `passed=False`, `failure_codes=["VIDEO_TOO_BLURRY"]`, $\sigma^2_{\nabla^2 I} < 80.0$. |
 | **`T0-21`** | Fuzz & Injection | Upload `fuzz_garbage.mp4` named `-malicious.mp4` | `HTTP 200`, `passed=False`, `failure_codes=["CORRUPT_OR_UNREADABLE_MEDIA"]`, `--` prevents injection. |
 

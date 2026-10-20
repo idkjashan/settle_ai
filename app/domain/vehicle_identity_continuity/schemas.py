@@ -119,6 +119,7 @@ class TrackingAndKeyframeResult(BaseModel):
     track_lost_count: int = 0
     closeup_handoff_triggered: bool = False
     saved_keyframes: Dict[str, str] = {}  # e.g., {"front_bumper": "/tmp/...", "damage_closeup_primary": "/tmp/..."}
+    curated_keyframes: List[str] = []  # Top-N non-redundant trajectory keyframes for Stage 2
     late_plate_verified: bool = False
     failure_code: Optional[str] = None
     duration_ms: float = 0.0

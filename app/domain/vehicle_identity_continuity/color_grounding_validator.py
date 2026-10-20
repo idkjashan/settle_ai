@@ -9,16 +9,37 @@ from app.core.logging import logger
 
 STANDARD_COLOR_BOUNDS = {
     "WHITE": {"type": "achromatic", "s_max": 65, "v_min": 85, "v_max": 255},
-    "BLACK": {"type": "achromatic", "v_max": 65},
+    "BLACK": {"type": "achromatic", "s_max": 45, "v_max": 100},
     "SILVER": {"type": "achromatic", "s_max": 55, "v_min": 90, "v_max": 220},
     "GREY": {"type": "achromatic", "s_max": 55, "v_min": 60, "v_max": 180},
     "GRAY": {"type": "achromatic", "s_max": 55, "v_min": 60, "v_max": 180},
     "RED": {"type": "chromatic", "target_h": 5, "s_min": 80, "v_min": 70},
-    "BLUE": {"type": "chromatic", "target_h": 115, "s_min": 80, "v_min": 60},
+    "BLUE": {"type": "chromatic", "target_h": 115, "s_min": 55, "v_min": 60},
     "GREEN": {"type": "chromatic", "target_h": 60, "s_min": 70, "v_min": 60},
     "YELLOW": {"type": "chromatic", "target_h": 25, "s_min": 100, "v_min": 120},
     "ORANGE": {"type": "chromatic", "target_h": 15, "s_min": 100, "v_min": 100},
+    "BROWN": {"type": "chromatic", "target_h": 15, "s_min": 30, "v_min": 30},
 }
+
+CANONICAL_COLOR_KEYWORDS = (
+    "WHITE", "BLACK", "SILVER", "GREY", "GRAY",
+    "RED", "BLUE", "GREEN", "YELLOW", "ORANGE", "BROWN"
+)
+
+def extract_canonical_color_keyword(raw_color: str) -> str:
+    """
+    Extract canonical color keyword from multi-word or composite automotive color name.
+    # ponytail: Token matching handles composite automotive names (e.g. 'Metallic Blue' -> 'BLUE')
+    """
+    norm = raw_color.upper().replace("-", " ").replace("_", " ")
+    tokens = norm.split()
+    for kw in CANONICAL_COLOR_KEYWORDS:
+        if kw in tokens:
+            return kw
+    for kw in CANONICAL_COLOR_KEYWORDS:
+        if kw in norm:
+            return kw
+    return norm
 
 class ColorGroundingValidator:
     def __init__(self):
@@ -31,7 +52,8 @@ class ColorGroundingValidator:
         grounding_context: PolicyGroundingContext,
     ) -> ColorValidationResult:
         t0 = time.perf_counter()
-        expected_color_name = grounding_context.registered_color.upper()
+        raw_color = grounding_context.registered_color.upper()
+        expected_color_name = extract_canonical_color_keyword(raw_color)
 
         if frame_bgr is None or vehicle_bbox is None:
             return ColorValidationResult(
@@ -46,6 +68,15 @@ class ColorGroundingValidator:
         x1, y1 = max(0, x1), max(0, y1)
         x2, y2 = min(w_f, x2), min(h_f, y2)
 
+        # ponytail: guard against degenerate/inverted bounding boxes
+        if x2 <= x1 or y2 <= y1:
+            return ColorValidationResult(
+                is_color_match=False,
+                expected_color_name=expected_color_name,
+                failure_code="ESC-01",
+                duration_ms=(time.perf_counter() - t0) * 1000.0,
+            )
+
         # Crop vehicle center panel (ignore top 20% for windshield/sky and bottom 15% for tires)
         vh = y2 - y1
         vw = x2 - x1
@@ -54,9 +85,21 @@ class ColorGroundingValidator:
         crop_x1 = int(x1 + vw * 0.15)
         crop_x2 = int(x1 + vw * 0.85)
 
-        veh_crop = frame_bgr[crop_y1:crop_y2, crop_x1:crop_x2]
+        if crop_x2 <= crop_x1 or crop_y2 <= crop_y1:
+            veh_crop = frame_bgr[y1:y2, x1:x2]
+        else:
+            veh_crop = frame_bgr[crop_y1:crop_y2, crop_x1:crop_x2]
+
         if veh_crop.size == 0:
             veh_crop = frame_bgr[y1:y2, x1:x2]
+
+        if veh_crop.size == 0:
+            return ColorValidationResult(
+                is_color_match=False,
+                expected_color_name=expected_color_name,
+                failure_code="ESC-01",
+                duration_ms=(time.perf_counter() - t0) * 1000.0,
+            )
 
         hsv = cv2.cvtColor(veh_crop, cv2.COLOR_BGR2HSV)
         h_channel = hsv[:, :, 0].flatten()
@@ -99,9 +142,11 @@ class ColorGroundingValidator:
                 delta_e = max(0.0, median_sat - s_thresh) * 1.5 + max(0.0, v_thresh - median_val)
                 is_match = (median_sat <= s_thresh) and (median_val >= v_thresh) and (delta_e <= self.settings.MAX_HSV_COLOR_DELTA)
             elif expected_color_name == "BLACK":
-                # Black: very low value
-                is_match = median_val <= bounds.get("v_max", 70)
-                delta_e = max(0.0, median_val - 70.0)
+                # ponytail: Black vehicle daylight reflection tolerance (glossy clearcoat raises V to 75-95, sky reflections are low sat)
+                s_thresh = bounds.get("s_max", 45)
+                v_thresh = bounds.get("v_max", 100)
+                is_match = (median_sat <= s_thresh) and (median_val <= v_thresh)
+                delta_e = max(0.0, median_val - float(v_thresh)) + max(0.0, median_sat - float(s_thresh))
             elif expected_color_name in ("SILVER", "GREY", "GRAY"):
                 # Silver/Grey: low saturation, mid value
                 is_match = (median_sat <= bounds.get("s_max", 55)) and (bounds.get("v_min", 60) <= median_val <= bounds.get("v_max", 220))

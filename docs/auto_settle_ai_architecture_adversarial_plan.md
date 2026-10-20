@@ -34,12 +34,12 @@ flowchart TD
     subgraph S1["Vehicle Identity & Continuity (Stage 1): Identity Grounding & Anti-Fraud"]
         A4 -- "Yes" --> B["Gate 1: Fast CPU Cut & Splice Firewall\n(PySceneDetect + 4x4 HSV Grid + SSIM)"]
         B --> C["Gate 2: Progressive ANPR & Color Grounding\n(2-Line PP-OCRv4 + Circular HSV Distance)"]
-        C --> D["Gate 3: Reset-Safe Strided ByteTrack & Keyframes\n(YOLO ByteTrack + Close-Up Zoom Hand-Off)"]
+        C --> D["Gate 3: Reset-Safe Strided ByteTrack & Keyframes\n(ByteTrack + Adaptive Trajectory Curation)"]
         D --> F{"Same Car & Unbroken\nVideo Verified?"}
     end
 
     subgraph S2["Dual-Mask Segmentation (Stage 2): Part & Damage Mapping"]
-        F -- "Yes" --> G["Best-Frame Selector per Damaged Part\n(Pick Sharpest, Least-Glare Frame)"]
+        F -- "Yes" --> G["Damage-Part Keyframe Grounder\n(Peak IoP Grouping across Keyframes)"]
         G --> H["Model A: Part Segmentation\n(YOLO11m-seg: 23 Car Part Classes)"]
         G --> I["Model B: Damage Segmentation\n(YOLO11m-seg: 6 Damage Classes)"]
         H & I --> J["Boundary Spillover Filter &\nDamage-to-Part Area Ratio (IoP)"]
@@ -126,9 +126,11 @@ Below is the refined, pragmatic 7-stage pipeline, including the **KISS (Keep It 
      * **Software Tag Check:** If `encoder` or `handler_name` contains strings like `CapCut`, `InShot`, `Adobe Premiere`, `DaVinci`, or `FFmpeg-splice`, flag `METADATA_EDITED_VIDEO`.
      * **Resolution & Duration Gate:** Reject if resolution $< 720\text{p}$ or duration $< 5\text{ seconds}$ or $> 60\text{ seconds}$.
 3. **Basic Lighting, Glare & Blur Gate (OpenCV):**
-   * Sample 5 evenly spaced frames:
-     * **Darkness Check:** Compute mean pixel luminance $\mu_Y$ in YUV space. If $\mu_Y < 45$ (too dark) or $\mu_Y > 235$ (completely overexposed), prompt the user: *"Video is too dark/bright. Please film in even lighting."*
-     * **Blur Check:** Compute variance of the Laplacian $\sigma^2_{\nabla^2 I}$. If $\sigma^2_{\nabla^2 I} < 80$ across all sampled frames, ask the user to hold the camera steady.
+   * Sample 5 interior frames at normalized timestamps:
+     * **Darkness & Glare Check:** Compute mean pixel luminance $\mu_Y$ in YUV space. If $\mu_Y < 45$ (too dark) or $\mu_Y > 220$ (severe daylight glare/overexposure washing out scratch details), prompt the user: *"Video is too dark/bright. Please film in even lighting."*
+     * **Blur Check:** Compute 720p-normalized variance of the Laplacian $\sigma^2_{\nabla^2 I}$. If $\sigma^2_{\nabla^2 I} < 80$ across quorum, ask the user to hold the camera steady.
+     * **Sample Quorum Guard:** All 5 planned interior frames must be successfully decoded; if decodable frames $< 5$, emit `CONTAINER_PARSE_FAILED` to block truncated containers from evading checks.
+     * **Ordered Lock Handoff:** Redis in-flight deduplication lock is released strictly *after* active claim record commit to PostgreSQL, preventing concurrent upload race conditions.
 
 ---
 
@@ -146,42 +148,52 @@ Below is the refined, pragmatic 7-stage pipeline, including the **KISS (Keep It 
      * Downsamples frames to $320 \times 180$ (`cv2.INTER_AREA`).
      * Evaluates 160-bin concatenated HSV histogram correlation ($r_t < 0.60$) and `PySceneDetect` `ContentDetector` ($\ge 27.0$).
      * Detects subtle same-car splices (Jury Demo 2) via triggered $4\times4$ spatial grid HSV correlation ($r_{t,\text{p25}} < 0.52$) and $8\times8$ block SSIM ($< 0.68$).
-     * Rejects freeze-frame inserts ($> 15$ duplicate frames). Spliced videos fail with `ESC-02` immediately on CPU with zero GPU spend.
+     * **Whip-Pan Tolerance:** Requires both HSV distance spike AND structural correlation/SSIM collapse before triggering cut rejection, preventing false cuts on rapid corner turns.
+     * **FPS-Scaled Freeze Protection:** Dynamically scales freeze-frame limit by video framerate (`max_frozen_allowed = max(15, int(fps * 0.75))`, 750ms tolerance), preventing false positives on smartphone Optical Image Stabilization (OIS) pauses. Spliced videos fail with `ESC-02` immediately on CPU with zero GPU spend.
   2. **Gate 2: Progressive ANPR & Vehicle Paint Grounding ($< 250\text{ ms}$):**
-     * Scans initial window ($0.0\text{s}\text{--}3.5\text{s}$) with `yolo11m-seg` vehicle mask extraction ($\ge 12\%$ frame area).
+     * Scans initial window ($0.0\text{s}\text{--}3.5\text{s}$) with `yolo11m-seg` vehicle mask extraction ($\ge 6\%$ frame area, accommodating wide exterior walkarounds).
      * Enforces spatial mounting priors (within dilated vehicle mask, bumper vertical zone $y_{\text{rel}} \in [0.28, 0.96]$, plate scale ratio).
+     * **Cross-Frame IoU Tracking:** Tracks vehicle bounding boxes across initial window frames ($\text{IoU} \ge 0.35$). Prioritizes persistent foreground candidates ($\ge 2$ hits, largest area) to ground the stationary claim car and ignore passing background traffic.
+     * **Structural Plate Regex & Global Plate Length Floor:** Accepts registrations with $\ge 5$ characters (supporting 5–7 character UK, Australian, and US plates) and validates structural regex (Indian HSRP `^[A-Z]{2}[0-9]{1,2}[A-Z]{0,3}[0-9]{4}$`, Indian BH `^[0-9]{2}BH[0-9]{4}[A-Z]{1,2}$`, and generic alphanumeric `^(?=.*[A-Z])(?=.*[0-9])[A-Z0-9]{5,10}$`), filtering letter-only brand badges ("TURBO", "HYUNDAI").
      * Handles stacked 2-line Indian HSRP plates via vertical-proximity polygon merging.
      * Evaluates optical homoglyph-weighted edit distance ($D_w$) against `insured_policies.registration_number` with Gemini 2.5 Flash VLM fallback on ambiguous/blurred crops.
-     * Implements **Two-Phase Progressive Discovery**: If the claimant starts filming on the side door (reverse walkaround) or the camera takes $2\text{s}$ to autofocus, plate check defers to candidate sharp vehicle crops along the tracklet instead of falsely rejecting.
-     * Validates paint-filtered circular Hue-Saturation-Value body paint distance ($\Delta E_{\text{HSV}} \le 35.0$) against policy records. Mismatches trigger `ESC-01`.
-  3. **Gate 3: Reset-Safe Strided ByteTrack & Inline Keyframe Extraction ($< 500\text{ ms}$):**
+     * **Two-Phase Progressive Discovery & Late Color Enforcement:** If the claimant starts filming on the side door (reverse walkaround) or the camera takes $2\text{s}$ to autofocus, plate check defers to candidate sharp vehicle crops along the tracklet. Once verified in Gate 3, `color_validator.validate_paint_color` evaluates the late vehicle anchor before claim approval.
+     * **Composite Color Normalization & Daylight Clearcoat Bounds:** Extracts canonical color roots (`extract_canonical_color_keyword()`) handling multi-word policy names like `"Metallic Blue"` $\rightarrow$ `"BLUE"` or `"Pearl White"` $\rightarrow$ `"WHITE"`. Expands black paint bounds to $S \le 45, V \le 100$ to accommodate glossy clearcoat reflections under open daylight. Validates paint-filtered circular HSV body paint distance ($\Delta E_{\text{HSV}} \le 35.0$). Mismatches trigger `ESC-01`.
+  3. **Gate 3: Reset-Safe Strided ByteTrack & Adaptive Trajectory Quality Curation ($< 500\text{ ms}$):**
      * Serialized under an `asyncio.Semaphore(1)` GPU lock, explicitly resets ByteTrack state (`model.predictor.trackers[0].reset()`) before Frame 0 to prevent multi-tenant state leaks.
      * Runs strided tracking (`vid_stride=3`) with scale-aware close-up zoom hand-off: when claimant zooms close to the dent ($A_t \ge 0.50$), whole-car detector dropout is forgiven.
-     * Scores Laplacian sharpness and specular glare penalty *inline in memory* during tracking, atomically saving the winning native 1080p frames (`front_bumper`, `side_body_panel`, `damage_closeup_primary`) for Stage 2.
+     * **Foreground Target Persistence:** In multi-car or parking lot scenes, latches onto the candidate with $\max(\text{box\_area})$ meeting $\ge 12\%$ frame area, preventing small background cars from stealing the tracker ID.
+     * **Adaptive Trajectory Quality Curation:** Dynamically scales keyframe density with video duration:
+       $$N = \max(8, \min(30, \text{int}(T \cdot \text{fps})))$$
+       Yields $15\text{--}25$ high-resolution native frames (`keyframe_01.jpg` .. `keyframe_NN.jpg`) written atomically to `/tmp/autosettle_keyframes/{claim_id}/`.
+     * **Canonical Perspective Aliases:** Maximizes cumulative quality $\sum (S_{\text{lap}} - 150 \cdot G_{\text{glare}})$ to select 3 strictly distinct canonical views (`front_bumper.jpg`, `side_body_panel.jpg`, `damage_closeup_primary.jpg`) subject to pairwise temporal separation $\min |f_i - f_j| > 20$ frames (0% duplicate hash invariant).
 
 ---
 
 ### Dual-Mask Segmentation (Stage 2): Part-to-Damage Mapping
 
 > ### 💡 Plain-English Summary: What happens here and why?
-> * **What we do:** Once we pick the clearest video frame of the damaged area, we run two AI vision models side-by-side:
->   * **Model A** outlines and names the **car parts** (e.g., `front_left_door`, `front_bumper`, `left_mirror`).
->   * **Model B** outlines and names the **damage** (e.g., `dent`, `scratch`, `crack`, `lamp_broken`).
->   * We then overlap the two outlines (like two transparent sheets) to see **which part** is damaged and **what percentage** of that part is covered by the damage.
-> * **Why we use outlines (Segmentation) instead of rectangles (Bounding Boxes):** A long diagonal scratch across a door creates a huge rectangle that covers 70% of the door, even though the scratch itself is thin. Using exact pixel outlines tells us the true size of the scratch.
-> * **Why we don't match images to the parts database:** Catalogue photos of spare parts are unpainted black/grey studio diagrams. Matching a sunny photo of a red car door to a black-and-white diagram fails constantly. Instead, Model A gives us the exact part name (`front_left_door`), which we look up directly in our SQL database!
+> * **What we do:** Once Stage 1 provides the curated portfolio of clear video keyframes, Stage 2 runs two AI vision models side-by-side across these frames:
+>   * **Model A (Carparts-Seg)** outlines and names the **car parts** (e.g., `front_left_door`, `front_bumper`, `left_mirror` across 23 classes).
+>   * **Model B (Damage-Seg)** outlines and names the **damage** (e.g., `dent`, `scratch`, `crack`, `lamp_broken` across 6 classes).
+>   * We then calculate the pixel overlap to see **which part** is damaged and **what percentage** of that part is covered by the damage.
+> * **Why Stage 1 curates 8–30 keyframes instead of passing all 600 video frames:**
+>   A 20-second 30 FPS video contains 600 raw frames. Running dual neural segmentation models on 600 frames would take ~45 seconds (violating our $< 1.5\text{s}$ SLA), saturate the 8 GB GPU VRAM, and overcount the same dent 100 times. By adaptively curating 15–25 sharp, glare-free keyframes, Stage 2 completes dual segmentation in only $150\text{--}225\text{ ms}$ on our RTX 4060 GPU and achieves complete inspection coverage.
+> * **How Stage 2 intelligently groups damage across frames without rigid timeline assumptions:**
+>   Claimants walk around cars in unpredictable sequences: starting at the back, lingering at a dent, or walking fast. Stage 1 does not guess part identities using fragile timeline fractions ($t \le 0.33$). Instead, Stage 2's `Carparts-Seg` identifies the exact part in every keyframe natively, and groups damage detections by host part using peak Intersection over Part ($\text{IoP}$). If the dent on `front_left_door` is visible in `keyframe_04.jpg` through `keyframe_07.jpg`, Stage 2 automatically selects the keyframe with peak part visibility and sharpness for actuarial pricing and VLM depth inspection.
 
 ```mermaid
 flowchart LR
-    A["Best Keyframe\n(Sharpest Mid-Shot)"] --> B["Model A: Carparts-Seg\nFinds 'front_left_door'\n(Area = 120,000 px)"]
-    A --> C["Model B: CarDD-Seg\nFinds 'dent'\n(Area = 10,080 px)"]
+    A["Curated Keyframe Portfolio\n(keyframe_01 .. keyframe_NN)"] --> B["Model A: Carparts-Seg\nFinds 'front_left_door'\n(Area = 120,000 px)"]
+    A --> C["Model B: Damage-Seg\nFinds 'dent'\n(Area = 10,080 px)"]
     B & C --> D["Overlap (Intersection)\nDent inside Door = 10,080 px\nIoP = 10,080 / 120,000 = 8.4%"]
     D --> E["SQL Lookup:\nHyundai Creta + 'front_left_door'\n-> Part #76003-M0000"]
 ```
 
 #### Technical Math & Boundary Spillover Check:
 1. **Best-Frame Selection (Avoiding Counting the Same Dent 50 Times):**
-   * A 15-second video has 450 frames. Instead of pricing every frame, we group detections by their `canonical_part_key` (e.g., `front_left_door`) and pick the **single sharpest frame** where that full part is maximally visible and centered.
+   * Across the curated keyframes, we group damage-part intersections by their `canonical_part_key` (e.g., `front_left_door`) and select the **single canonical keyframe** maximizing part visibility and sharpness:
+     $$k^*_j = \arg\max_{k \in \mathcal{K}} \left(\text{IoP}(D_i, P_j)_k \times \sigma^2_{\nabla^2 I}(k)\right)$$
 2. **Intersection over Part ($\text{IoP}$) Formula:**
    For damage polygon mask $D_i$ and car part polygon mask $P_j$:
    $$\text{IoP}(D_i, P_j) = \frac{\text{Area}(D_i \cap P_j)}{\text{Area}(P_j)}$$

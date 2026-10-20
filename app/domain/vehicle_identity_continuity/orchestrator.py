@@ -5,6 +5,8 @@ from pathlib import Path
 from typing import Optional, Dict, Any
 import cv2
 import numpy as np
+import torch
+from app.core.config import settings
 from app.domain.vehicle_identity_continuity.config import stage1_settings
 from app.domain.vehicle_identity_continuity.schemas import (
     PolicyGroundingContext,
@@ -45,6 +47,30 @@ class VehicleIdentityContinuityOrchestrator:
         self._gpu_lock = asyncio.Semaphore(1)
 
     async def execute(
+        self,
+        claim_id: uuid.UUID,
+        scratch_video_path: Path,
+        policy_id: str,
+        is_demo_rehearsal: bool = False,
+    ) -> VehicleContinuityTelemetryDTO:
+        try:
+            return await self._execute_internal(
+                claim_id=claim_id,
+                scratch_video_path=scratch_video_path,
+                policy_id=policy_id,
+                is_demo_rehearsal=is_demo_rehearsal,
+            )
+        finally:
+            # ponytail: release CUDA cache and purge ephemeral scratch files after Stage 1
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+            if scratch_video_path and Path(scratch_video_path).is_relative_to(Path(settings.SCRATCH_DIR)):
+                try:
+                    Path(scratch_video_path).unlink(missing_ok=True)
+                except Exception as e:
+                    logger.warning(f"Could not unlink scratch video {scratch_video_path}: {e}")
+
+    async def _execute_internal(
         self,
         claim_id: uuid.UUID,
         scratch_video_path: Path,
@@ -130,12 +156,14 @@ class VehicleIdentityContinuityOrchestrator:
         color_report = ColorValidationResult(
             is_color_match=True, expected_color_name=grounding_context.registered_color
         )
+        color_verified = False
         if plate_report.anchor_vehicle_bbox is not None:
             anchor_frame = self._read_single_frame(scratch_video_path, plate_report.anchor_frame_idx)
             if anchor_frame is not None:
                 color_report = self.color_validator.validate_paint_color(
                     anchor_frame, plate_report.anchor_vehicle_bbox, grounding_context
                 )
+                color_verified = True
                 if not color_report.is_color_match:
                     total_ms = (time.perf_counter() - t0) * 1000.0
                     fail_code = color_report.failure_code or "S1_COLOR_MISMATCH"
@@ -161,6 +189,7 @@ class VehicleIdentityContinuityOrchestrator:
                 str(claim_id),
                 grounding_context,
                 plate_report.deferred_to_late_track,
+                plate_report,
             )
 
         if not track_report.is_persistent:
@@ -182,23 +211,51 @@ class VehicleIdentityContinuityOrchestrator:
 
         # Check late plate verification if was deferred
         if plate_report.deferred_to_late_track and not plate_report.is_verified:
-            # If still not verified after whole track
-            logger.warning(f"Plate remained unverified after full track for claim {claim_id}.")
-            total_ms = (time.perf_counter() - t0) * 1000.0
-            fail_code = "S1_PLATE_NOT_FOUND_OR_UNREADABLE"
-            telemetry = VehicleContinuityTelemetryDTO(
-                cut_report=cut_report,
-                plate_report=plate_report,
-                color_report=color_report,
-                tracking_report=track_report,
-                total_execution_ms=total_ms,
-                passed=False,
-                escalation_code="ESC-01",
-            )
-            await self._update_failed_claim(
-                claim_id, "REJECTED_STAGE1_IDENTITY", "ESC-01", telemetry, failure_codes=[fail_code]
-            )
-            return telemetry
+            if track_report.late_plate_verified:
+                plate_report.is_verified = True
+                plate_report.failure_code = None
+            else:
+                # If still not verified after whole track
+                logger.warning(f"Plate remained unverified after full track for claim {claim_id}.")
+                total_ms = (time.perf_counter() - t0) * 1000.0
+                fail_code = "S1_PLATE_NOT_FOUND_OR_UNREADABLE"
+                telemetry = VehicleContinuityTelemetryDTO(
+                    cut_report=cut_report,
+                    plate_report=plate_report,
+                    color_report=color_report,
+                    tracking_report=track_report,
+                    total_execution_ms=total_ms,
+                    passed=False,
+                    escalation_code="ESC-01",
+                )
+                await self._update_failed_claim(
+                    claim_id, "REJECTED_STAGE1_IDENTITY", "ESC-01", telemetry, failure_codes=[fail_code]
+                )
+                return telemetry
+
+        # ponytail: Late-track color grounding enforcement on reverse walkarounds
+        if not color_verified and plate_report.is_verified and plate_report.anchor_vehicle_bbox is not None:
+            late_anchor_frame = self._read_single_frame(scratch_video_path, plate_report.anchor_frame_idx)
+            if late_anchor_frame is not None:
+                color_report = self.color_validator.validate_paint_color(
+                    late_anchor_frame, plate_report.anchor_vehicle_bbox, grounding_context
+                )
+                if not color_report.is_color_match:
+                    total_ms = (time.perf_counter() - t0) * 1000.0
+                    fail_code = color_report.failure_code or "S1_COLOR_MISMATCH"
+                    telemetry = VehicleContinuityTelemetryDTO(
+                        cut_report=cut_report,
+                        plate_report=plate_report,
+                        color_report=color_report,
+                        tracking_report=track_report,
+                        total_execution_ms=total_ms,
+                        passed=False,
+                        escalation_code="ESC-01",
+                    )
+                    await self._update_failed_claim(
+                        claim_id, "REJECTED_STAGE1_IDENTITY", "ESC-01", telemetry, failure_codes=[fail_code]
+                    )
+                    return telemetry
 
         # All Gates in Stage 1 Passed!
         total_ms = (time.perf_counter() - t0) * 1000.0

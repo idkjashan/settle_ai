@@ -68,20 +68,30 @@ class ContainerForensicsValidator:
             )
 
         # 2. Dimensions & Orientation
-        width = int(video_stream.get("width") or 0)
-        height = int(video_stream.get("height") or 0)
+        # ponytail: guard against non-numeric dimensions like "N/A"
+        try:
+            width = int(video_stream.get("width") or 0)
+            height = int(video_stream.get("height") or 0)
+            if width <= 0 or height <= 0:
+                failure_codes.append(FastFailFailureCode.CONTAINER_PARSE_FAILED)
+        except (ValueError, TypeError):
+            width, height = 0, 0
+            failure_codes.append(FastFailFailureCode.CONTAINER_PARSE_FAILED)
         
         # Check rotation metadata if smartphone vertical video
-        side_data = video_stream.get("side_data_list", [])
+        side_data = video_stream.get("side_data_list", []) or []
         rotation = 0
         for sd in side_data:
-            if "rotation" in sd:
-                rotation = abs(int(sd["rotation"]))
-        tags = video_stream.get("tags", {})
+            if isinstance(sd, dict) and "rotation" in sd:
+                try:
+                    rotation = abs(int(sd["rotation"]))
+                except (ValueError, TypeError):
+                    pass
+        tags = video_stream.get("tags") or {}
         if "rotate" in tags:
             try:
                 rotation = abs(int(tags["rotate"]))
-            except ValueError:
+            except (ValueError, TypeError):
                 pass
 
         if rotation in (90, 270):
@@ -104,7 +114,7 @@ class ContainerForensicsValidator:
             failure_codes.append(FastFailFailureCode.FRAMERATE_TOO_LOW)
 
         # 5. Non-linear Editor Tag Blacklist
-        detected_editor_tag = self._check_editor_tags(format_data.get("tags", {}), video_stream.get("tags", {}))
+        detected_editor_tag = self._check_editor_tags(format_data.get("tags") or {}, video_stream.get("tags") or {})
         if detected_editor_tag:
             failure_codes.append(FastFailFailureCode.METADATA_EDITED_VIDEO)
 
@@ -160,10 +170,13 @@ class ContainerForensicsValidator:
                     pass
         return 0.0
 
-    def _check_editor_tags(self, format_tags: dict, stream_tags: dict) -> Optional[str]:
+    def _check_editor_tags(self, format_tags: Optional[dict], stream_tags: Optional[dict]) -> Optional[str]:
         all_tags = {}
-        all_tags.update(format_tags)
-        all_tags.update(stream_tags)
+        # ponytail: guard against null tag dicts
+        if format_tags:
+            all_tags.update(format_tags)
+        if stream_tags:
+            all_tags.update(stream_tags)
 
         blacklist = [b.lower() for b in self.settings.EDITOR_TAG_BLACKLIST]
         whitelist = [w.lower() for w in self.settings.EDITOR_TAG_WHITELIST]

@@ -85,8 +85,10 @@ class CutDetector:
                         min_global_corr = corr
 
                     # Check for hard cut
+                    # ponytail: Abrupt cut between different scenes collapses histogram correlation.
+                    # Fast camera pans spike delta_hsv, but correlation remains >= 0.70.
                     is_cut = False
-                    if delta_hsv >= self.settings.PYSCENEDETECT_THRESHOLD or corr < self.settings.MIN_GLOBAL_HSV_CORR:
+                    if (delta_hsv >= self.settings.PYSCENEDETECT_THRESHOLD and corr < 0.70) or corr < self.settings.MIN_GLOBAL_HSV_CORR:
                         is_cut = True
 
                     # 4. 4x4 Spatial Grid Correlation (detects subtle same-car splices)
@@ -125,19 +127,34 @@ class CutDetector:
 
             duration_ms = (time.perf_counter() - t0) * 1000.0
 
+            # ponytail: reject video if fewer than 15 valid frames could be decoded
+            if evaluated_frames < 15:
+                logger.warning(f"CutDetector: video truncated/corrupt with only {evaluated_frames} frames (< 15)")
+                return CutDetectionResult(
+                    is_continuous=False,
+                    evaluated_frames=evaluated_frames,
+                    effective_fps=fps,
+                    failure_code="ESC-02",
+                    duration_ms=duration_ms,
+                )
+
             # Failure classification priority: Cut > Histogram > SSIM > Freeze
             specific_code = None
-            if max_scene_score >= self.settings.PYSCENEDETECT_THRESHOLD:
-                specific_code = "S1_CUT_PYSCENEDETECT_TRIGGER"
-            elif min_global_corr < self.settings.MIN_GLOBAL_HSV_CORR:
-                specific_code = "S1_CUT_HISTOGRAM_DROP"
-            elif min_ssim < self.settings.MIN_TRIGGERED_SSIM:
-                specific_code = "S1_CUT_SPATIAL_SSIM_DROP"
-            elif max_frozen_run > self.settings.MAX_FROZEN_FRAMES:
-                cut_indices.append(-1)  # Marker for frozen frame
-                specific_code = "S1_CUT_FREEZE_FRAME_DETECTED"
-            elif len(cut_indices) > 0:
-                specific_code = "S1_CUT_HISTOGRAM_DROP"
+            if len(cut_indices) > 0:
+                if max_scene_score >= self.settings.PYSCENEDETECT_THRESHOLD and min_global_corr < 0.70:
+                    specific_code = "S1_CUT_PYSCENEDETECT_TRIGGER"
+                elif min_global_corr < self.settings.MIN_GLOBAL_HSV_CORR:
+                    specific_code = "S1_CUT_HISTOGRAM_DROP"
+                elif min_ssim < self.settings.MIN_TRIGGERED_SSIM:
+                    specific_code = "S1_CUT_SPATIAL_SSIM_DROP"
+                else:
+                    specific_code = "S1_CUT_HISTOGRAM_DROP"
+            else:
+                # ponytail: Scale frozen frame threshold by fps (0.75s tolerance) to prevent false freeze detection on 60fps stabilized videos
+                max_frozen_allowed = max(self.settings.MAX_FROZEN_FRAMES, int(fps * 0.75))
+                if max_frozen_run > max_frozen_allowed:
+                    cut_indices.append(-1)  # Marker for frozen frame
+                    specific_code = "S1_CUT_FREEZE_FRAME_DETECTED"
 
             is_continuous = len(cut_indices) == 0
             failure_code = None if is_continuous else (specific_code or "S1_CUT_HISTOGRAM_DROP")

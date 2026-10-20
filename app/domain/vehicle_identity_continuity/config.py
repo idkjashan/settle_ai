@@ -15,7 +15,7 @@ class Stage1Settings(BaseSettings):
 
     # Gate 2: Progressive ANPR & Color Match
     INITIAL_WINDOW_SECONDS: float = 3.5
-    MIN_VEHICLE_AREA_RATIO: float = 0.12
+    MIN_VEHICLE_AREA_RATIO: float = 0.06  # ponytail: lowered to 0.06 for wide exterior shots (e.g. Hilux at ~7.6%)
     BUMPER_Y_REL_MIN: float = 0.28
     BUMPER_Y_REL_MAX: float = 0.96
     MAX_HOMOGLYPH_EDIT_COST: float = 2.0

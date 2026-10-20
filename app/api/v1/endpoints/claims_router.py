@@ -1,6 +1,7 @@
 import asyncio
 import json
 import uuid
+from pathlib import Path
 from typing import Optional
 from fastapi import APIRouter, Depends, File, Form, UploadFile, BackgroundTasks, HTTPException, status
 from fastapi.responses import StreamingResponse, JSONResponse
@@ -33,28 +34,57 @@ async def run_stage1_pipeline_task(
     claim_id: uuid.UUID, scratch_path, policy_id: str, is_demo_rehearsal: bool
 ):
     """Background task executing Stage 1 (Vehicle Identity & Continuity Grounding)."""
-    async with async_session_factory() as db:
-        policy_repo = PolicyRepository(db)
-        claim_repo = ClaimRepository(db)
-        stage1_orch = VehicleIdentityContinuityOrchestrator(
-            policy_repo=policy_repo,
-            claim_repo=claim_repo,
-            redis_mgr=redis_manager,
-            cut_det=cut_detector,
-            plate_val=plate_ocr_validator,
-            color_val=color_grounding_validator,
-            tracker=object_tracker,
-        )
-        try:
-            telemetry = await stage1_orch.execute(
-                claim_id=claim_id,
-                scratch_video_path=scratch_path,
-                policy_id=policy_id,
-                is_demo_rehearsal=is_demo_rehearsal,
+    try:
+        async with async_session_factory() as db:
+            policy_repo = PolicyRepository(db)
+            claim_repo = ClaimRepository(db)
+            stage1_orch = VehicleIdentityContinuityOrchestrator(
+                policy_repo=policy_repo,
+                claim_repo=claim_repo,
+                redis_mgr=redis_manager,
+                cut_det=cut_detector,
+                plate_val=plate_ocr_validator,
+                color_val=color_grounding_validator,
+                tracker=object_tracker,
             )
-            logger.info(f"Stage 1 background execution complete for {claim_id}: passed={telemetry.passed}")
-        except Exception as e:
-            logger.error(f"Stage 1 background execution failed for {claim_id}: {e}", exc_info=True)
+            try:
+                telemetry = await stage1_orch.execute(
+                    claim_id=claim_id,
+                    scratch_video_path=scratch_path,
+                    policy_id=policy_id,
+                    is_demo_rehearsal=is_demo_rehearsal,
+                )
+                logger.info(f"Stage 1 background execution complete for {claim_id}: passed={telemetry.passed}")
+            except Exception as e:
+                logger.error(f"Stage 1 background execution failed for {claim_id}: {e}", exc_info=True)
+                # ponytail: mark claim REJECTED_STAGE1_ERROR so it never hangs in PROCESSING state
+                try:
+                    await claim_repo.update_claim_stage(
+                        claim_id=claim_id,
+                        stage="STAGE_1_IDENTITY",
+                        status="REJECTED_STAGE1_ERROR",
+                        escalation_code="ESC-02",
+                        failure_codes=["STAGE_1_INTERNAL_ERROR"],
+                    )
+                    await redis_manager.publish_event(
+                        claim_id=claim_id,
+                        event_name="STAGE_1_FAILED",
+                        payload={
+                            "claim_id": str(claim_id),
+                            "status": "REJECTED_STAGE1_ERROR",
+                            "escalation_code": "ESC-02",
+                            "failure_codes": ["STAGE_1_INTERNAL_ERROR"],
+                        },
+                    )
+                except Exception as db_err:
+                    logger.critical(f"Failed to record stage 1 crash in DB for {claim_id}: {db_err}")
+    finally:
+        # ponytail: prevent disk exhaustion by unlinking scratch file after pipeline completes
+        if scratch_path and Path(scratch_path).exists():
+            try:
+                Path(scratch_path).unlink(missing_ok=True)
+            except Exception as e:
+                logger.warning(f"Failed to unlink scratch file {scratch_path}: {e}")
 
 router = APIRouter(prefix="/claims", tags=["claims"])
 

@@ -193,9 +193,6 @@ class FastFailGateOrchestrator:
                 )
 
             # Step 5: All Gates Passed!
-            if not is_demo_rehearsal:
-                await self.redis_mgr.release_video_lock(lease.sha256_hex)
-
             active_claim = Claim(
                 claim_id=claim_id,
                 policy_id=policy_id,
@@ -207,6 +204,10 @@ class FastFailGateOrchestrator:
                 fast_fail_telemetry=telemetry.model_dump(),
             )
             await self.claim_repo.create_claim(active_claim)
+
+            # ponytail: release in-flight lock AFTER claim insertion in PostgreSQL to eliminate TOCTOU window
+            if not is_demo_rehearsal:
+                await self.redis_mgr.release_video_lock(lease.sha256_hex)
 
             # Publish SSE event
             await self.redis_mgr.publish_event(

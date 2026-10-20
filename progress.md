@@ -66,22 +66,71 @@
 - [x] **Milestone 6: End-to-End Integration & Unified Verification**
   - [x] Full test suite executed across Stage 0 and Stage 1: **33 / 33 tests PASSED (100% pass rate in 42.68s)**
   - [x] Progress and architecture divergence ledger fully updated
+- [x] **Milestone 7: Multi-Subagent Audit, Adversarial Hardening & Real Dataset Verification**
+  - [x] Subagent 1 (Dataset Engineer): Acquired, standardized (1080p, 15-21s, H.264), and indexed real car walkaround videos (`toyota_hilux_white_ute.mp4`, `fiat_500_blue_hatchback.mp4`, `vw_golf_grey_hatchback.mp4`, `ferrari_360_silver_coupe.mp4`) in `test_assets/real_videos/manifest.json`.
+  - [x] Subagent 2 (Code Auditor): Identified 10 structural failure modes, missing test coverage, and memory/disk leakage paths.
+  - [x] Subagent 3 (Adversarial Tester): Engineered red-team test suite (`tests/adversarial/test_adversarial_break.py`), reproducing 11 critical edge cases (0-frame bypass, scratch leak, lock release race, degenerate bboxes, ffprobe null tags, quorum bypass, zombie claims).
+  - [x] Subagent 4 (Verifier & Pragmatic Fixer): Implemented minimal Ponytail fixes across 9 files (+165 / -45 lines):
+    - Added minimum 15-frame continuity threshold to Gate 1 `CutDetector`.
+    - Added deterministic RAII `finally:` scratch video cleanup in background pipeline and orchestrator.
+    - Serialized in-flight Redis lock release *after* PostgreSQL claim commit (eliminating TOCTOU deduplication bypass).
+    - Clamped ROI coordinates in `ColorGroundingValidator` and `PlateOCRValidator` to prevent OpenCV empty-source assertions and negative slicing.
+    - Handled null tags and non-numeric dimensions gracefully in `ContainerForensicsValidator`.
+    - Enforced mandatory sample quorum in `VisualQualityValidator` to reject truncated video containers.
+    - Aligned `LUMINANCE_MAX_THRESHOLD` to 220.0 to reject overexposed videos.
+    - Guaranteed database error state transitions (`REJECTED_STAGE1_ERROR` / `ESC-02`) and SSE emission on pipeline exceptions.
+    - Cleared PyTorch CUDA cache (`torch.cuda.empty_cache()`) in Stage 1 `finally:` block.
+    - Integrated real vehicle walkaround test suite (`tests/test_real_videos.py`).
+  - [x] Unified Full Suite: **51 / 51 tests PASSED (100% pass rate in ~60s)**.
+- [x] **Milestone 8: Scenario Stress-Testing, Keyframe Isolation & Breaker Suite**
+  - [x] Subagent B (Scenario Stress-Tester & Breaker):
+    - Synthesized 6 realistic 720p 15.0s scenario walkaround videos in `test_assets/scenario_videos/`:
+      * `scenario_01_walkaround_damaged_scratch.mp4`: Walkaround with realistic door panel key scratch damage.
+      * `scenario_02_closeup_zoom_damaged_panel.mp4`: Closeup zoom into door scratch panel exceeding `CLOSEUP_ZOOM_AREA_RATIO >= 0.50` into macro view.
+      * `scenario_03_reverse_walkaround_side_rear_first.mp4`: Reverse walkaround starting on rear/side before showing front plate.
+      * `scenario_04_parking_lot_multicar_background.mp4`: Crowded dealership parking lot with adjacent background cars.
+      * `scenario_05_outdoor_lighting_variation.mp4`: Dynamic sunlight glare to deep canopy shadow transitions with specular glare penalty.
+      * `scenario_06_fast_pan_corner_whip.mp4`: Rapid rotational corner whip-panning.
+    - Isolated and extracted canonical keyframes (`front_bumper.jpg`, `side_body_panel.jpg`, `damage_closeup_primary.jpg`) across all 10 scenarios (6 scenarios + 4 real videos) in `test_assets/keyframes_for_stage2/<scenario_id>/`, measuring Laplacian sharpness (>= 80) and specular glare ratios.
+    - Identified and isolated 5 scenario-level breakages and edge cases in `tests/test_scenarios_break.py`:
+      1. *Fast Corner Pan Cut False Positive*: `CutDetector` triggers `S1_CUT_PYSCENEDETECT_TRIGGER` during fast camera corner panning.
+      2. *Multi-Car Target Latching Failure*: `ObjectTracker` naively selects first detected car box instead of primary vehicle, causing track loss on real parking lots (`fiat_500` and `hilux`).
+      3. *Reverse Walkaround Missing Late Plate OCR*: `PlateOCRValidator` defers plate to late track, but tracker never runs OCR, failing claim on `S1_PLATE_NOT_FOUND_OR_UNREADABLE`.
+      4. *Reverse Walkaround Keyframe Misassignment*: `rel_t <= 0.35` timeline heuristic assigns rear/side frames as `front_bumper.jpg`.
+      5. *Wide Shot Minimum Area Disqualification*: `MIN_VEHICLE_AREA_RATIO = 0.12` rejects wide walkaround shots (e.g. Hilux at 0.076), falsely triggering `S1_NO_VEHICLE_DETECTED`.
+    - Executed scenario test suite: **12 / 12 tests PASSED (100% pass rate in 30.27s)**.
+    - Unified Full Suite: **63 / 63 tests PASSED (100% pass rate in 87.19s)**.
+  - [x] Subagent C (Independent Pragmatic Fixer):
+    - Executed user directive: Purged all synthetic videos and transitioned to 100% real online YouTube walkarounds (`scenario_01_damaged_collision.mp4`, `scenario_02_macro_closeup_scratch.mp4`, `scenario_03_parking_lot_multicar.mp4`, `scenario_04_reverse_walkaround_rear_start.mp4`, `scenario_05_challenging_lighting_overcast_canopy.mp4`).
+    - Resolved all 5 systemic breakages via the Ponytail 7-Rung Decision Ladder:
+      1. *Target Vehicle Latching in Multi-Car / Parking Lot Scenes* (`object_tracker.py`): Foreground candidate selection using `max(box_area)` meeting `MIN_VEHICLE_AREA_RATIO`. Latches target track ID to primary claim vehicle (e.g. Fiat 500 track ID 2 instead of background car ID 1), completely eliminating track loss.
+      2. *CutDetector False Positives on Fast Corner Pans* (`cut_detector.py`): Requires both `delta_hsv >= 27.0` AND histogram correlation collapse (`corr < 0.70`) before flagging hard scene cuts, preventing whip-pan false rejects while preserving cut detection priority.
+      3. *Late-Track Plate OCR Grounding on Reverse Walkarounds* (`object_tracker.py`, `plate_ocr_validator.py`, `orchestrator.py`): Strided bumper ROI OCR verification during tracking when plate is deferred, successfully validating `CJ09025` at frame 210 with homoglyph cost 0.25 and updating claim telemetry.
+      4. *Plate Validator Minimum Vehicle Area Ratio* (`config.py`): Adjusted `MIN_VEHICLE_AREA_RATIO = 0.06` (from 0.12), enabling initial-window verification of wide exterior walkaround frames (e.g. Hilux at 7.6% area ratio).
+      5. *Dynamic Keyframe View Anchoring on Reverse Walkarounds* (`object_tracker.py`): Front bumper keyframe is dynamically anchored to the plate verification frame window rather than hardcoded early timeline (`rel_t <= 0.35`). Ensured canonical keyframes (`front_bumper`, `side_body_panel`, `damage_closeup_primary`) are guaranteed extracted for every valid video into `test_assets/keyframes_for_stage2/<scenario_id>/`.
+    - Executed full pytest suite: **63 / 63 tests PASSED (100% green in 107.26s)**.
+- [x] **Milestone 9: Deep Pipeline Hardening & Heuristic Fragility Remediation**
+  - [x] Subagent D (Keyframe Perspective Engineer):
+    - Replaced hardcoded keyframe counts and rigid timeline windows ($t \le 0.33$, $0.33 < t \le 0.67$) with **Adaptive Trajectory Quality Curation** ($\approx 1$ frame per second of walkaround, bounded $[8, 30]$).
+    - Guaranteed 100% distinct canonical aliases (`front_bumper.jpg`, `side_body_panel.jpg`, `damage_closeup_primary.jpg`) across all 9 real videos (zero duplicate MD5 hashes).
+  - [x] Subagent E (Pipeline Hardening Engineer):
+    - Resolved 6 concrete heuristic fragilities across Stage 0 and Stage 1:
+      1. *Multi-word Color Keyword Normalization* (`color_grounding_validator.py`): Extract canonical color keywords (`WHITE`, `BLACK`, `SILVER`, `GREY`, `GRAY`, `RED`, `BLUE`, `GREEN`, `YELLOW`, `ORANGE`, `BROWN`) from policy registry strings (e.g. "Metallic Blue" $\to$ "BLUE") before evaluation.
+      2. *Black Vehicle Daylight Reflection Tolerance* (`color_grounding_validator.py`): Scaled `BLACK` bounds to $S \le 45$, $V \le 100$ to accommodate glossy clearcoat reflections under open daylight.
+      3. *Plate OCR Length Floor & Structural Regex Prioritization* (`plate_ocr_validator.py`): Lowered plate candidate floor to $\ge 5$ characters and enforced structural regex validation (Indian HSRP `^[A-Z]{2}[0-9]{1,2}[A-Z]{0,3}[0-9]{4}$`, BH `^[0-9]{2}BH[0-9]{4}[A-Z]{1,2}$`, and generic UK/AU/US `^(?=.*[A-Z])(?=.*[0-9])[A-Z0-9]{5,10}$`) to prioritize genuine plates over short brand badges ("TURBO", "HYUNDAI").
+      4. *Foreground Target Selection & Multi-Frame IoU Persistence* (`plate_ocr_validator.py`): Added multi-frame candidate IoU tracking ($\ge 0.35$) across initial window samples, selecting persistent stationary vehicle candidates ($\ge 2$ hits) with largest bounding box area.
+      5. *Late-Track Color Grounding Enforcement* (`orchestrator.py`): Enforced paint color validation on the late-verified vehicle anchor for reverse walkarounds before claim approval.
+      6. *FPS-Scaled Freeze Frame Threshold* (`cut_detector.py`): Replaced static 15-frame freeze count with frame-rate scaled threshold `max(15, int(fps * 0.75))` (750ms minimum pause).
+  - [x] Full Pytest Suite: **69 / 69 tests PASSED (100% green in 114.16s)**.
 
 ---
 
 ## 5. Test Execution & Verification Log
-- **Stage 0 Suite (`tests/fast_fail_gate/`)**:
-  - Command: `/home/jashan/settleai/.venv/bin/pytest -v tests/fast_fail_gate/`
-  - Total Tests: 15 | Passed: 15 (100%) | Failed: 0
-  - Coverage: T0-01, T0-05, T0-06, T0-08, T0-09, T0-11, T0-13, T0-14, T0-15, T0-16, T0-17, T0-18, T0-20, T0-21, cancelled policy.
-- **Stage 1 Suite (`tests/vehicle_identity_continuity/`)**:
-  - Command: `/home/jashan/settleai/.venv/bin/pytest -v tests/vehicle_identity_continuity/`
-  - Total Tests: 18 | Passed: 18 (100%) | Failed: 0
-  - Coverage:
-    - Gate 1 (Continuous Walkaround, Hard Scene Cut, Subtle Jump Splice, Freeze-Frame Detection)
-    - Gate 2 (Single-Line Plate ANPR, 2-Line HSRP Stacked Merge, Homoglyph Distance Tolerance, Mismatched Wrong Plate Rejection, Paint HSV White Match, Paint HSV Blue Mismatch)
-    - Gate 3 (Strided Tracking & Keyframes Saved, Macro Closeup Zoom Hand-off, Track Lost Exceeded Rejection, Parking Lot Vehicle Switch Rejection)
-    - End-to-End Orchestrator (Happy Path Claim to STAGE_2_SEGMENTATION, Cut Failure ESC-02, Wrong Plate ESC-01, Wrong Color ESC-01)
+- **Stage 0 Suite (`tests/fast_fail_gate/`)**: 15 tests | Passed: 15 (100%)
+- **Stage 1 Suite (`tests/vehicle_identity_continuity/`)**: 18 tests | Passed: 18 (100%)
+- **Adversarial Red-Team Suite (`tests/adversarial/`)**: 13 tests | Passed: 13 (100%)
+- **Real Vehicle Walkaround Suite (`tests/test_real_videos.py`)**: 5 tests | Passed: 5 (100%)
+- **Scenario Stress & Hardening Suite (`tests/test_scenarios_break.py`)**: 18 tests | Passed: 18 (100%)
 - **Unified Full Suite (`tests/`)**:
   - Command: `/home/jashan/settleai/.venv/bin/pytest -v tests/`
-  - Total Tests: 33 | Passed: 33 (100%) | Failed: 0 | Duration: 42.68s
+  - Total Tests: 69 | Passed: 69 (100%) | Failed: 0
