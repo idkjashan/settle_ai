@@ -1,6 +1,6 @@
 from collections import defaultdict
 import math
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from app.domain.dual_mask_segmentation.config import Stage2Settings
 from app.domain.dual_mask_segmentation.schemas import (
@@ -76,6 +76,7 @@ class PartSideResolverAndGrouper:
         intersections: List[PartDamageIntersection],
         predictions: List[FrameDualPredictions],
         unclipped_part_areas: Dict[Tuple[str, str], float],
+        claim_intent: Optional[Any] = None,
     ) -> List[GroupedPartCandidate]:
         frame_sides = self._infer_frame_sides(predictions)
         grouped: Dict[str, List[Tuple[PartDamageIntersection, str]]] = defaultdict(list)
@@ -148,6 +149,32 @@ class PartSideResolverAndGrouper:
                 else next(iter(methods), "DIRECT_EXPLICIT_CLASS")
             )
 
+            # Determine if candidate panel matches user claimed intent
+            cand_is_claimed = True
+            cand_claim_status = "CLAIMED"
+            if claim_intent is not None and not getattr(claim_intent, "is_empty", False):
+                claimed_parts = getattr(claim_intent, "claimed_parts", [])
+                claimed_damages = getattr(claim_intent, "claimed_damages", [])
+                if claimed_parts or claimed_damages:
+                    part_matches = True
+                    if claimed_parts:
+                        if hasattr(claim_intent, "matches_part"):
+                            part_matches = claim_intent.matches_part(part_key) or any(
+                                claim_intent.matches_part(rp) for rp in raw_part_classes
+                            )
+                        else:
+                            from app.domain.claim_intent.schemas import is_part_matching
+                            part_matches = (
+                                any(is_part_matching(part_key, cp) for cp in claimed_parts)
+                                or any(is_part_matching(rp, cp) for rp in raw_part_classes for cp in claimed_parts)
+                            )
+                    damage_matches = True
+                    if claimed_damages:
+                        damage_matches = any(d in claimed_damages for d in all_dmg_classes)
+
+                    cand_is_claimed = part_matches and damage_matches
+                    cand_claim_status = "CLAIMED" if cand_is_claimed else "UNCLAIMED_PREEXISTING_DAMAGE"
+
             candidates.append(
                 GroupedPartCandidate(
                     canonical_part_key=part_key,
@@ -163,7 +190,11 @@ class PartSideResolverAndGrouper:
                     damage_confidence=round(max_d_conf, 4),
                     area_measurement_intersection=area_best_hit,
                     vlm_closeup_intersection=vlm_best_hit,
+                    is_claimed=cand_is_claimed,
+                    claim_status=cand_claim_status,
                 )
             )
 
+        # Conditioned Stage 2: Prioritize user-claimed parts first
+        candidates.sort(key=lambda c: (not c.is_claimed, -c.final_iop_ratio))
         return candidates

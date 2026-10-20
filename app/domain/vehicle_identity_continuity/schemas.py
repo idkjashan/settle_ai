@@ -140,7 +140,8 @@ class Stage1HandoffPayload(BaseModel):
     policy_id: str
     scratch_video_path: str
     keyframe_paths: Dict[str, str]
-    vehicle_telemetry: VehicleContinuityTelemetryDTO
+    vehicle_telemetry: Optional[VehicleContinuityTelemetryDTO] = None
+    claim_intent: Optional[Any] = None
 
 
 # Section 10.3 Alias

@@ -2,7 +2,7 @@ import os
 import hashlib
 import uuid
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 from fastapi import UploadFile
 from app.core.config import settings
 from app.core.exceptions import PayloadTooLargeException, AutoSettleException
@@ -34,6 +34,39 @@ class ScratchFileLease:
                     logger.debug(f"Unlinked scratch file {self.file_path} for claim {self.claim_id}")
             except Exception as e:
                 logger.warning(f"Failed to unlink scratch file {self.file_path}: {e}")
+
+
+class ScratchPhotoPackLease:
+    """
+    RAII resource lease managing the lifecycle of uploaded photo pack scratch files.
+    """
+    def __init__(self, claim_id: uuid.UUID, file_paths: List[Path], sha256_hex: str, file_size_bytes: int):
+        self.claim_id = claim_id
+        self.file_paths = file_paths
+        self.sha256_hex = sha256_hex
+        self.file_size_bytes = file_size_bytes
+        self.transferred_to_downstream: bool = False
+
+    def transfer_to_downstream(self) -> List[Path]:
+        self.transferred_to_downstream = True
+        return self.file_paths
+
+    def cleanup(self) -> None:
+        if not self.transferred_to_downstream:
+            for p in self.file_paths:
+                try:
+                    if p.exists():
+                        p.unlink()
+                except Exception as e:
+                    logger.warning(f"Failed to unlink scratch photo {p}: {e}")
+            # Try removing directory if empty
+            if self.file_paths:
+                parent = self.file_paths[0].parent
+                if parent.exists() and parent != Path(settings.SCRATCH_DIR):
+                    try:
+                        parent.rmdir()
+                    except Exception:
+                        pass
 
 
 class ScratchIngestService:
@@ -91,6 +124,63 @@ class ScratchIngestService:
             if target_path.exists():
                 try:
                     target_path.unlink()
+                except Exception:
+                    pass
+            raise
+
+    async def stream_photo_pack_to_scratch(
+        self, claim_id: uuid.UUID, upload_files: List[UploadFile]
+    ) -> ScratchPhotoPackLease:
+        """
+        Streams uploaded photo files to /tmp/autosettle_ingest/{claim_id}/photo_{idx}_{name}.
+        Computes cumulative SHA-256 and enforces total size limits.
+        """
+        claim_folder = self.scratch_dir / str(claim_id)
+        claim_folder.mkdir(parents=True, exist_ok=True)
+        file_paths: List[Path] = []
+        overall_hasher = hashlib.sha256()
+        total_bytes = 0
+
+        try:
+            for idx, uf in enumerate(upload_files):
+                filename = uf.filename or f"photo_{idx}.jpg"
+                clean_name = f"photo_{idx}_{Path(filename).name}"
+                target_path = claim_folder / clean_name
+                file_paths.append(target_path)
+                file_hasher = hashlib.sha256()
+
+                with open(target_path, "wb") as f:
+                    while True:
+                        chunk = await uf.read(self.chunk_size)
+                        if not chunk:
+                            break
+                        total_bytes += len(chunk)
+                        if total_bytes > self.max_bytes:
+                            raise PayloadTooLargeException(
+                                f"Total photo pack size exceeds maximum allowed {self.max_bytes // (1024 * 1024)} MB."
+                            )
+                        file_hasher.update(chunk)
+                        f.write(chunk)
+
+                overall_hasher.update(file_hasher.digest())
+
+            return ScratchPhotoPackLease(
+                claim_id=claim_id,
+                file_paths=file_paths,
+                sha256_hex=overall_hasher.hexdigest(),
+                file_size_bytes=total_bytes,
+            )
+
+        except Exception:
+            for p in file_paths:
+                if p.exists():
+                    try:
+                        p.unlink()
+                    except Exception:
+                        pass
+            if claim_folder.exists():
+                try:
+                    claim_folder.rmdir()
                 except Exception:
                     pass
             raise

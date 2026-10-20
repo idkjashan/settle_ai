@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 import time
 from dataclasses import asdict
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 from uuid import UUID
 from redis.asyncio import Redis
 from sqlalchemy import update
@@ -21,6 +21,7 @@ from app.domain.dual_mask_segmentation.interfaces import (
 from app.domain.dual_mask_segmentation.schemas import (
     DiscardedSpilloverHit,
     GroundedDamagedPart,
+    GroupedPartCandidate,
     Stage3HandoffPayload,
 )
 from app.domain.vehicle_identity_continuity.schemas import Stage2HandoffPayload
@@ -66,6 +67,26 @@ class DualMaskSegmentationOrchestrator:
         discarded_hits: List[DiscardedSpilloverHit] = []
         evaluated_kf_count = len(payload.keyframe_paths)
 
+        # Resolve optional claim_intent from payload
+        raw_intent = getattr(payload, "claim_intent", None)
+        claim_intent = None
+        if raw_intent is not None:
+            if hasattr(raw_intent, "claimed_parts"):
+                claim_intent = raw_intent
+            elif isinstance(raw_intent, dict):
+                from app.domain.claim_intent.schemas import ClaimIntent
+                claim_intent = ClaimIntent(
+                    raw_text=raw_intent.get("raw_text", ""),
+                    claimed_parts=raw_intent.get("claimed_parts", []),
+                    claimed_damages=raw_intent.get("claimed_damages", []),
+                    is_empty=raw_intent.get("is_empty", False),
+                )
+            elif isinstance(raw_intent, str) and raw_intent.strip():
+                from app.domain.claim_intent.intent_grounder import get_claim_intent_grounder
+                claim_intent = get_claim_intent_grounder().ground(raw_intent)
+
+        unclaimed_candidates: List[GroupedPartCandidate] = []
+
         try:
             # Step 1 & 2: Batched GPU Inference under shared GPU lock
             t_gpu = time.perf_counter()
@@ -79,17 +100,45 @@ class DualMaskSegmentationOrchestrator:
             # Step 3 & 4: Shapely Spatial Intersection & Trajectory Grouping
             t_geo = time.perf_counter()
             intersections, discarded_hits, unclipped_areas = await asyncio.to_thread(
-                self.intersection_engine.compute_intersections, frame_predictions
+                self.intersection_engine.compute_intersections, frame_predictions, claim_intent
             )
             candidates = await asyncio.to_thread(
-                self.grouper.resolve_and_group, intersections, frame_predictions, unclipped_areas
+                self.grouper.resolve_and_group, intersections, frame_predictions, unclipped_areas, claim_intent
             )
             latencies["shapely_and_grouping_ms"] = round((time.perf_counter() - t_geo) * 1000, 2)
+
+            # Conditioned Stage 2 Evaluation:
+            # Filter and prioritize detections matching user's claimed intent
+            has_explicit_intent = (
+                claim_intent is not None
+                and not getattr(claim_intent, "is_empty", False)
+                and (bool(getattr(claim_intent, "claimed_parts", [])) or bool(getattr(claim_intent, "claimed_damages", [])))
+            )
+
+            if has_explicit_intent:
+                claimed_candidates: List[GroupedPartCandidate] = []
+                for c in candidates:
+                    if getattr(c, "is_claimed", True):
+                        claimed_candidates.append(c)
+                    else:
+                        unclaimed_candidates.append(c)
+
+                # If user claimed specific damage, but none of the detected panels matched the claimed intent:
+                if not claimed_candidates:
+                    from app.domain.dual_mask_segmentation.exceptions import Stage2ClaimedDamageNotFoundError
+                    claimed_summary = f"parts={getattr(claim_intent, 'claimed_parts', [])}, damages={getattr(claim_intent, 'claimed_damages', [])}"
+                    raise Stage2ClaimedDamageNotFoundError(
+                        message=f"Claimed damage ({claimed_summary}) was not detected on camera. Routing to manual adjuster review.",
+                        failure_codes=["ESC-07_CLAIMED_DAMAGE_NOT_FOUND"],
+                    )
+                target_candidates = claimed_candidates
+            else:
+                target_candidates = candidates
 
             # Step 5: Async SQL OEM Catalogue & Unrepaired Ledger Grounding
             t_sql = time.perf_counter()
             grounding_res = await self.catalog_grounder.ground_and_check_guardrails(
-                payload.policy_id, candidates
+                payload.policy_id, target_candidates
             )
             latencies["sql_grounding_ms"] = round((time.perf_counter() - t_sql) * 1000, 2)
 
@@ -112,6 +161,8 @@ class DualMaskSegmentationOrchestrator:
                 evaluated_kf_count=evaluated_kf_count,
                 grounded_parts=grounded_parts,
                 discarded_hits=discarded_hits,
+                claim_intent=claim_intent,
+                unclaimed_candidates=unclaimed_candidates,
             )
 
             await self._commit_success(payload.claim_id, telemetry)
@@ -125,6 +176,8 @@ class DualMaskSegmentationOrchestrator:
                 model=grounding_res.model,
                 grounded_parts=grounded_parts,
                 telemetry=telemetry,
+                claim_intent=claim_intent,
+                unclaimed_preexisting_parts=unclaimed_candidates,
             )
 
         except Stage2Error as err:
@@ -137,6 +190,8 @@ class DualMaskSegmentationOrchestrator:
                 evaluated_kf_count=evaluated_kf_count,
                 grounded_parts=[],
                 discarded_hits=discarded_hits,
+                claim_intent=claim_intent,
+                unclaimed_candidates=unclaimed_candidates,
             )
             await self._commit_escalation(
                 payload.claim_id, err.escalation_code, err.failure_codes, telemetry
@@ -155,6 +210,8 @@ class DualMaskSegmentationOrchestrator:
         evaluated_kf_count: int,
         grounded_parts: List[GroundedDamagedPart],
         discarded_hits: List[DiscardedSpilloverHit],
+        claim_intent: Optional[Any] = None,
+        unclaimed_candidates: Optional[List[GroupedPartCandidate]] = None,
     ) -> dict:
         serialized_parts = []
         for gp in grounded_parts:
@@ -162,6 +219,25 @@ class DualMaskSegmentationOrchestrator:
             d["som_annotated_crop_path"] = str(gp.som_annotated_crop_path)
             d["som_raw_crop_path"] = str(gp.som_raw_crop_path)
             serialized_parts.append(d)
+
+        serialized_unclaimed = []
+        for u in (unclaimed_candidates or []):
+            serialized_unclaimed.append({
+                "canonical_part_key": getattr(u, "canonical_part_key", "unknown"),
+                "primary_damage_class": getattr(u, "primary_damage_class", "unknown"),
+                "detected_damage_classes": getattr(u, "detected_damage_classes", []),
+                "final_iop_ratio": getattr(u, "final_iop_ratio", 0.0),
+                "part_confidence": getattr(u, "part_confidence", 0.0),
+                "damage_confidence": getattr(u, "damage_confidence", 0.0),
+                "claim_status": "UNCLAIMED_PREEXISTING_DAMAGE",
+            })
+
+        claim_intent_dict = None
+        if claim_intent is not None:
+            if hasattr(claim_intent, "__dataclass_fields__"):
+                claim_intent_dict = asdict(claim_intent)
+            elif isinstance(claim_intent, dict):
+                claim_intent_dict = claim_intent
 
         return {
             "schema_version": "2.0.0",
@@ -173,6 +249,11 @@ class DualMaskSegmentationOrchestrator:
             "opposite_side_multi_hit_detected": escalation_code == "ESC-05",
             "safety_critical_damage_detected": escalation_code == "ESC-06",
             "unrepaired_repeat_claim_detected": escalation_code == "ESC-03",
+            "claimed_damage_not_found": escalation_code == "ESC-07_CLAIMED_DAMAGE_NOT_FOUND",
+            "claim_intent": claim_intent_dict,
+            "unclaimed_preexisting_damages": serialized_unclaimed,
+            "unclaimed_candidates": serialized_unclaimed,
+            "unclaimed_preexisting_damage_detected": len(serialized_unclaimed) > 0,
             "grounded_damaged_parts": serialized_parts,
             "discarded_spillover_hits": [asdict(h) for h in discarded_hits],
         }

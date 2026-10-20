@@ -25,9 +25,12 @@ from tests.in_memory_db import patch_in_memory_db, in_memory_db
 patch_in_memory_db()
 
 import app.api.v1.endpoints.claims_router as cr
-async def dummy_downstream_task(claim_id, scratch_path, policy_id, is_demo_rehearsal):
-    pass
-cr.run_stage1_pipeline_task = dummy_downstream_task
+
+@pytest.fixture(autouse=True)
+def _patch_fast_fail_downstream(monkeypatch):
+    async def dummy_downstream_task(claim_id, scratch_path, policy_id, is_demo_rehearsal, *args, **kwargs):
+        pass
+    monkeypatch.setattr(cr, "run_stage1_pipeline_task", dummy_downstream_task)
 
 async def dummy_db_session():
     yield None

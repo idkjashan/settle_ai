@@ -7,6 +7,10 @@ class CaptureSource(str, Enum):
     LIVE_WEBRTC = "LIVE_WEBRTC"
     FILE_UPLOAD = "FILE_UPLOAD"
 
+class CaptureModality(str, Enum):
+    VIDEO_WALKAROUND = "VIDEO_WALKAROUND"
+    PHOTO_PACK = "PHOTO_PACK"
+
 class FastFailFailureCode(str, Enum):
     # Tier-1 Codes
     POLICY_NOT_FOUND = "POLICY_NOT_FOUND"
@@ -23,11 +27,16 @@ class FastFailFailureCode(str, Enum):
     DURATION_TOO_LONG = "DURATION_TOO_LONG"
     FRAMERATE_TOO_LOW = "FRAMERATE_TOO_LOW"
     METADATA_EDITED_VIDEO = "METADATA_EDITED_VIDEO"
+    INVALID_PHOTO_COUNT = "INVALID_PHOTO_COUNT"
+    UNSUPPORTED_PHOTO_FORMAT = "UNSUPPORTED_PHOTO_FORMAT"
     
     # Tier-2B Visual Quality Codes
     VIDEO_TOO_DARK = "VIDEO_TOO_DARK"
     VIDEO_TOO_BRIGHT = "VIDEO_TOO_BRIGHT"
     VIDEO_TOO_BLURRY = "VIDEO_TOO_BLURRY"
+    PHOTO_TOO_DARK = "PHOTO_TOO_DARK"
+    PHOTO_TOO_BRIGHT = "PHOTO_TOO_BRIGHT"
+    PHOTO_TOO_BLURRY = "PHOTO_TOO_BLURRY"
 
 class Tier1GateReport(BaseModel):
     passed: bool
@@ -74,10 +83,43 @@ class VisualGateReport(BaseModel):
     blurry_frame_count: int = 0
     duration_ms: float = 0.0
 
+class PhotoPackMetadataDTO(BaseModel):
+    passed: bool
+    failure_codes: List[FastFailFailureCode] = Field(default_factory=list)
+    photo_count: int = 0
+    file_formats: List[str] = Field(default_factory=list)
+    resolutions: List[Tuple[int, int]] = Field(default_factory=list)
+    duration_ms: float = 0.0
+
+class PhotoMetricDTO(BaseModel):
+    photo_index: int
+    file_name: str
+    width: int
+    height: int
+    mean_luminance_y: float
+    laplacian_variance: float
+    is_dark: bool
+    is_overexposed: bool
+    is_blurry: bool
+
+class PhotoValidationReportDTO(BaseModel):
+    passed: bool
+    failure_codes: List[FastFailFailureCode] = Field(default_factory=list)
+    photo_metrics: List[PhotoMetricDTO] = Field(default_factory=list)
+    mean_luminance_aggregate: float = 0.0
+    mean_sharpness_aggregate: float = 0.0
+    dark_photo_count: int = 0
+    bright_photo_count: int = 0
+    blurry_photo_count: int = 0
+    duration_ms: float = 0.0
+
 class FastFailTelemetryDTO(BaseModel):
     tier1_report: Tier1GateReport
     container_report: Optional[ContainerGateReport] = None
     visual_report: Optional[VisualGateReport] = None
+    capture_modality: CaptureModality = CaptureModality.VIDEO_WALKAROUND
+    photo_metadata_report: Optional[PhotoPackMetadataDTO] = None
+    photo_visual_report: Optional[PhotoValidationReportDTO] = None
     total_execution_ms: float = 0.0
 
 class RemediationDirective(BaseModel):

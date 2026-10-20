@@ -1,0 +1,17 @@
+# Auto-Settle AI — CarDD Damage Segmentation Dataset Configuration
+# Target: 6 Canonical Damage Classes
+# Documentation: https://cardd-ustc.github.io/
+
+path: data/cardd-seg # Root directory (relative to execution path or absolute)
+train: images/train  # Training split
+val: images/val      # Validation split
+test: images/test    # Test split (optional)
+
+nc: 6
+names:
+  0: dent
+  1: scratch
+  2: crack
+  3: glass_shatter
+  4: lamp_broken
+  5: tire_flat

@@ -2,7 +2,7 @@ import asyncio
 import json
 import uuid
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List, Union
 from fastapi import APIRouter, Depends, File, Form, UploadFile, BackgroundTasks, HTTPException, status
 from fastapi.responses import StreamingResponse, JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,7 +13,9 @@ from app.infrastructure.storage.scratch_ingest import scratch_ingest_service
 from app.infrastructure.storage.s3_client import s3_client
 from app.domain.fast_fail_gate.schemas import (
     CaptureSource,
+    CaptureModality,
     FastFailResponseDTO,
+    FastFailFailureCode,
 )
 from app.domain.fast_fail_gate.policy_dedupe_gate import PolicyAndDedupeGate
 from app.domain.fast_fail_gate.container_forensics import container_forensics_validator
@@ -31,10 +33,28 @@ from app.core.logging import logger
 
 
 async def run_stage1_pipeline_task(
-    claim_id: uuid.UUID, scratch_path, policy_id: str, is_demo_rehearsal: bool
+    claim_id: uuid.UUID,
+    scratch_path,
+    policy_id: str,
+    is_demo_rehearsal: bool,
+    claim_description: Optional[str] = None,
 ):
-    """Background task executing Stage 1 (Vehicle Identity & Continuity Grounding)."""
+    """Background task executing Stage 1 (Vehicle Identity & Continuity Grounding)
+    and handing off to Conditioned Stage 2 (Dual-Mask Segmentation).
+    """
     try:
+        claim_intent = None
+        if claim_description and claim_description.strip():
+            try:
+                from app.domain.claim_intent.intent_grounder import get_claim_intent_grounder
+                claim_intent = get_claim_intent_grounder().ground(claim_description)
+                logger.info(
+                    f"Grounded claim intent for {claim_id}: parts={claim_intent.claimed_parts}, "
+                    f"damages={claim_intent.claimed_damages} in {claim_intent.extraction_latency_ms}ms"
+                )
+            except Exception as intent_err:
+                logger.warning(f"Claim intent grounding failed for {claim_id}: {intent_err}")
+
         async with async_session_factory() as db:
             policy_repo = PolicyRepository(db)
             claim_repo = ClaimRepository(db)
@@ -51,12 +71,20 @@ async def run_stage1_pipeline_task(
             stage1_passed = False
             telemetry = None
             try:
-                telemetry = await stage1_orch.execute(
-                    claim_id=claim_id,
-                    scratch_video_path=scratch_path,
-                    policy_id=policy_id,
-                    is_demo_rehearsal=is_demo_rehearsal,
-                )
+                if isinstance(scratch_path, (list, tuple)):
+                    telemetry = await stage1_orch.execute_photo_pack(
+                        claim_id=claim_id,
+                        photo_paths=list(scratch_path),
+                        policy_id=policy_id,
+                        is_demo_rehearsal=is_demo_rehearsal,
+                    )
+                else:
+                    telemetry = await stage1_orch.execute(
+                        claim_id=claim_id,
+                        scratch_video_path=scratch_path,
+                        policy_id=policy_id,
+                        is_demo_rehearsal=is_demo_rehearsal,
+                    )
                 stage1_passed = bool(telemetry and telemetry.passed)
                 logger.info(f"Stage 1 background execution complete for {claim_id}: passed={stage1_passed}")
             except Exception as e:
@@ -100,12 +128,14 @@ async def run_stage1_pipeline_task(
                     redis_client = None
 
                 try:
+                    ref_video_path = str(scratch_path[0]) if isinstance(scratch_path, (list, tuple)) and scratch_path else str(scratch_path)
                     stage2_payload = Stage2HandoffPayload(
                         claim_id=claim_id,
                         policy_id=policy_id,
-                        scratch_video_path=str(scratch_path),
+                        scratch_video_path=ref_video_path,
                         keyframe_paths={k: str(v) for k, v in telemetry.tracking_report.saved_keyframes.items()},
                         vehicle_telemetry=telemetry,
+                        claim_intent=claim_intent,
                     )
                     stage2_orch = get_stage2_orchestrator(
                         db_session=db,
@@ -182,7 +212,14 @@ async def run_stage1_pipeline_task(
                         )
     finally:
         # ponytail: prevent disk exhaustion by unlinking scratch file after pipeline completes
-        if scratch_path and Path(scratch_path).exists():
+        if isinstance(scratch_path, (list, tuple)):
+            for p in scratch_path:
+                if p and Path(p).exists():
+                    try:
+                        Path(p).unlink(missing_ok=True)
+                    except Exception as e:
+                        logger.warning(f"Failed to unlink scratch photo {p}: {e}")
+        elif scratch_path and Path(scratch_path).exists():
             try:
                 Path(scratch_path).unlink(missing_ok=True)
             except Exception as e:
@@ -195,12 +232,15 @@ async def upload_claim_video(
     background_tasks: BackgroundTasks,
     policy_id: str = Form(...),
     capture_source: CaptureSource = Form(CaptureSource.FILE_UPLOAD),
+    capture_modality: Optional[CaptureModality] = Form(None),
     is_demo_rehearsal: bool = Form(False),
-    video_file: UploadFile = File(...),
+    claim_description: Optional[str] = Form(None, max_length=1000),
+    video_file: Optional[UploadFile] = File(None),
+    photo_files: Optional[List[UploadFile]] = File(None),
     db: AsyncSession = Depends(get_db_session),
 ):
     """
-    Ingest point for claim video walkaround.
+    Ingest point for claim media: video walkaround OR photo pack.
     Executes Stage 0 (Fast-Fail Gate).
     Returns HTTP 202 on pass, HTTP 200 with ESC-00 remediation on failure, HTTP 409 on lock conflict.
     """
@@ -219,6 +259,62 @@ async def upload_claim_video(
         s3_client=s3_client,
     )
 
+    # Detect modality: photo pack vs video walkaround
+    is_photo_pack = False
+    valid_photos: List[UploadFile] = []
+    if photo_files:
+        valid_photos = [f for f in photo_files if f and getattr(f, "filename", None)]
+        if valid_photos:
+            is_photo_pack = True
+
+    if not is_photo_pack and capture_modality == CaptureModality.PHOTO_PACK:
+        is_photo_pack = True
+
+    if is_photo_pack:
+        try:
+            response = await orchestrator.execute_photo_pack(
+                claim_id=None,
+                policy_id=policy_id,
+                photo_paths=valid_photos or photo_files,
+                is_demo_rehearsal=is_demo_rehearsal,
+                background_tasks=background_tasks,
+                downstream_task=run_stage1_pipeline_task,
+                claim_description=claim_description,
+                capture_source=capture_source,
+            )
+            if not response.passed:
+                return JSONResponse(status_code=status.HTTP_200_OK, content=response.model_dump(mode="json"))
+            return response
+        except LockConflictException as e:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+        except PayloadTooLargeException as e:
+            raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail=str(e))
+        except AutoSettleException as e:
+            fail_code = FastFailFailureCode.CONTAINER_PARSE_FAILED
+            rem = remediation_mapper.map_failures([fail_code])
+            res = FastFailResponseDTO(
+                passed=False,
+                claim_id=uuid.uuid4(),
+                escalation_code="ESC-00",
+                failure_codes=[fail_code],
+                remediation=rem,
+            )
+            return JSONResponse(status_code=status.HTTP_200_OK, content=res.model_dump(mode="json"))
+
+    # Video Walkaround path
+    if video_file is None or not getattr(video_file, "filename", None):
+        # Neither valid video nor photo pack provided
+        fail_code = FastFailFailureCode.CONTAINER_PARSE_FAILED
+        rem = remediation_mapper.map_failures([fail_code])
+        res = FastFailResponseDTO(
+            passed=False,
+            claim_id=uuid.uuid4(),
+            escalation_code="ESC-00",
+            failure_codes=[fail_code],
+            remediation=rem,
+        )
+        return JSONResponse(status_code=status.HTTP_200_OK, content=res.model_dump(mode="json"))
+
     try:
         response = await orchestrator.execute(
             policy_id=policy_id,
@@ -227,6 +323,7 @@ async def upload_claim_video(
             upload_file=video_file,
             background_tasks=background_tasks,
             downstream_task=run_stage1_pipeline_task,
+            claim_description=claim_description,
         )
 
         if not response.passed:

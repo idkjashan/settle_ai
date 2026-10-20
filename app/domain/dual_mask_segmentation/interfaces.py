@@ -1,7 +1,10 @@
 from pathlib import Path
-from typing import Dict, List, Protocol, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Protocol, Tuple
 from uuid import UUID
 import numpy as np
+
+if TYPE_CHECKING:
+    from app.domain.claim_intent.schemas import ClaimIntent
 
 from app.domain.dual_mask_segmentation.schemas import (
     DiscardedSpilloverHit,
@@ -24,7 +27,9 @@ class IDualModelInferencer(Protocol):
 class IPolygonIntersectionEngine(Protocol):
     """Protocol for Shapely GEOS polygon intersection, spillover, and completeness math."""
     def compute_intersections(
-        self, frame_predictions: List[FrameDualPredictions]
+        self,
+        frame_predictions: List[FrameDualPredictions],
+        claim_intent: Optional["ClaimIntent"] = None,
     ) -> Tuple[List[PartDamageIntersection], List[DiscardedSpilloverHit], Dict[Tuple[str, str], float]]: ...
 
 
@@ -35,6 +40,7 @@ class IPartSideResolverAndGrouper(Protocol):
         intersections: List[PartDamageIntersection],
         predictions: List[FrameDualPredictions],
         unclipped_part_areas: Dict[Tuple[str, str], float],
+        claim_intent: Optional["ClaimIntent"] = None,
     ) -> List[GroupedPartCandidate]: ...
 
 

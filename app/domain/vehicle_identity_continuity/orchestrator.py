@@ -2,7 +2,7 @@ import asyncio
 import time
 import uuid
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 import cv2
 import numpy as np
 import torch
@@ -292,6 +292,256 @@ class VehicleIdentityContinuityOrchestrator:
         )
 
         logger.info(f"Stage 1 fully PASSED for claim {claim_id} in {total_ms:.2f}ms.")
+        return telemetry
+
+    async def execute_photo_pack(
+        self,
+        claim_id: uuid.UUID,
+        photo_paths: List[Path],
+        policy_id: str,
+        is_demo_rehearsal: bool = False,
+    ) -> VehicleContinuityTelemetryDTO:
+        """
+        Executes Stage 1 Vehicle Identity Grounding for still Photo Pack:
+        1. ANPR plate OCR verification on plate candidate photo.
+        2. Body paint color HSV grounding on context photo.
+        3. Direct mapping of photos to canonical keyframes (front_bumper, damage_closeup_primary, side_body_panel).
+        4. State transition to STAGE_2_SEGMENTATION.
+        """
+        try:
+            return await self._execute_photo_pack_internal(
+                claim_id=claim_id,
+                photo_paths=photo_paths,
+                policy_id=policy_id,
+                is_demo_rehearsal=is_demo_rehearsal,
+            )
+        finally:
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+
+    async def _execute_photo_pack_internal(
+        self,
+        claim_id: uuid.UUID,
+        photo_paths: List[Path],
+        policy_id: str,
+        is_demo_rehearsal: bool = False,
+    ) -> VehicleContinuityTelemetryDTO:
+        t0 = time.perf_counter()
+
+        # Step 0: Policy Grounding Fetch
+        policy = await self.policy_repo.get_by_id(policy_id)
+        if not policy:
+            logger.error(f"Stage 1 Photo Pack failed: Policy {policy_id} not found.")
+            telemetry = VehicleContinuityTelemetryDTO(
+                cut_report=CutDetectionResult(is_continuous=False, failure_code="ESC-01"),
+                plate_report=PlateValidationResult(is_verified=False, expected_plate="", failure_code="ESC-01"),
+                color_report=ColorValidationResult(is_color_match=False, expected_color_name="", failure_code="ESC-01"),
+                tracking_report=TrackingAndKeyframeResult(is_persistent=False, failure_code="ESC-01"),
+                total_execution_ms=(time.perf_counter() - t0) * 1000.0,
+                passed=False,
+                escalation_code="ESC-01",
+            )
+            await self._update_failed_claim(claim_id, "REJECTED_STAGE1_IDENTITY", "ESC-01", telemetry)
+            return telemetry
+
+        grounding_context = PolicyGroundingContext(
+            policy_id=policy.policy_id,
+            registration_number=policy.registration_number,
+            make=policy.make,
+            model=policy.model,
+            registered_color=policy.registered_color,
+            registered_color_hsv=policy.registered_color_hsv,
+        )
+
+        resolved_photos = [Path(p) for p in photo_paths]
+
+        # Step 1: Read photos
+        loaded_images: Dict[Path, Optional[np.ndarray]] = {}
+        for p in resolved_photos:
+            img = cv2.imread(str(p))
+            loaded_images[p] = img
+
+        # Step 2: Identify candidate photos (plate candidate, context candidate, damage closeup candidate)
+        plate_photo: Optional[Path] = None
+        context_photo: Optional[Path] = None
+        damage_photo: Optional[Path] = None
+
+        for p in resolved_photos:
+            name_lower = p.name.lower()
+            if "plate" in name_lower or "front_bumper" in name_lower:
+                if plate_photo is None:
+                    plate_photo = p
+            elif "context" in name_lower or "side" in name_lower or "overview" in name_lower:
+                if context_photo is None:
+                    context_photo = p
+            elif "closeup" in name_lower or "damage" in name_lower or "macro" in name_lower:
+                if damage_photo is None:
+                    damage_photo = p
+
+        # Step 3: Run ANPR on plate candidate photo or scan photos
+        plate_report: Optional[PlateValidationResult] = None
+        best_plate_photo: Optional[Path] = None
+
+        candidate_plate_photos = [plate_photo] if plate_photo else resolved_photos
+        for p in candidate_plate_photos:
+            if p is None:
+                continue
+            img = loaded_images.get(p)
+            if img is None:
+                continue
+            rep = self.plate_validator.validate_plate_in_image(img, grounding_context.registration_number)
+            if plate_report is None or rep.is_verified or rep.homoglyph_edit_cost < plate_report.homoglyph_edit_cost:
+                plate_report = rep
+                best_plate_photo = p
+            if rep.is_verified:
+                break
+
+        # Fallback to test remaining photos if not yet verified
+        if plate_report is None or not plate_report.is_verified:
+            for p in resolved_photos:
+                if p == best_plate_photo:
+                    continue
+                img = loaded_images.get(p)
+                if img is None:
+                    continue
+                rep = self.plate_validator.validate_plate_in_image(img, grounding_context.registration_number)
+                if plate_report is None or rep.homoglyph_edit_cost < plate_report.homoglyph_edit_cost:
+                    plate_report = rep
+                    best_plate_photo = p
+                if rep.is_verified:
+                    plate_report = rep
+                    best_plate_photo = p
+                    break
+
+        if best_plate_photo:
+            plate_photo = best_plate_photo
+
+        if plate_report is None:
+            plate_report = PlateValidationResult(
+                is_verified=False,
+                expected_plate=grounding_context.registration_number,
+                failure_code="S1_PLATE_NOT_FOUND_OR_UNREADABLE",
+            )
+
+        if not plate_report.is_verified:
+            total_ms = (time.perf_counter() - t0) * 1000.0
+            fail_code = plate_report.failure_code or "S1_PLATE_MISMATCH"
+            telemetry = VehicleContinuityTelemetryDTO(
+                cut_report=CutDetectionResult(is_continuous=True, evaluated_frames=len(resolved_photos)),
+                plate_report=plate_report,
+                color_report=ColorValidationResult(is_color_match=False, expected_color_name=grounding_context.registered_color),
+                tracking_report=TrackingAndKeyframeResult(is_persistent=False),
+                total_execution_ms=total_ms,
+                passed=False,
+                escalation_code="ESC-01",
+            )
+            await self._update_failed_claim(
+                claim_id, "REJECTED_STAGE1_IDENTITY", "ESC-01", telemetry, failure_codes=[fail_code]
+            )
+            return telemetry
+
+        # Step 4: Body color HSV grounding on context photo
+        if context_photo is None or context_photo == plate_photo:
+            non_plate_photos = [p for p in resolved_photos if p != plate_photo]
+            context_photo = non_plate_photos[0] if non_plate_photos else plate_photo
+
+        context_img = loaded_images.get(context_photo)
+        if context_img is not None:
+            h_c, w_c = context_img.shape[:2]
+            vehicle_bbox = plate_report.anchor_vehicle_bbox or (0, 0, w_c, h_c)
+            color_report = self.color_validator.validate_paint_color(
+                context_img, vehicle_bbox, grounding_context
+            )
+        else:
+            color_report = ColorValidationResult(
+                is_color_match=False,
+                expected_color_name=grounding_context.registered_color,
+                failure_code="S1_COLOR_MISMATCH",
+            )
+
+        if not color_report.is_color_match:
+            total_ms = (time.perf_counter() - t0) * 1000.0
+            fail_code = color_report.failure_code or "S1_COLOR_MISMATCH"
+            telemetry = VehicleContinuityTelemetryDTO(
+                cut_report=CutDetectionResult(is_continuous=True, evaluated_frames=len(resolved_photos)),
+                plate_report=plate_report,
+                color_report=color_report,
+                tracking_report=TrackingAndKeyframeResult(is_persistent=False),
+                total_execution_ms=total_ms,
+                passed=False,
+                escalation_code="ESC-01",
+            )
+            await self._update_failed_claim(
+                claim_id, "REJECTED_STAGE1_IDENTITY", "ESC-01", telemetry, failure_codes=[fail_code]
+            )
+            return telemetry
+
+        # Step 5: Map photos directly to canonical keyframes:
+        # front_bumper.jpg, damage_closeup_primary.jpg, side_body_panel.jpg
+        if damage_photo is None or damage_photo in (plate_photo, context_photo):
+            remaining = [p for p in resolved_photos if p not in (plate_photo, context_photo)]
+            damage_photo = remaining[0] if remaining else (context_photo or plate_photo)
+
+        saved_keyframes: Dict[str, str] = {
+            "front_bumper": str(plate_photo),
+            "damage_closeup_primary": str(damage_photo),
+            "side_body_panel": str(context_photo),
+        }
+        additional_keys = ["rear_bumper", "hood", "trunk_lid", "front_left_door", "front_right_door"]
+        used_photos = {plate_photo, context_photo, damage_photo}
+        extra_idx = 0
+        for p in resolved_photos:
+            if p not in used_photos:
+                key = additional_keys[extra_idx] if extra_idx < len(additional_keys) else f"extra_panel_{extra_idx}"
+                saved_keyframes[key] = str(p)
+                extra_idx += 1
+
+        curated_keyframes = [str(p) for p in resolved_photos]
+
+        track_report = TrackingAndKeyframeResult(
+            is_persistent=True,
+            frames_tracked=len(resolved_photos),
+            saved_keyframes=saved_keyframes,
+            curated_keyframes=curated_keyframes,
+            late_plate_verified=True,
+            duration_ms=(time.perf_counter() - t0) * 1000.0,
+        )
+
+        total_ms = (time.perf_counter() - t0) * 1000.0
+        telemetry = VehicleContinuityTelemetryDTO(
+            cut_report=CutDetectionResult(is_continuous=True, evaluated_frames=len(resolved_photos)),
+            plate_report=plate_report,
+            color_report=color_report,
+            tracking_report=track_report,
+            total_execution_ms=total_ms,
+            passed=True,
+            escalation_code=None,
+        )
+
+        # Commit to PostgreSQL
+        await self.claim_repo.update_claim_stage(
+            claim_id=claim_id,
+            stage="STAGE_2_SEGMENTATION",
+            status="PROCESSING",
+            telemetry_update=telemetry.model_dump(),
+            telemetry_column="vehicle_continuity_telemetry",
+        )
+
+        # Emit Redis SSE event
+        await self.redis_mgr.publish_event(
+            claim_id=claim_id,
+            event_name="STAGE_1_PASSED",
+            payload={
+                "claim_id": str(claim_id),
+                "status": "PROCESSING",
+                "stage": "STAGE_2_SEGMENTATION",
+                "keyframes": track_report.saved_keyframes,
+                "duration_ms": total_ms,
+                "modality": "PHOTO_PACK",
+            },
+        )
+
+        logger.info(f"Stage 1 Photo Pack fully PASSED for claim {claim_id} in {total_ms:.2f}ms.")
         return telemetry
 
     async def _update_failed_claim(

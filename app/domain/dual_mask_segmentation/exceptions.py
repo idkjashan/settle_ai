@@ -42,3 +42,13 @@ class Stage2LowConfidenceOrNoDamageError(Stage2Error):
     """Raised when zero damage overlaps survive filtering or confidence < 0.45 (ESC-07)."""
     def __init__(self, message: str, failure_codes: List[str]):
         super().__init__(message, failure_codes, escalation_code="ESC-07")
+
+
+class Stage2ClaimedDamageNotFoundError(Stage2Error):
+    """Raised when claimed damage is not detected on the claimed part (ESC-07_CLAIMED_DAMAGE_NOT_FOUND)."""
+    def __init__(self, message: str, failure_codes: Optional[List[str]] = None):
+        super().__init__(
+            message=message,
+            failure_codes=failure_codes or ["ESC-07_CLAIMED_DAMAGE_NOT_FOUND"],
+            escalation_code="ESC-07_CLAIMED_DAMAGE_NOT_FOUND",
+        )

@@ -148,6 +148,8 @@ class SoMCropRenderer:
                     som_raw_crop_path=raw_path,
                     svg_overlay=svg_overlay,
                     catalogue_record=cat_rec,
+                    is_claimed=getattr(cand, "is_claimed", True),
+                    claim_status=getattr(cand, "claim_status", "CLAIMED"),
                 )
             )
 

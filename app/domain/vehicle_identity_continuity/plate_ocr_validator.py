@@ -412,5 +412,128 @@ class PlateOCRValidator:
         best = max(candidates, key=lambda c: c["conf"])
         return best["text"], best["conf"]
 
+    def validate_plate_in_image(
+        self,
+        image_bgr: np.ndarray,
+        expected_plate: str,
+    ) -> PlateValidationResult:
+        """
+        Validates vehicle license plate in a still image.
+        1. Detects vehicle bounding box via YOLO (if present).
+        2. Crops bumper/plate ROI or falls back to full image.
+        3. Runs EasyOCR on candidate ROI.
+        4. Calculates homoglyph-weighted distance against expected plate.
+        """
+        t0 = time.perf_counter()
+        expected_clean = clean_plate_string(expected_plate)
+
+        if image_bgr is None or image_bgr.size == 0:
+            return PlateValidationResult(
+                is_verified=False,
+                expected_plate=expected_plate,
+                failure_code="S1_PLATE_NOT_FOUND_OR_UNREADABLE",
+                duration_ms=(time.perf_counter() - t0) * 1000.0,
+            )
+
+        ocr = self.get_ocr_reader()
+        if not ocr:
+            logger.warning("OCR reader unavailable for plate validation.")
+            return PlateValidationResult(
+                is_verified=False,
+                expected_plate=expected_plate,
+                failure_code="S1_PLATE_NOT_FOUND_OR_UNREADABLE",
+                duration_ms=(time.perf_counter() - t0) * 1000.0,
+            )
+
+        # Step 1: Detect vehicle candidate
+        vehicle_box: Optional[Tuple[int, int, int, int]] = None
+        try:
+            yolo = self.get_yolo()
+            results = yolo.predict(image_bgr, imgsz=640, verbose=False, conf=0.35)
+            boxes = results[0].boxes
+            best_area = 0
+            for box in boxes:
+                cls_id = int(box.cls[0].item())
+                if cls_id in (2, 5, 7):  # car, bus, truck
+                    bx1, by1, bx2, by2 = [int(v.item()) for v in box.xyxy[0]]
+                    area = (bx2 - bx1) * (by2 - by1)
+                    if area > best_area:
+                        best_area = area
+                        vehicle_box = (bx1, by1, bx2, by2)
+        except Exception as e:
+            logger.warning(f"YOLO detection failed on still image: {e}")
+
+        # Step 2: Determine ROI for OCR (crop bumper or check whole image)
+        rois = []
+        if vehicle_box is not None:
+            bumper_roi = self.crop_bumper_roi(image_bgr, vehicle_box)
+            if bumper_roi.size > 0:
+                rois.append(bumper_roi)
+        rois.append(image_bgr)  # fallback to full image search
+
+        best_cand: Optional[str] = None
+        lowest_cost = 999.0
+        highest_conf = 0.0
+
+        for r in rois:
+            try:
+                detections = ocr.readtext(r)
+                merged_text, conf = self._extract_and_merge_plate(detections, r.shape[:2])
+                if merged_text:
+                    cand_clean = clean_plate_string(merged_text)
+                    cost = homoglyph_weighted_distance(cand_clean, expected_clean)
+                    if cost < lowest_cost:
+                        lowest_cost = cost
+                        best_cand = cand_clean
+                        highest_conf = conf
+                    if cost <= self.settings.MAX_HOMOGLYPH_EDIT_COST:
+                        break
+            except Exception as ocr_err:
+                logger.warning(f"OCR execution failed on ROI: {ocr_err}")
+
+        duration_ms = (time.perf_counter() - t0) * 1000.0
+
+        if best_cand and lowest_cost <= self.settings.MAX_HOMOGLYPH_EDIT_COST:
+            logger.info(
+                f"Still Photo Plate verified: expected={expected_clean}, found={best_cand}, "
+                f"cost={lowest_cost:.2f}, conf={highest_conf:.2f} ({duration_ms:.2f}ms)"
+            )
+            return PlateValidationResult(
+                is_verified=True,
+                expected_plate=expected_plate,
+                extracted_plate=best_cand,
+                ocr_confidence=highest_conf,
+                homoglyph_edit_cost=lowest_cost,
+                is_spatially_grounded_on_vehicle=(vehicle_box is not None),
+                anchor_vehicle_bbox=vehicle_box,
+                duration_ms=duration_ms,
+            )
+
+        if best_cand and len(best_cand) >= 7 and lowest_cost > self.settings.MAX_HOMOGLYPH_EDIT_COST:
+            logger.warning(
+                f"Still Photo Wrong plate detected: expected={expected_clean}, found={best_cand}, cost={lowest_cost:.2f}"
+            )
+            return PlateValidationResult(
+                is_verified=False,
+                expected_plate=expected_plate,
+                extracted_plate=best_cand,
+                ocr_confidence=highest_conf,
+                homoglyph_edit_cost=lowest_cost,
+                anchor_vehicle_bbox=vehicle_box,
+                failure_code="S1_PLATE_MISMATCH",
+                duration_ms=duration_ms,
+            )
+
+        return PlateValidationResult(
+            is_verified=False,
+            expected_plate=expected_plate,
+            extracted_plate=best_cand,
+            ocr_confidence=highest_conf,
+            homoglyph_edit_cost=lowest_cost,
+            anchor_vehicle_bbox=vehicle_box,
+            failure_code="S1_PLATE_NOT_FOUND_OR_UNREADABLE",
+            duration_ms=duration_ms,
+        )
+
 plate_ocr_validator = PlateOCRValidator()
 

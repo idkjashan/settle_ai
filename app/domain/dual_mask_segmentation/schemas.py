@@ -15,6 +15,8 @@ class Stage2FailureCode(str, Enum):
     S2_LOW_SEGMENTATION_CONFIDENCE = "S2_LOW_SEGMENTATION_CONFIDENCE"
     S2_OEM_CATALOGUE_PART_MISSING = "S2_OEM_CATALOGUE_PART_MISSING"
     S2_MODEL_COMPATIBILITY_ERROR = "S2_MODEL_COMPATIBILITY_ERROR"
+    S2_CLAIMED_DAMAGE_NOT_FOUND = "S2_CLAIMED_DAMAGE_NOT_FOUND"
+    ESC_07_CLAIMED_DAMAGE_NOT_FOUND = "ESC-07_CLAIMED_DAMAGE_NOT_FOUND"
 
 
 @dataclass(frozen=True)
@@ -59,6 +61,8 @@ class PartDamageIntersection:
     max_damage_confidence: float
     part_polygon: BaseGeometry
     union_damage_polygon: BaseGeometry
+    is_claimed: bool = True
+    claim_status: str = "CLAIMED"
 
 
 @dataclass
@@ -85,6 +89,8 @@ class GroupedPartCandidate:
     damage_confidence: float
     area_measurement_intersection: PartDamageIntersection
     vlm_closeup_intersection: PartDamageIntersection
+    is_claimed: bool = True
+    claim_status: str = "CLAIMED"
 
 
 @dataclass(frozen=True)
@@ -144,6 +150,8 @@ class GroundedDamagedPart:
     som_raw_crop_path: Path
     svg_overlay: SVGOverlayPayload
     catalogue_record: OEMPartCatalogueRecord
+    is_claimed: bool = True
+    claim_status: str = "CLAIMED"
 
 
 @dataclass
@@ -155,3 +163,5 @@ class Stage3HandoffPayload:
     model: str
     grounded_parts: List[GroundedDamagedPart]
     telemetry: Dict[str, Any]
+    claim_intent: Optional[Any] = None
+    unclaimed_preexisting_parts: List[GroupedPartCandidate] = field(default_factory=list)

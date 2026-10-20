@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 from shapely.geometry import Polygon
 from shapely.geometry.base import BaseGeometry
@@ -74,7 +74,9 @@ class PolygonIntersectionEngine:
         return not (b1[2] < b2[0] or b1[0] > b2[2] or b1[3] < b2[1] or b1[1] > b2[3])
 
     def compute_intersections(
-        self, frame_predictions: List[FrameDualPredictions]
+        self,
+        frame_predictions: List[FrameDualPredictions],
+        claim_intent: Optional[Any] = None,
     ) -> Tuple[List[PartDamageIntersection], List[DiscardedSpilloverHit], Dict[Tuple[str, str], float]]:
         valid_intersections: List[PartDamageIntersection] = []
         discarded_hits: List[DiscardedSpilloverHit] = []
@@ -167,6 +169,27 @@ class PolygonIntersectionEngine:
                 union_inter_area = float(union_dmg_poly.area)
                 union_iop = min(1.0, union_inter_area / part_area)
 
+                # Determine if this hit matches user claimed intent
+                is_claimed = True
+                claim_status = "CLAIMED"
+                if claim_intent is not None and not getattr(claim_intent, "is_empty", False):
+                    claimed_parts = getattr(claim_intent, "claimed_parts", [])
+                    claimed_damages = getattr(claim_intent, "claimed_damages", [])
+                    if claimed_parts or claimed_damages:
+                        part_matches = True
+                        if claimed_parts:
+                            if hasattr(claim_intent, "matches_part"):
+                                part_matches = claim_intent.matches_part(p_raw.class_name)
+                            else:
+                                from app.domain.claim_intent.schemas import is_part_matching
+                                part_matches = any(is_part_matching(p_raw.class_name, cp) for cp in claimed_parts)
+                        damage_matches = True
+                        if claimed_damages:
+                            damage_matches = any(d in claimed_damages for d in accepted_damage_classes)
+
+                        is_claimed = part_matches and damage_matches
+                        claim_status = "CLAIMED" if is_claimed else "UNCLAIMED_PREEXISTING_DAMAGE"
+
                 valid_intersections.append(
                     PartDamageIntersection(
                         keyframe_key=frame_pred.keyframe_key,
@@ -188,6 +211,8 @@ class PolygonIntersectionEngine:
                         max_damage_confidence=round(max_d_conf, 4),
                         part_polygon=p_poly,
                         union_damage_polygon=union_dmg_poly,
+                        is_claimed=is_claimed,
+                        claim_status=claim_status,
                     )
                 )
 

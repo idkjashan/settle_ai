@@ -9,6 +9,8 @@ from app.domain.fast_fail_gate.schemas import (
     SampledFrameMetric,
     FastFailFailureCode,
     ContainerGateReport,
+    PhotoValidationReportDTO,
+    PhotoMetricDTO,
 )
 from app.core.logging import logger
 
@@ -175,5 +177,108 @@ class VisualQualityValidator:
             is_blurry=is_blurry,
         )
 
+    def validate_photos(self, photo_paths: List[Path]) -> PhotoValidationReportDTO:
+        """
+        Validates visual quality of still photos in a photo pack:
+        - Sharpness >= 60.0 (Laplacian variance normalized to 720p height)
+        - Mean luminance Y in [45, 235]
+        """
+        t0 = time.perf_counter()
+        failure_codes: List[FastFailFailureCode] = []
+        metrics: List[PhotoMetricDTO] = []
+
+        dark_count = 0
+        bright_count = 0
+        blurry_count = 0
+
+        for idx, p in enumerate(photo_paths):
+            p_obj = Path(p)
+            if not p_obj.exists():
+                continue
+
+            img = cv2.imread(str(p_obj))
+            if img is None:
+                continue
+
+            h, w = img.shape[:2]
+            # 1. Luminance
+            yuv = cv2.cvtColor(img, cv2.COLOR_BGR2YUV)
+            mean_y = float(np.mean(yuv[:, :, 0]))
+
+            # 2. Laplacian sharpness normalized to 720p height
+            target_h = 720
+            target_w = int(w * (target_h / h)) if h > 0 else w
+            if target_w > 0 and target_h > 0:
+                frame_norm = cv2.resize(img, (target_w, target_h), interpolation=cv2.INTER_AREA)
+            else:
+                frame_norm = img
+
+            gray = cv2.cvtColor(frame_norm, cv2.COLOR_BGR2GRAY)
+            laplacian_var = float(cv2.Laplacian(gray, cv2.CV_64F).var())
+
+            # Tuned thresholds for still photos (as specified in solution architecture)
+            is_dark = mean_y < 45.0
+            is_bright = mean_y > 235.0
+            is_blurry = laplacian_var < 60.0
+
+            if is_dark:
+                dark_count += 1
+                if FastFailFailureCode.PHOTO_TOO_DARK not in failure_codes:
+                    failure_codes.append(FastFailFailureCode.PHOTO_TOO_DARK)
+                if FastFailFailureCode.VIDEO_TOO_DARK not in failure_codes:
+                    failure_codes.append(FastFailFailureCode.VIDEO_TOO_DARK)
+
+            if is_bright:
+                bright_count += 1
+                if FastFailFailureCode.PHOTO_TOO_BRIGHT not in failure_codes:
+                    failure_codes.append(FastFailFailureCode.PHOTO_TOO_BRIGHT)
+                if FastFailFailureCode.VIDEO_TOO_BRIGHT not in failure_codes:
+                    failure_codes.append(FastFailFailureCode.VIDEO_TOO_BRIGHT)
+
+            if is_blurry:
+                blurry_count += 1
+                if FastFailFailureCode.PHOTO_TOO_BLURRY not in failure_codes:
+                    failure_codes.append(FastFailFailureCode.PHOTO_TOO_BLURRY)
+                if FastFailFailureCode.VIDEO_TOO_BLURRY not in failure_codes:
+                    failure_codes.append(FastFailFailureCode.VIDEO_TOO_BLURRY)
+
+            metrics.append(
+                PhotoMetricDTO(
+                    photo_index=idx,
+                    file_name=p_obj.name,
+                    width=w,
+                    height=h,
+                    mean_luminance_y=mean_y,
+                    laplacian_variance=laplacian_var,
+                    is_dark=is_dark,
+                    is_overexposed=is_bright,
+                    is_blurry=is_blurry,
+                )
+            )
+
+        mean_luminance = float(np.mean([m.mean_luminance_y for m in metrics])) if metrics else 0.0
+        mean_sharpness = float(np.mean([m.laplacian_variance for m in metrics])) if metrics else 0.0
+        duration_ms = (time.perf_counter() - t0) * 1000.0
+        passed = len(failure_codes) == 0
+
+        logger.info(
+            f"Photo Quality Gate: count={len(metrics)}, passed={passed}, mean_Y={mean_luminance:.1f}, "
+            f"mean_Lap={mean_sharpness:.1f}, dark={dark_count}, bright={bright_count}, "
+            f"blurry={blurry_count} ({duration_ms:.2f}ms)"
+        )
+
+        return PhotoValidationReportDTO(
+            passed=passed,
+            failure_codes=failure_codes,
+            photo_metrics=metrics,
+            mean_luminance_aggregate=mean_luminance,
+            mean_sharpness_aggregate=mean_sharpness,
+            dark_photo_count=dark_count,
+            bright_photo_count=bright_count,
+            blurry_photo_count=blurry_count,
+            duration_ms=duration_ms,
+        )
+
 visual_quality_validator = VisualQualityValidator()
+validate_photos = visual_quality_validator.validate_photos
 

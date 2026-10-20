@@ -82,8 +82,16 @@ class RemediationMapper:
         action_items: List[str] = []
         messages: List[str] = []
 
+        if FastFailFailureCode.INVALID_PHOTO_COUNT in codes:
+            messages.append("Photo pack must contain between 3 and 6 photos")
+            action_items.append("Submit 3 to 6 photos covering license plate, vehicle context, and damage closeup")
+
+        if FastFailFailureCode.UNSUPPORTED_PHOTO_FORMAT in codes:
+            messages.append("One or more photos are in an unsupported format")
+            action_items.append("Upload photos in JPEG or PNG format")
+
         if FastFailFailureCode.RESOLUTION_TOO_LOW in codes:
-            messages.append("Video resolution is below 720p HD")
+            messages.append("Media resolution is below required quality standard")
             action_items.append("Switch camera settings to at least 720p or 1080p HD")
 
         if FastFailFailureCode.DURATION_TOO_SHORT in codes:
@@ -97,16 +105,16 @@ class RemediationMapper:
             messages.append("Video framerate is under 15 FPS")
             action_items.append("Ensure your camera is set to record at 30 FPS")
 
-        if FastFailFailureCode.VIDEO_TOO_DARK in codes:
+        if FastFailFailureCode.VIDEO_TOO_DARK in codes or FastFailFailureCode.PHOTO_TOO_DARK in codes:
             messages.append("Lighting is too dark")
-            action_items.append("Film in daylight or turn on your smartphone flashlight")
-        elif FastFailFailureCode.VIDEO_TOO_BRIGHT in codes:
+            action_items.append("Film or photograph in daylight or turn on your smartphone flashlight")
+        elif FastFailFailureCode.VIDEO_TOO_BRIGHT in codes or FastFailFailureCode.PHOTO_TOO_BRIGHT in codes:
             messages.append("Lighting is overexposed or has direct blinding glare")
-            action_items.append("Avoid filming directly into bright headlights or direct sun")
+            action_items.append("Avoid capturing directly into bright headlights or direct sun")
 
-        if FastFailFailureCode.VIDEO_TOO_BLURRY in codes:
-            messages.append("Video has significant motion blur")
-            action_items.append("Walk slowly and hold the camera steady while filming")
+        if FastFailFailureCode.VIDEO_TOO_BLURRY in codes or FastFailFailureCode.PHOTO_TOO_BLURRY in codes:
+            messages.append("Media has significant blur")
+            action_items.append("Hold the camera steady while capturing to avoid motion blur")
 
         if not messages:
             messages.append("Video failed technical sanity requirements")

@@ -3,8 +3,13 @@ import subprocess
 import time
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple
+import cv2
 from app.core.config import settings
-from app.domain.fast_fail_gate.schemas import ContainerGateReport, FastFailFailureCode
+from app.domain.fast_fail_gate.schemas import (
+    ContainerGateReport,
+    FastFailFailureCode,
+    PhotoPackMetadataDTO,
+)
 from app.core.logging import logger
 
 class ContainerForensicsValidator:
@@ -197,5 +202,86 @@ class ContainerForensicsValidator:
                         return f"{k}:{v}"
         return None
 
+    def validate_photo_pack(self, photo_paths: List[Path]) -> PhotoPackMetadataDTO:
+        """
+        Validates photo pack container integrity:
+        - Count: 3 <= N <= 6 photos (INVALID_PHOTO_COUNT)
+        - Format: JPEG or PNG header & suffix (UNSUPPORTED_PHOTO_FORMAT)
+        - Dimensions: at least 1080p -> min(w, h) >= 720 and max(w, h) >= 1080 (RESOLUTION_TOO_LOW)
+        """
+        t0 = time.perf_counter()
+        failure_codes: List[FastFailFailureCode] = []
+        formats: List[str] = []
+        resolutions: List[Tuple[int, int]] = []
+
+        # 1. Count validation
+        if len(photo_paths) < 3 or len(photo_paths) > 6:
+            failure_codes.append(FastFailFailureCode.INVALID_PHOTO_COUNT)
+
+        # 2. Format & dimension checks for each photo
+        for p in photo_paths:
+            p_obj = Path(p)
+            if not p_obj.exists():
+                if FastFailFailureCode.CONTAINER_PARSE_FAILED not in failure_codes:
+                    failure_codes.append(FastFailFailureCode.CONTAINER_PARSE_FAILED)
+                continue
+
+            # Read magic bytes to determine format
+            fmt = "UNKNOWN"
+            try:
+                with open(p_obj, "rb") as f:
+                    header = f.read(16)
+                if header.startswith(b"\xff\xd8\xff"):
+                    fmt = "JPEG"
+                elif header.startswith(b"\x89PNG\r\n\x1a\n"):
+                    fmt = "PNG"
+                elif p_obj.suffix.lower() in (".jpg", ".jpeg"):
+                    fmt = "JPEG"
+                elif p_obj.suffix.lower() == ".png":
+                    fmt = "PNG"
+            except Exception as e:
+                logger.warning(f"Failed to read header of photo {p_obj}: {e}")
+                fmt = "UNKNOWN"
+
+            if fmt not in ("JPEG", "PNG"):
+                if FastFailFailureCode.UNSUPPORTED_PHOTO_FORMAT not in failure_codes:
+                    failure_codes.append(FastFailFailureCode.UNSUPPORTED_PHOTO_FORMAT)
+
+            # Decode dimensions via cv2
+            img = cv2.imread(str(p_obj))
+            if img is None:
+                if FastFailFailureCode.UNSUPPORTED_PHOTO_FORMAT not in failure_codes:
+                    failure_codes.append(FastFailFailureCode.UNSUPPORTED_PHOTO_FORMAT)
+                resolutions.append((0, 0))
+                formats.append(fmt)
+                continue
+
+            h, w = img.shape[:2]
+            resolutions.append((w, h))
+            formats.append(fmt)
+
+            # 3. Dimension check: at least 1080p (min(w, h) >= 720 and max(w, h) >= 1080)
+            if min(w, h) < 720 or max(w, h) < 1080:
+                if FastFailFailureCode.RESOLUTION_TOO_LOW not in failure_codes:
+                    failure_codes.append(FastFailFailureCode.RESOLUTION_TOO_LOW)
+
+        duration_ms = (time.perf_counter() - t0) * 1000.0
+        passed = len(failure_codes) == 0
+
+        logger.info(
+            f"Photo Pack Forensics: {len(photo_paths)} photos, passed={passed}, "
+            f"codes={failure_codes}, resolutions={resolutions} ({duration_ms:.2f}ms)"
+        )
+
+        return PhotoPackMetadataDTO(
+            passed=passed,
+            failure_codes=failure_codes,
+            photo_count=len(photo_paths),
+            file_formats=formats,
+            resolutions=resolutions,
+            duration_ms=duration_ms,
+        )
+
 container_forensics_validator = ContainerForensicsValidator()
+validate_photo_pack = container_forensics_validator.validate_photo_pack
 

@@ -44,3 +44,8 @@ weights/*.pt
 *.pt
 !weights/README.md
 
+# Training run logs
+runs/
+data/
+
+
