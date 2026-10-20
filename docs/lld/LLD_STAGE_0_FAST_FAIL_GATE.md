@@ -1073,3 +1073,31 @@ The evaluation runner enforces four quantitative deployment gates:
 2. **False Rejection Rate (FRR):** **`0.00%`** across valid landscape, portrait, 4K, and WebRTC fixtures.
 3. **Latency SLA:** **p95 $\le$ 400 ms** across all 21 test scenarios executed on standard CPU instances.
 4. **Zero Resource Leak:** Active scratch files remaining in `/tmp/autosettle_ingest` for rejected requests must equal **`0`**, and dangling Redis in-flight locks must equal **`0`**.
+
+---
+
+## 11. Dual-Modality Intake: Photo Pack Forensic & Quality Gate
+
+In addition to continuous 15-second walkaround videos (`CaptureModality.VIDEO_WALKAROUND`), Stage 0 natively supports multi-photo submissions (`CaptureModality.PHOTO_PACK`) to mitigate low-bandwidth friction in roadside claims.
+
+### 11.1 Photo Pack Constraints & Perimeter Firewalls
+The photo pack pipeline evaluates all submitted still images under the following strict boundaries:
+
+1. **Count Boundary ($3 \le N \le 6$):**
+   - Submissions with fewer than 3 photos lack sufficient multi-angle coverage to ground vehicle identity and damage context.
+   - Submissions with more than 6 photos introduce redundant compute overhead.
+   - Violations fail with `INVALID_PHOTO_COUNT` (`HTTP 200, passed=False`).
+
+2. **Container & Format Forensics (`validate_photo_pack` in `container_forensics.py`):**
+   - Validates file headers and magic bytes: strictly `image/jpeg` or `image/png`. Unsupported formats (e.g. BMP, WebP, TIFF) fail with `UNSUPPORTED_PHOTO_FORMAT`.
+   - **Resolution Gate**: Requires $\min(W, H) \ge 720\text{px}$ and $\max(W, H) \ge 1080\text{px}$ in either orientation (portrait or landscape). Images below this floor fail with `RESOLUTION_TOO_LOW`.
+
+3. **Visual Quality Gate (`validate_photos` in `visual_quality_gate.py`):**
+   - **Scale-Normalized Laplacian Sharpness**: Every photo must achieve $\sigma^2_{\nabla^2 I} \ge 60.0$ when normalized to a 720p height baseline. Blurry captures fail with `PHOTO_TOO_BLURRY`.
+   - **Luminance Guard**: Mean YUV luminance must fall within $\mu_Y \in [45.0, 235.0]$. Underexposed images fail with `PHOTO_TOO_DARK`; blown-out images fail with `PHOTO_TOO_BRIGHT`.
+
+4. **Streaming Scratch Lease (`ScratchPhotoPackLease` in `scratch_ingest.py`):**
+   - Streams multi-photo uploads chunk-by-chunk to isolated temporary directories (`/tmp/autosettle_ingest/pack_{uuid}`).
+   - Computes a deterministic cumulative SHA-256 hash across sorted image hashes for deduplication.
+   - Enforces the global 100 MB total pack upload ceiling.
+

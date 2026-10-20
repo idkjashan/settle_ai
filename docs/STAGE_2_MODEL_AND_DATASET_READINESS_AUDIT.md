@@ -194,3 +194,26 @@ model_parts.train(
 | **Stage 0 Fast-Fail Gate** | Policy deduplication, container forensics, visual quality gate | 15 | **PASSED** | 31.64s |
 | **Stage 1 Identity & Continuity** | Cut detector, plate OCR ANPR, color grounding, object tracker | 18 | **PASSED** | 16.81s |
 | **Overall Verification** | Full hermetic pipeline | **75** | **100% GREEN** | — |
+
+---
+
+## 8. Post-Audit Resolution & Milestone Addendum (2026-10-21)
+
+All open items and bottlenecks identified in this audit have been resolved:
+
+1. **Checkpoints Sourced & Verified Locally**:
+   - Vehicle Part Segmentation: `weights/carparts-yolo11n-seg.pt` (23 exterior classes verified).
+   - Vehicle Damage Segmentation: `weights/cardd-yolov8s-seg.pt` (6 CarDD damage classes verified).
+2. **Local Hardware Environment Upgraded**:
+   - Environment migrated to Linux WSL2 running PyTorch 2.6.0+cu124 on a physical **NVIDIA GeForce RTX 4060 Laptop GPU** (8 GB VRAM).
+   - Confirmed CUDA device mapping: `device = torch.device('cuda:0')`.
+3. **Training Automation Toolchain Built**:
+   - Added COCO-to-YOLO polygon dataset preparation utility: `tools/model_training/prepare_dataset.py`.
+   - Added memory-optimized training runner: `tools/model_training/train_yolo_seg.py` (supporting FP16 AMP, early stopping, and automatic batch scaling).
+   - Added one-click shell and batch runners: `scripts/train_wsl.sh` and `scripts/train_windows.bat`.
+   - GPU smoke test passed on RTX 4060 GPU with 0.428 GB peak VRAM.
+4. **Intent-Conditioned Stage 2 Architecture**:
+   - Implemented dynamic claim intent grounding (`app/domain/claim_intent/`) with local FastEmbed ONNX models.
+   - Stage 2 now conditions detection on claimed intent, cleanly quarantining background pre-existing defects (`UNCLAIMED_PREEXISTING_DAMAGE`) and raising `ESC-07_CLAIMED_DAMAGE_NOT_FOUND` on missing claims.
+5. **Full Suite Green**: Test suite expanded from 75 to **149 tests (100% passing)**.
+

@@ -1348,9 +1348,36 @@ class VehicleIdentityContinuityOrchestrator:
 
 ---
 
-## 11. End of Document Control
+## 11. Dual-Modality Extension: Photo Pack Vehicle Identity Grounding
+
+When the ingest payload arrives as `CaptureModality.PHOTO_PACK`, Stage 1 invokes `execute_photo_pack()` rather than the video tracking loop, while upholding the identical cryptographic and identity invariants:
+
+### 11.1 Single-Image Plate Grounding (`validate_plate_in_image` in `plate_ocr_validator.py`)
+1. **Vehicle Bounding Box Detection**: Runs YOLO instance segmentation (`yolo11m-seg.pt`) on each image in the pack to identify vehicle bounding boxes and ensure the vehicle occupies $\ge 15\%$ of the frame.
+2. **Bumper ROI Crop**: Extracts candidate bumper and lower fascia regions from the vehicle bounding box (falling back to the full frame if no specific bumper contour is isolated).
+3. **EasyOCR Extraction**: Executes OCR over the candidate crop, normalizes whitespace and punctuation, and scores candidates against Indian HSRP and standard plate formats.
+4. **Homoglyph Levenshtein Distance**: Computes optical homoglyph-weighted distance ($D_w \le 2.0$) against `policy.vehicle_registration_plate`. If the candidate matches, it is marked as the verified license plate photograph. If no photograph matches, the pack fails with `ESC-01` (Identity Mismatch).
+
+### 11.2 Body Paint HSV Grounding on Context Frames
+- Evaluates non-close-up context photographs using `ColorGroundingValidator.validate_paint_color()`.
+- Converts pixels inside the vehicle mask to HSV space, filters out glass, tires, and daylight road reflections, and computes circular distance against the policy's registered color.
+- A mismatch rejects the claim with `S1_COLOR_MISMATCH` / `ESC-01`.
+
+### 11.3 Canonical Keyframe Projection
+Stage 2 downstream segmentation expects a standardized dictionary of named keyframe views. `execute_photo_pack` maps the submitted still photographs into canonical roles:
+- `front_bumper`: The photo containing the verified registration plate.
+- `side_body_panel`: The primary context photo displaying vehicle bodywork.
+- `damage_closeup_primary`: The closest, highest-contrast detail photo.
+- Additional photos are dynamically registered as `rear_bumper`, `hood`, `trunk_lid`, or `damage_closeup_secondary`.
+
+The output is bundled into a `Stage2HandoffPayload` and the claim status transitions to `STAGE_2_SEGMENTATION` with `claim_status = "PROCESSING"`, maintaining 100% downstream pipeline neutrality.
+
+---
+
+## 12. End of Document Control
 
 * **Author:** Auto-Settle AI Core Engineering Team
 * **Approval Status:** **FROZEN PRODUCTION SPECIFICATION** (Approved for Direct Coding Implementation)
 * **Target Milestone:** Stage 1 Implementation (`app/domain/vehicle_identity_continuity/`)
 * **Verification Gate:** `uv run pytest tests/vehicle_identity_continuity/ -v` and `uv run python -m evals.vehicle_identity_continuity.ci_gate_assertions`
+

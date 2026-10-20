@@ -1,6 +1,6 @@
 """
-tests/claim_intent/test_conditioned_stage2.py
-Verifies Conditioned Stage 2 Segmentation with ClaimIntent:
+tests/dual_mask_segmentation/test_conditioned_integration.py
+End-to-end integration tests for Conditioned Stage 2 Segmentation with ClaimIntent:
 1. Claimed damage on claimed part is admitted and billed.
 2. Unclaimed damage on an unrelated panel is quarantined as UNCLAIMED_PREEXISTING_DAMAGE
    and does NOT trigger ESC-05 (opposite-side fraud) or ESC-03 (unrepaired repeat claim).
