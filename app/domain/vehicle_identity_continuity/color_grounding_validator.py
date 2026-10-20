@@ -9,7 +9,7 @@ from app.core.logging import logger
 
 STANDARD_COLOR_BOUNDS = {
     "WHITE": {"type": "achromatic", "s_max": 65, "v_min": 85, "v_max": 255},
-    "BLACK": {"type": "achromatic", "s_max": 45, "v_max": 100},
+    "BLACK": {"type": "achromatic", "s_max": 55, "v_max": 100},
     "SILVER": {"type": "achromatic", "s_max": 55, "v_min": 90, "v_max": 220},
     "GREY": {"type": "achromatic", "s_max": 55, "v_min": 60, "v_max": 180},
     "GRAY": {"type": "achromatic", "s_max": 55, "v_min": 60, "v_max": 180},

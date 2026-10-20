@@ -55,7 +55,7 @@ class Settings(BaseSettings):
     
     LUMINANCE_MIN_THRESHOLD: float = 45.0
     LUMINANCE_MAX_THRESHOLD: float = 220.0  # ponytail: aligned to 220.0 LLD spec to catch overexposed washouts
-    SHARPNESS_MIN_THRESHOLD: float = 80.0
+    SHARPNESS_MIN_THRESHOLD: float = 45.0
     SAMPLE_NORMALIZED_TIMESTAMPS: List[float] = [0.10, 0.30, 0.50, 0.70, 0.90]
     
     # Non-linear editor tag blacklist

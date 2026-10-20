@@ -129,11 +129,15 @@ async def run_stage1_pipeline_task(
 
                 try:
                     ref_video_path = str(scratch_path[0]) if isinstance(scratch_path, (list, tuple)) and scratch_path else str(scratch_path)
+                    all_kf = {k: str(v) for k, v in telemetry.tracking_report.saved_keyframes.items()}
+                    for i, p_str in enumerate(getattr(telemetry.tracking_report, "curated_keyframes", []) or [], 1):
+                        all_kf.setdefault(f"keyframe_{i:02d}", str(p_str))
+
                     stage2_payload = Stage2HandoffPayload(
                         claim_id=claim_id,
                         policy_id=policy_id,
                         scratch_video_path=ref_video_path,
-                        keyframe_paths={k: str(v) for k, v in telemetry.tracking_report.saved_keyframes.items()},
+                        keyframe_paths=all_kf,
                         vehicle_telemetry=telemetry,
                         claim_intent=claim_intent,
                     )

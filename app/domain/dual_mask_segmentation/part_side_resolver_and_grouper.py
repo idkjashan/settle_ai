@@ -97,10 +97,24 @@ class PartSideResolverAndGrouper:
             max_d_conf = max(h.max_damage_confidence for h in hits)
 
             if persistence_count < self.settings.min_persistence_frames:
-                if not (
-                    max_p_conf >= self.settings.single_frame_override_part_conf
-                    and max_d_conf >= self.settings.single_frame_override_damage_conf
-                ):
+                # ponytail: single-frame acceptance override:
+                # 1. Photo pack input (typically 3-5 images with distinct single perspectives)
+                # 2. Keyframe dedicated damage closeup (e.g. "damage_closeup_primary")
+                # 3. Explicitly claimed panel with confident detection
+                # 4. Standard high confidence override (>= 0.80 part and >= 0.75 damage)
+                is_photo_pack = len(predictions) <= 5
+                has_closeup = any("damage_closeup" in h.keyframe_key for h in hits)
+                is_claimed_hit = any(getattr(h, "is_claimed", False) for h in hits)
+                passes_override = (
+                    is_photo_pack
+                    or (has_closeup and max_p_conf >= 0.45 and max_d_conf >= 0.30)
+                    or (is_claimed_hit and max_p_conf >= 0.50 and max_d_conf >= 0.30)
+                    or (
+                        max_p_conf >= self.settings.single_frame_override_part_conf
+                        and max_d_conf >= self.settings.single_frame_override_damage_conf
+                    )
+                )
+                if not passes_override:
                     continue
 
             complete_hits = [h for h in hits if h.is_complete_panel]
@@ -170,7 +184,11 @@ class PartSideResolverAndGrouper:
                             )
                     damage_matches = True
                     if claimed_damages:
-                        damage_matches = any(d in claimed_damages for d in all_dmg_classes)
+                        if hasattr(claim_intent, "matches_damage"):
+                            damage_matches = any(claim_intent.matches_damage(d) for d in all_dmg_classes)
+                        else:
+                            from app.domain.claim_intent.schemas import is_damage_matching
+                            damage_matches = any(is_damage_matching(d, cd) for d in all_dmg_classes for cd in claimed_damages)
 
                     cand_is_claimed = part_matches and damage_matches
                     cand_claim_status = "CLAIMED" if cand_is_claimed else "UNCLAIMED_PREEXISTING_DAMAGE"

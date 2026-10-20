@@ -107,8 +107,10 @@ class PlateOCRValidator:
         h, w = frame.shape[:2]
         vx1, vy1, vx2, vy2 = vehicle_box
         vh = vy2 - vy1
+        # ponytail: expand downward slightly (+20% vh) clamped to frame h to guard against
+        # detector boxes that clip the bottom lip/skid plate where plates are mounted.
         crop_y1 = max(0, min(h, int(vy1 + vh * self.settings.BUMPER_Y_REL_MIN)))
-        crop_y2 = max(0, min(h, int(vy1 + vh * self.settings.BUMPER_Y_REL_MAX)))
+        crop_y2 = max(0, min(h, int(vy2 + vh * 0.20)))
         # ponytail: clamp vx1, vx2 to [0, w] so negative coordinates don't produce inverted slices
         crop_x1 = max(0, min(w, vx1))
         crop_x2 = max(0, min(w, vx2))

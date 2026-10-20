@@ -283,7 +283,14 @@ class FakeAsyncSession:
                 reg = None
                 keys = []
                 for k, v in params.items():
-                    if isinstance(v, str) and len(v) >= 8 and any(c.isdigit() for c in v):
+                    if "registration_number" in k and isinstance(v, str):
+                        reg = v
+                    elif "canonical_part_key" in k:
+                        if isinstance(v, (list, tuple, set)):
+                            keys.extend(v)
+                        elif isinstance(v, str):
+                            keys.append(v)
+                    elif isinstance(v, str) and len(v) >= 4 and any(c.isdigit() for c in v):
                         reg = v
                     elif isinstance(v, (list, tuple)):
                         keys.extend(v)
@@ -291,7 +298,7 @@ class FakeAsyncSession:
                         keys.append(v)
                 matched = [
                     u for u in in_memory_db.unrepaired_claims
-                    if (not reg or u.registration_number == reg)
+                    if (not reg or u.registration_number.upper() == reg.upper())
                     and (not keys or u.canonical_part_key in keys)
                     and not u.is_repaired_verified
                 ]
@@ -307,23 +314,35 @@ class FakeAsyncSession:
                 model = None
                 part_keys = []
                 for k, v in params.items():
-                    if isinstance(v, str):
+                    if "make" in k and isinstance(v, str):
+                        make = v.lower()
+                    elif "model" in k and isinstance(v, str):
+                        model = v.lower()
+                    elif "canonical_part_key" in k:
+                        if isinstance(v, (list, tuple, set)):
+                            part_keys.extend([x.lower() if isinstance(x, str) else x for x in v])
+                        elif isinstance(v, str):
+                            part_keys.append(v.lower())
+                    elif isinstance(v, str):
                         v_lower = v.lower()
-                        if v_lower in ("hyundai", "maruti", "tata", "hoda", "kia"):
-                            make = v_lower
-                        elif v_lower in ("creta", "swift", "nexon", "city", "seltos"):
-                            model = v_lower
-                        elif any(p[0] == v_lower for p in HYUNDAI_CRETA_PARTS) or "_" in v:
+                        if any(p[0] == v_lower for p in HYUNDAI_CRETA_PARTS) or "_" in v:
                             part_keys.append(v_lower)
                     elif isinstance(v, (list, tuple)):
                         part_keys.extend([x.lower() if isinstance(x, str) else x for x in v])
 
-                make = make or "hyundai"
-                model = model or "creta"
                 matched = []
                 for (m, mdl, pkey), part in in_memory_db.oem_parts.items():
-                    if m == make and mdl == model:
+                    if make and model:
+                        if m == make and mdl == model:
+                            if not part_keys or pkey in part_keys:
+                                matched.append(part)
+                    else:
                         if not part_keys or pkey in part_keys:
+                            matched.append(part)
+                # Fallback to default schedule if vehicle make/model schedule is not explicitly seeded
+                if not matched and part_keys:
+                    for (m, mdl, pkey), part in in_memory_db.oem_parts.items():
+                        if m == "hyundai" and mdl == "creta" and pkey in part_keys:
                             matched.append(part)
                 return FakeResult(matched)
             except Exception:

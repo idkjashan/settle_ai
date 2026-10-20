@@ -352,37 +352,44 @@ def get_stage2_orchestrator(
             _shared_stage2_gpu_semaphore = asyncio.Semaphore(1)
         gpu_semaphore = _shared_stage2_gpu_semaphore
 
-    if inferencer is None:
-        if _shared_stage2_inferencer is None:
+    if inferencer is None or settings is not None:
+        if inferencer is None and (settings is not None or _shared_stage2_inferencer is None):
             from ultralytics import YOLO
             from app.domain.dual_mask_segmentation.dual_model_inferencer import DualModelInferencer
-
             from app.domain.dual_mask_segmentation.taxonomy import (
                 CARDD_CLASS_MAP,
                 CARPARTS_CLASS_MAP,
             )
             from app.domain.dual_mask_segmentation.exceptions import Stage2ModelCompatibilityError
 
-            cp_path = Path(cfg.carparts_model_path)
-            cd_path = Path(cfg.cardd_model_path)
-            if not cp_path.exists():
+            default_cp = Stage2Settings.model_fields["carparts_model_path"].default
+            default_cd = Stage2Settings.model_fields["cardd_model_path"].default
+
+            target_cp = Path(cfg.carparts_model_path)
+            target_cd = Path(cfg.cardd_model_path)
+
+            if not target_cp.exists():
                 raise Stage2ModelCompatibilityError(
-                    f"Carparts-Seg model weights not found at '{cp_path}'. "
+                    f"Carparts-Seg model weights not found at '{target_cp}'. "
                     f"Required: YOLO11m-seg fine-tuned on 23-class Carparts-Seg taxonomy ({len(CARPARTS_CLASS_MAP)} classes). "
                     f"Generic base weights (e.g. yolo11m-seg.pt) cannot be substituted.",
-                    details={"expected_path": str(cp_path), "model_role": "Carparts-Seg"},
+                    details={"expected_path": str(target_cp), "model_role": "Carparts-Seg"},
                 )
-            if not cd_path.exists():
+            if not target_cd.exists():
                 raise Stage2ModelCompatibilityError(
-                    f"CarDD-Seg model weights not found at '{cd_path}'. "
+                    f"CarDD-Seg model weights not found at '{target_cd}'. "
                     f"Required: YOLO11m-seg fine-tuned on 6-class CarDD damage taxonomy ({len(CARDD_CLASS_MAP)} classes). "
                     f"Generic base weights (e.g. yolo11m-seg.pt) cannot be substituted.",
-                    details={"expected_path": str(cd_path), "model_role": "CarDD-Seg"},
+                    details={"expected_path": str(target_cd), "model_role": "CarDD-Seg"},
                 )
-            cp_model = YOLO(str(cp_path))
-            cd_model = YOLO(str(cd_path))
-            _shared_stage2_inferencer = DualModelInferencer(cp_model, cd_model, cfg, validate_taxonomy=True)
-        inferencer = _shared_stage2_inferencer
+            cp_model = YOLO(str(target_cp))
+            cd_model = YOLO(str(target_cd))
+            inst = DualModelInferencer(cp_model, cd_model, cfg, validate_taxonomy=True)
+            if settings is None:
+                _shared_stage2_inferencer = inst
+            inferencer = inst
+        elif inferencer is None:
+            inferencer = _shared_stage2_inferencer
 
     from app.domain.dual_mask_segmentation.catalog_and_ledger_grounder import (
         CatalogAndLedgerGrounder,

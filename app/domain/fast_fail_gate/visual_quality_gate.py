@@ -164,6 +164,15 @@ class VisualQualityValidator:
         is_dark = mean_y < self.settings.LUMINANCE_MIN_THRESHOLD
         is_overexposed = mean_y > self.settings.LUMINANCE_MAX_THRESHOLD
         is_blurry = laplacian_var < self.settings.SHARPNESS_MIN_THRESHOLD
+        # ponytail: distinguish smooth painted sheet metal in macro close-ups from genuine defocus blur.
+        # Smooth car paint has sparse texture yielding low global Laplacian, but in-focus scratch
+        # lines or body panel seams yield sharp local gradient peaks (max Sobel > 150).
+        if is_blurry and laplacian_var >= 5.0:
+            sx = cv2.Sobel(gray, cv2.CV_32F, 1, 0, ksize=3)
+            sy = cv2.Sobel(gray, cv2.CV_32F, 0, 1, ksize=3)
+            max_grad = float(max(np.max(np.abs(sx)), np.max(np.abs(sy))))
+            if max_grad > 150.0:
+                is_blurry = False
 
         return SampledFrameMetric(
             sample_index=sample_index,

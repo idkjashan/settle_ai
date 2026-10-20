@@ -185,7 +185,11 @@ class PolygonIntersectionEngine:
                                 part_matches = any(is_part_matching(p_raw.class_name, cp) for cp in claimed_parts)
                         damage_matches = True
                         if claimed_damages:
-                            damage_matches = any(d in claimed_damages for d in accepted_damage_classes)
+                            if hasattr(claim_intent, "matches_damage"):
+                                damage_matches = any(claim_intent.matches_damage(d) for d in accepted_damage_classes)
+                            else:
+                                from app.domain.claim_intent.schemas import is_damage_matching
+                                damage_matches = any(is_damage_matching(d, cd) for d in accepted_damage_classes for cd in claimed_damages)
 
                         is_claimed = part_matches and damage_matches
                         claim_status = "CLAIMED" if is_claimed else "UNCLAIMED_PREEXISTING_DAMAGE"

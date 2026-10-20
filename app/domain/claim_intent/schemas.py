@@ -50,6 +50,21 @@ class ClaimedDamagePartPair:
     clause_text: str = ""
 
 
+def is_damage_matching(detected_damage: str, claimed_damage: str) -> bool:
+    """Returns True if detected damage class matches or is colloquially compatible with claimed damage."""
+    if detected_damage == claimed_damage:
+        return True
+    DAMAGE_COMPATIBILITY = {
+        "scratch": {"scratch", "crack", "dent"},
+        "crack": {"crack", "scratch", "lamp_broken", "glass_shatter"},
+        "dent": {"dent", "crack", "scratch"},
+        "lamp_broken": {"lamp_broken", "crack"},
+        "glass_shatter": {"glass_shatter", "crack"},
+        "tire_flat": {"tire_flat"},
+    }
+    return detected_damage in DAMAGE_COMPATIBILITY.get(claimed_damage, {claimed_damage})
+
+
 def is_part_matching(part_a: str, part_b: str) -> bool:
     """Taxonomy-aware check whether two part classes match.
     Handles generic-to-sided parts (e.g. 'front_door' to 'front_left_door') and token subsets.
@@ -104,10 +119,10 @@ class ClaimIntent:
         return any(is_part_matching(canonical_part_key, cp) for cp in self.claimed_parts)
 
     def matches_damage(self, damage_class: str) -> bool:
-        """Returns True if the damage class is in claimed_damages (or if no damages were specified)."""
+        """Returns True if the damage class matches claimed_damages (or if no damages were specified)."""
         if not self.claimed_damages:
             return True
-        return damage_class in self.claimed_damages
+        return any(is_damage_matching(damage_class, cd) for cd in self.claimed_damages)
 
     def matches_part_and_damage(self, canonical_part_key: str, damage_class: str) -> bool:
         """Returns True if this part and damage match claimed intent."""
@@ -116,7 +131,7 @@ class ClaimIntent:
         if self.paired_intents:
             for pair in self.paired_intents:
                 if is_part_matching(canonical_part_key, pair.part_key) and (
-                    not pair.damage_key or pair.damage_key == damage_class
+                    not pair.damage_key or is_damage_matching(damage_class, pair.damage_key)
                 ):
                     return True
             return False

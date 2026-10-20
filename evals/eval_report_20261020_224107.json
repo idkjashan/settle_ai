@@ -1,0 +1,1145 @@
+{
+  "timestamp_utc": "2026-10-20T22:41:07.503867",
+  "total_scenarios": 20,
+  "passed": 20,
+  "failed": 0,
+  "pass_rate_pct": 100.0,
+  "results": [
+    {
+      "scenario_id": "SC-01",
+      "name": "Right Flank Key Scratch",
+      "modality": "video",
+      "policy_id": "POL-HAPPY-001",
+      "claim_id": "ad60d3d2-d6f0-4ccc-bec9-79f54ab89f49",
+      "stages": {
+        "stage_0": {
+          "passed": true,
+          "failure_codes": [],
+          "latency_ms": 151.3,
+          "details": {
+            "width": 1280,
+            "height": 720,
+            "fps": 30.0,
+            "duration_sec": 5.0,
+            "mean_luminance": 80.30997851562499,
+            "mean_sharpness": 1034.3472994350643
+          }
+        },
+        "intent_grounding": {
+          "extracted_parts": [
+            "front_right_door",
+            "back_right_door"
+          ],
+          "extracted_damages": [
+            "scratch"
+          ],
+          "latency_ms": 8.81,
+          "directional_modifiers": [
+            null
+          ]
+        },
+        "stage_1": {
+          "passed": true,
+          "failure_codes": [],
+          "latency_ms": 6373.63,
+          "escalation_code": null,
+          "keyframes_count": 3,
+          "keyframes_keys": [
+            "front_bumper",
+            "side_body_panel",
+            "damage_closeup_primary"
+          ],
+          "plate_text": "MX12DE1433",
+          "color_delta_e": 0.0
+        },
+        "stage_2": {
+          "status": "STAGE_3_VLM_INSPECTION",
+          "escalation_code": null,
+          "failure_codes": [],
+          "latency_ms": 1210.53,
+          "grounded_parts_count": 2,
+          "billed_parts": [
+            "back_right_door",
+            "front_right_door"
+          ],
+          "quarantined_parts": []
+        }
+      },
+      "verdict": "PASS",
+      "divergence_stage": null,
+      "divergence_reason": null
+    },
+    {
+      "scenario_id": "SC-02",
+      "name": "Vehicle Identity Mismatch (White Vehicle vs Blue Policy)",
+      "modality": "video",
+      "policy_id": "POL-WRX-014",
+      "claim_id": "5be3155f-5d4b-4769-9ab3-e5852ccc62ea",
+      "stages": {
+        "stage_0": {
+          "passed": true,
+          "failure_codes": [],
+          "latency_ms": 98.62,
+          "details": {
+            "width": 1280,
+            "height": 720,
+            "fps": 30.0,
+            "duration_sec": 5.0,
+            "mean_luminance": 72.03491927083333,
+            "mean_sharpness": 593.1443798463526
+          }
+        },
+        "intent_grounding": {
+          "extracted_parts": [
+            "back_bumper"
+          ],
+          "extracted_damages": [
+            "dent"
+          ],
+          "latency_ms": 7.28,
+          "directional_modifiers": [
+            null
+          ]
+        },
+        "stage_1": {
+          "passed": false,
+          "failure_codes": [],
+          "latency_ms": 3708.63,
+          "escalation_code": "ESC-01",
+          "keyframes_count": 3,
+          "keyframes_keys": [
+            "front_bumper",
+            "side_body_panel",
+            "damage_closeup_primary"
+          ],
+          "plate_text": "4352",
+          "color_delta_e": 8.96202670746022
+        }
+      },
+      "verdict": "PASS",
+      "divergence_stage": null,
+      "divergence_reason": null
+    },
+    {
+      "scenario_id": "SC-03",
+      "name": "Driver Flank Sideswipe Scratch",
+      "modality": "video",
+      "policy_id": "POL-HAPPY-001",
+      "claim_id": "2ffe5d58-0644-4647-ad0a-124b8082a7f7",
+      "stages": {
+        "stage_0": {
+          "passed": true,
+          "failure_codes": [],
+          "latency_ms": 101.04,
+          "details": {
+            "width": 1280,
+            "height": 720,
+            "fps": 30.0,
+            "duration_sec": 5.0,
+            "mean_luminance": 80.15382812499999,
+            "mean_sharpness": 1079.5008365517049
+          }
+        },
+        "intent_grounding": {
+          "extracted_parts": [
+            "front_right_door"
+          ],
+          "extracted_damages": [
+            "scratch"
+          ],
+          "latency_ms": 3.84,
+          "directional_modifiers": [
+            null
+          ]
+        },
+        "stage_1": {
+          "passed": true,
+          "failure_codes": [],
+          "latency_ms": 1969.3,
+          "escalation_code": null,
+          "keyframes_count": 3,
+          "keyframes_keys": [
+            "front_bumper",
+            "side_body_panel",
+            "damage_closeup_primary"
+          ],
+          "plate_text": "MH12DE1433",
+          "color_delta_e": 0.0
+        },
+        "stage_2": {
+          "status": "STAGE_3_VLM_INSPECTION",
+          "escalation_code": null,
+          "failure_codes": [],
+          "latency_ms": 554.25,
+          "grounded_parts_count": 1,
+          "billed_parts": [
+            "front_right_door"
+          ],
+          "quarantined_parts": []
+        }
+      },
+      "verdict": "PASS",
+      "divergence_stage": null,
+      "divergence_reason": null
+    },
+    {
+      "scenario_id": "SC-04",
+      "name": "Multi-Panel Flank Sideswipe",
+      "modality": "video",
+      "policy_id": "POL-HAPPY-001",
+      "claim_id": "446b9fed-08b8-43da-9c24-027e84996b47",
+      "stages": {
+        "stage_0": {
+          "passed": true,
+          "failure_codes": [],
+          "latency_ms": 104.93,
+          "details": {
+            "width": 1280,
+            "height": 720,
+            "fps": 30.0,
+            "duration_sec": 5.0,
+            "mean_luminance": 80.05725086805555,
+            "mean_sharpness": 1080.6467128387308
+          }
+        },
+        "intent_grounding": {
+          "extracted_parts": [
+            "front_right_door",
+            "back_right_door"
+          ],
+          "extracted_damages": [
+            "scratch"
+          ],
+          "latency_ms": 11.83,
+          "directional_modifiers": [
+            null
+          ]
+        },
+        "stage_1": {
+          "passed": true,
+          "failure_codes": [],
+          "latency_ms": 1979.83,
+          "escalation_code": null,
+          "keyframes_count": 3,
+          "keyframes_keys": [
+            "front_bumper",
+            "side_body_panel",
+            "damage_closeup_primary"
+          ],
+          "plate_text": "MH12DE1433",
+          "color_delta_e": 0.0
+        },
+        "stage_2": {
+          "status": "STAGE_3_VLM_INSPECTION",
+          "escalation_code": null,
+          "failure_codes": [],
+          "latency_ms": 551.31,
+          "grounded_parts_count": 2,
+          "billed_parts": [
+            "back_right_door",
+            "front_right_door"
+          ],
+          "quarantined_parts": []
+        }
+      },
+      "verdict": "PASS",
+      "divergence_stage": null,
+      "divergence_reason": null
+    },
+    {
+      "scenario_id": "SC-05",
+      "name": "Phantom Damage Claim: Rear Lamp & Bumper",
+      "modality": "video",
+      "policy_id": "POL-HAPPY-001",
+      "claim_id": "f9563e7d-5c4e-4c9a-a1ed-025932f8e0fc",
+      "stages": {
+        "stage_0": {
+          "passed": true,
+          "failure_codes": [],
+          "latency_ms": 99.52,
+          "details": {
+            "width": 1280,
+            "height": 720,
+            "fps": 30.0,
+            "duration_sec": 5.0,
+            "mean_luminance": 80.75084592013889,
+            "mean_sharpness": 1124.1209732147165
+          }
+        },
+        "intent_grounding": {
+          "extracted_parts": [
+            "back_bumper",
+            "back_left_light"
+          ],
+          "extracted_damages": [
+            "dent",
+            "lamp_broken"
+          ],
+          "latency_ms": 5.87,
+          "directional_modifiers": [
+            null,
+            null
+          ]
+        },
+        "stage_1": {
+          "passed": true,
+          "failure_codes": [],
+          "latency_ms": 1965.06,
+          "escalation_code": null,
+          "keyframes_count": 3,
+          "keyframes_keys": [
+            "front_bumper",
+            "side_body_panel",
+            "damage_closeup_primary"
+          ],
+          "plate_text": "MH12DE1433",
+          "color_delta_e": 0.0
+        },
+        "stage_2": {
+          "status": "ESCALATED_ESC_07",
+          "escalation_code": "ESC-07",
+          "failure_codes": [],
+          "latency_ms": 596.07,
+          "message": "Claimed damage (parts=['back_bumper', 'back_left_light'], damages=['dent', 'lamp_broken']) was not detected on camera. Routing to manual adjuster review."
+        }
+      },
+      "verdict": "PASS",
+      "divergence_stage": null,
+      "divergence_reason": null
+    },
+    {
+      "scenario_id": "SC-06",
+      "name": "Phantom Damage Claim: Broken Wing Mirror",
+      "modality": "video",
+      "policy_id": "POL-HAPPY-001",
+      "claim_id": "0c5ee21e-4980-4692-b2a3-9002ae77e943",
+      "stages": {
+        "stage_0": {
+          "passed": true,
+          "failure_codes": [],
+          "latency_ms": 96.18,
+          "details": {
+            "width": 1280,
+            "height": 720,
+            "fps": 30.0,
+            "duration_sec": 5.0,
+            "mean_luminance": 80.05634266493055,
+            "mean_sharpness": 1089.4375954126215
+          }
+        },
+        "intent_grounding": {
+          "extracted_parts": [
+            "left_mirror",
+            "trunk"
+          ],
+          "extracted_damages": [
+            "crack"
+          ],
+          "latency_ms": 16.01,
+          "directional_modifiers": [
+            null
+          ]
+        },
+        "stage_1": {
+          "passed": true,
+          "failure_codes": [],
+          "latency_ms": 1971.91,
+          "escalation_code": null,
+          "keyframes_count": 3,
+          "keyframes_keys": [
+            "front_bumper",
+            "side_body_panel",
+            "damage_closeup_primary"
+          ],
+          "plate_text": "MH12DE1433",
+          "color_delta_e": 0.0
+        },
+        "stage_2": {
+          "status": "ESCALATED_ESC_07",
+          "escalation_code": "ESC-07",
+          "failure_codes": [],
+          "latency_ms": 586.44,
+          "message": "Claimed damage (parts=['left_mirror', 'trunk'], damages=['crack']) was not detected on camera. Routing to manual adjuster review."
+        }
+      },
+      "verdict": "PASS",
+      "divergence_stage": null,
+      "divergence_reason": null
+    },
+    {
+      "scenario_id": "SC-07",
+      "name": "Phantom Damage Claim: Hood Hail Dent",
+      "modality": "video",
+      "policy_id": "POL-HAPPY-001",
+      "claim_id": "7b710057-6783-4325-a33f-131cc57d85eb",
+      "stages": {
+        "stage_0": {
+          "passed": true,
+          "failure_codes": [],
+          "latency_ms": 95.01,
+          "details": {
+            "width": 1280,
+            "height": 720,
+            "fps": 30.0,
+            "duration_sec": 5.0,
+            "mean_luminance": 79.80622178819445,
+            "mean_sharpness": 1084.1205238361674
+          }
+        },
+        "intent_grounding": {
+          "extracted_parts": [
+            "hood"
+          ],
+          "extracted_damages": [],
+          "latency_ms": 7.22,
+          "directional_modifiers": []
+        },
+        "stage_1": {
+          "passed": true,
+          "failure_codes": [],
+          "latency_ms": 1967.22,
+          "escalation_code": null,
+          "keyframes_count": 3,
+          "keyframes_keys": [
+            "front_bumper",
+            "side_body_panel",
+            "damage_closeup_primary"
+          ],
+          "plate_text": "MH12DE1433",
+          "color_delta_e": 0.0
+        },
+        "stage_2": {
+          "status": "ESCALATED_ESC_07",
+          "escalation_code": "ESC-07",
+          "failure_codes": [],
+          "latency_ms": 688.52,
+          "message": "Claimed damage (parts=['hood'], damages=[]) was not detected on camera. Routing to manual adjuster review."
+        }
+      },
+      "verdict": "PASS",
+      "divergence_stage": null,
+      "divergence_reason": null
+    },
+    {
+      "scenario_id": "SC-08",
+      "name": "Phantom Damage Claim: Bumper Crush",
+      "modality": "video",
+      "policy_id": "POL-HAPPY-001",
+      "claim_id": "25fc8e40-f7ed-4ae2-bb48-50561e58ee5b",
+      "stages": {
+        "stage_0": {
+          "passed": true,
+          "failure_codes": [],
+          "latency_ms": 96.86,
+          "details": {
+            "width": 1280,
+            "height": 720,
+            "fps": 30.0,
+            "duration_sec": 5.0,
+            "mean_luminance": 81.63018077256945,
+            "mean_sharpness": 1165.547575279664
+          }
+        },
+        "intent_grounding": {
+          "extracted_parts": [
+            "front_bumper",
+            "wheel"
+          ],
+          "extracted_damages": [
+            "dent"
+          ],
+          "latency_ms": 5.05,
+          "directional_modifiers": [
+            null
+          ]
+        },
+        "stage_1": {
+          "passed": true,
+          "failure_codes": [],
+          "latency_ms": 1933.88,
+          "escalation_code": null,
+          "keyframes_count": 3,
+          "keyframes_keys": [
+            "front_bumper",
+            "side_body_panel",
+            "damage_closeup_primary"
+          ],
+          "plate_text": "MH12DE1433",
+          "color_delta_e": 0.0
+        },
+        "stage_2": {
+          "status": "ESCALATED_ESC_07",
+          "escalation_code": "ESC-07",
+          "failure_codes": [],
+          "latency_ms": 547.97,
+          "message": "Claimed damage (parts=['front_bumper', 'wheel'], damages=['dent']) was not detected on camera. Routing to manual adjuster review."
+        }
+      },
+      "verdict": "PASS",
+      "divergence_stage": null,
+      "divergence_reason": null
+    },
+    {
+      "scenario_id": "SC-09",
+      "name": "Reverse Walkaround Rear Start",
+      "modality": "video",
+      "policy_id": "POL-ACCORD-017",
+      "claim_id": "47a433f3-1342-4c2d-bab3-c96701273fdf",
+      "stages": {
+        "stage_0": {
+          "passed": true,
+          "failure_codes": [],
+          "latency_ms": 530.37,
+          "details": {
+            "width": 1920,
+            "height": 1080,
+            "fps": 30.0,
+            "duration_sec": 20.0,
+            "mean_luminance": 112.05101909722221,
+            "mean_sharpness": 1190.4115767888165
+          }
+        },
+        "intent_grounding": {
+          "extracted_parts": [
+            "back_bumper"
+          ],
+          "extracted_damages": [],
+          "latency_ms": 3.83,
+          "directional_modifiers": []
+        },
+        "stage_1": {
+          "passed": true,
+          "failure_codes": [],
+          "latency_ms": 17894.5,
+          "escalation_code": null,
+          "keyframes_count": 3,
+          "keyframes_keys": [
+            "front_bumper",
+            "side_body_panel",
+            "damage_closeup_primary"
+          ],
+          "plate_text": "CJO9025",
+          "color_delta_e": 14.018684495026344
+        },
+        "stage_2": {
+          "status": "STAGE_3_VLM_INSPECTION",
+          "escalation_code": null,
+          "failure_codes": [],
+          "latency_ms": 1387.24,
+          "grounded_parts_count": 1,
+          "billed_parts": [
+            "back_bumper"
+          ],
+          "quarantined_parts": []
+        }
+      },
+      "verdict": "PASS",
+      "divergence_stage": null,
+      "divergence_reason": null
+    },
+    {
+      "scenario_id": "SC-10",
+      "name": "Crowded Parking Lot Occlusion",
+      "modality": "video",
+      "policy_id": "POL-LEXUS-016",
+      "claim_id": "e286b2c2-4296-4057-9c68-09396841c51c",
+      "stages": {
+        "stage_0": {
+          "passed": true,
+          "failure_codes": [],
+          "latency_ms": 600.84,
+          "details": {
+            "width": 1920,
+            "height": 1080,
+            "fps": 50.0,
+            "duration_sec": 20.0,
+            "mean_luminance": 113.80361805555556,
+            "mean_sharpness": 133.67604054822124
+          }
+        },
+        "intent_grounding": {
+          "extracted_parts": [
+            "front_bumper"
+          ],
+          "extracted_damages": [
+            "dent"
+          ],
+          "latency_ms": 6.34,
+          "directional_modifiers": [
+            null
+          ]
+        },
+        "stage_1": {
+          "passed": true,
+          "failure_codes": [],
+          "latency_ms": 21808.9,
+          "escalation_code": null,
+          "keyframes_count": 3,
+          "keyframes_keys": [
+            "front_bumper",
+            "side_body_panel",
+            "damage_closeup_primary"
+          ],
+          "plate_text": "LELB09",
+          "color_delta_e": 0.0
+        },
+        "stage_2": {
+          "status": "ESCALATED_ESC-07",
+          "escalation_code": "ESC-07",
+          "failure_codes": [],
+          "latency_ms": 1229.41,
+          "message": "Low segmentation confidence on front_bumper."
+        }
+      },
+      "verdict": "PASS",
+      "divergence_stage": null,
+      "divergence_reason": null
+    },
+    {
+      "scenario_id": "SC-11",
+      "name": "Macro Close-Up Zoom Frame",
+      "modality": "video",
+      "policy_id": "POL-MUSTANG-015",
+      "claim_id": "1a25891d-b7f6-48d6-a252-b1206438ebac",
+      "stages": {
+        "stage_0": {
+          "passed": true,
+          "failure_codes": [],
+          "latency_ms": 439.98,
+          "details": {
+            "width": 1920,
+            "height": 1080,
+            "fps": 30.0,
+            "duration_sec": 20.0,
+            "mean_luminance": 144.60993152006174,
+            "mean_sharpness": 74.16405383825372
+          }
+        },
+        "intent_grounding": {
+          "extracted_parts": [],
+          "extracted_damages": [
+            "scratch"
+          ],
+          "latency_ms": 4.51,
+          "directional_modifiers": []
+        },
+        "stage_1": {
+          "passed": false,
+          "failure_codes": [],
+          "latency_ms": 2489.81,
+          "escalation_code": "ESC-02",
+          "keyframes_count": 0,
+          "keyframes_keys": [],
+          "plate_text": null,
+          "color_delta_e": 0.0
+        }
+      },
+      "verdict": "PASS",
+      "divergence_stage": null,
+      "divergence_reason": null
+    },
+    {
+      "scenario_id": "SC-12",
+      "name": "Overcast to Tree Canopy Shadow",
+      "modality": "video",
+      "policy_id": "POL-MERC-018",
+      "claim_id": "7635f06d-5807-42df-85d7-091bb44d3843",
+      "stages": {
+        "stage_0": {
+          "passed": true,
+          "failure_codes": [],
+          "latency_ms": 521.42,
+          "details": {
+            "width": 1920,
+            "height": 1080,
+            "fps": 29.97002997002997,
+            "duration_sec": 21.021,
+            "mean_luminance": 110.16417255015433,
+            "mean_sharpness": 474.08278608137107
+          }
+        },
+        "intent_grounding": {
+          "extracted_parts": [
+            "front_left_light",
+            "front_bumper"
+          ],
+          "extracted_damages": [
+            "dent"
+          ],
+          "latency_ms": 6.85,
+          "directional_modifiers": [
+            null
+          ]
+        },
+        "stage_1": {
+          "passed": true,
+          "failure_codes": [],
+          "latency_ms": 13335.08,
+          "escalation_code": null,
+          "keyframes_count": 3,
+          "keyframes_keys": [
+            "front_bumper",
+            "side_body_panel",
+            "damage_closeup_primary"
+          ],
+          "plate_text": "LARNLEED",
+          "color_delta_e": 0.0
+        },
+        "stage_2": {
+          "status": "ESCALATED_ESC-06",
+          "escalation_code": "ESC-06",
+          "failure_codes": [],
+          "latency_ms": 1584.62,
+          "message": "Safety-critical damage detected on Front Bumper Cover (glass_shatter). Routing to physical garage inspection."
+        }
+      },
+      "verdict": "PASS",
+      "divergence_stage": null,
+      "divergence_reason": null
+    },
+    {
+      "scenario_id": "SC-13",
+      "name": "Unclaimed Pre-existing Quarantine",
+      "modality": "video",
+      "policy_id": "POL-HAPPY-001",
+      "claim_id": "5a17bfc6-9742-4480-85b3-c922aa9e126c",
+      "stages": {
+        "stage_0": {
+          "passed": true,
+          "failure_codes": [],
+          "latency_ms": 102.25,
+          "details": {
+            "width": 1280,
+            "height": 720,
+            "fps": 30.0,
+            "duration_sec": 5.0,
+            "mean_luminance": 80.32140559895834,
+            "mean_sharpness": 1034.8387508141486
+          }
+        },
+        "intent_grounding": {
+          "extracted_parts": [
+            "front_right_door"
+          ],
+          "extracted_damages": [
+            "scratch"
+          ],
+          "latency_ms": 3.77,
+          "directional_modifiers": [
+            null
+          ]
+        },
+        "stage_1": {
+          "passed": true,
+          "failure_codes": [],
+          "latency_ms": 2785.05,
+          "escalation_code": null,
+          "keyframes_count": 3,
+          "keyframes_keys": [
+            "front_bumper",
+            "side_body_panel",
+            "damage_closeup_primary"
+          ],
+          "plate_text": "MX12DE1433",
+          "color_delta_e": 0.0
+        },
+        "stage_2": {
+          "status": "STAGE_3_VLM_INSPECTION",
+          "escalation_code": null,
+          "failure_codes": [],
+          "latency_ms": 579.78,
+          "grounded_parts_count": 1,
+          "billed_parts": [
+            "front_right_door"
+          ],
+          "quarantined_parts": []
+        }
+      },
+      "verdict": "PASS",
+      "divergence_stage": null,
+      "divergence_reason": null
+    },
+    {
+      "scenario_id": "SC-14",
+      "name": "Undamaged Negative Control",
+      "modality": "video",
+      "policy_id": "POL-HILUX-010",
+      "claim_id": "0964c1d7-51f5-4a75-a909-fc9173558c68",
+      "stages": {
+        "stage_0": {
+          "passed": true,
+          "failure_codes": [],
+          "latency_ms": 612.01,
+          "details": {
+            "width": 1920,
+            "height": 1080,
+            "fps": 59.94006309148265,
+            "duration_sec": 15.014999,
+            "mean_luminance": 122.36784307484568,
+            "mean_sharpness": 271.7946714954218
+          }
+        },
+        "intent_grounding": {
+          "extracted_parts": [
+            "front_bumper"
+          ],
+          "extracted_damages": [
+            "dent"
+          ],
+          "latency_ms": 2.96,
+          "directional_modifiers": [
+            null
+          ]
+        },
+        "stage_1": {
+          "passed": true,
+          "failure_codes": [],
+          "latency_ms": 17409.42,
+          "escalation_code": null,
+          "keyframes_count": 3,
+          "keyframes_keys": [
+            "front_bumper",
+            "side_body_panel",
+            "damage_closeup_primary"
+          ],
+          "plate_text": "NILJ6B1",
+          "color_delta_e": 0.0
+        },
+        "stage_2": {
+          "status": "ESCALATED_ESC_07",
+          "escalation_code": "ESC-07",
+          "failure_codes": [],
+          "latency_ms": 964.12,
+          "message": "Claimed damage (parts=['front_bumper'], damages=['dent']) was not detected on camera. Routing to manual adjuster review."
+        }
+      },
+      "verdict": "PASS",
+      "divergence_stage": null,
+      "divergence_reason": null
+    },
+    {
+      "scenario_id": "SC-15",
+      "name": "Opposite-Side Fraud Attempt",
+      "modality": "video",
+      "policy_id": "POL-HAPPY-001",
+      "claim_id": "ad9b4992-ec81-426b-82a7-275d230d537c",
+      "stages": {
+        "stage_0": {
+          "passed": true,
+          "failure_codes": [],
+          "latency_ms": 97.83,
+          "details": {
+            "width": 1280,
+            "height": 720,
+            "fps": 30.0,
+            "duration_sec": 5.0,
+            "mean_luminance": 81.22741796875,
+            "mean_sharpness": 1130.4237734431942
+          }
+        },
+        "intent_grounding": {
+          "extracted_parts": [
+            "front_left_door"
+          ],
+          "extracted_damages": [
+            "dent",
+            "scratch"
+          ],
+          "latency_ms": 5.99,
+          "directional_modifiers": [
+            null
+          ]
+        },
+        "stage_1": {
+          "passed": true,
+          "failure_codes": [],
+          "latency_ms": 2038.08,
+          "escalation_code": null,
+          "keyframes_count": 3,
+          "keyframes_keys": [
+            "front_bumper",
+            "side_body_panel",
+            "damage_closeup_primary"
+          ],
+          "plate_text": "MH12DE1433",
+          "color_delta_e": 0.0
+        },
+        "stage_2": {
+          "status": "ESCALATED_ESC_07",
+          "escalation_code": "ESC-07",
+          "failure_codes": [],
+          "latency_ms": 554.46,
+          "message": "Claimed damage (parts=['front_left_door'], damages=['dent', 'scratch']) was not detected on camera. Routing to manual adjuster review."
+        }
+      },
+      "verdict": "PASS",
+      "divergence_stage": null,
+      "divergence_reason": null
+    },
+    {
+      "scenario_id": "SC-16",
+      "name": "Faint Scratch vs Reflection Glare",
+      "modality": "video",
+      "policy_id": "POL-GOLF-012",
+      "claim_id": "592e78e6-4a8a-43c8-bb73-d87d901c9c11",
+      "stages": {
+        "stage_0": {
+          "passed": true,
+          "failure_codes": [],
+          "latency_ms": 450.97,
+          "details": {
+            "width": 1920,
+            "height": 1080,
+            "fps": 30.0,
+            "duration_sec": 21.0,
+            "mean_luminance": 136.92004118441358,
+            "mean_sharpness": 98.57937359845904
+          }
+        },
+        "intent_grounding": {
+          "extracted_parts": [
+            "front_glass",
+            "front_bumper"
+          ],
+          "extracted_damages": [
+            "scratch"
+          ],
+          "latency_ms": 6.32,
+          "directional_modifiers": [
+            null
+          ]
+        },
+        "stage_1": {
+          "passed": true,
+          "failure_codes": [],
+          "latency_ms": 12471.64,
+          "escalation_code": null,
+          "keyframes_count": 3,
+          "keyframes_keys": [
+            "front_bumper",
+            "side_body_panel",
+            "damage_closeup_primary"
+          ],
+          "plate_text": "GD73KZS",
+          "color_delta_e": 0.0
+        },
+        "stage_2": {
+          "status": "ESCALATED_ESC-07",
+          "escalation_code": "ESC-07",
+          "failure_codes": [],
+          "latency_ms": 1248.02,
+          "message": "Low segmentation confidence on front_bumper."
+        }
+      },
+      "verdict": "PASS",
+      "divergence_stage": null,
+      "divergence_reason": null
+    },
+    {
+      "scenario_id": "SC-17",
+      "name": "Low-Light Basement Parking",
+      "modality": "video",
+      "policy_id": "POL-HAPPY-001",
+      "claim_id": "9036ae13-6cd4-4c64-a313-00fc3659a659",
+      "stages": {
+        "stage_0": {
+          "passed": false,
+          "failure_codes": [
+            "VIDEO_TOO_DARK",
+            "VIDEO_TOO_BLURRY"
+          ],
+          "latency_ms": 82.5,
+          "details": {
+            "width": 1280,
+            "height": 720,
+            "fps": 30.0,
+            "duration_sec": 5.0,
+            "mean_luminance": 6.255361762152778,
+            "mean_sharpness": 5.8271182593609385
+          }
+        }
+      },
+      "verdict": "PASS",
+      "divergence_stage": null,
+      "divergence_reason": null
+    },
+    {
+      "scenario_id": "SC-18",
+      "name": "High-Speed Corner Whip-Pan",
+      "modality": "video",
+      "policy_id": "POL-FIAT-011",
+      "claim_id": "d09cd7ac-1cf2-471e-ad53-16c5f423ed3c",
+      "stages": {
+        "stage_0": {
+          "passed": true,
+          "failure_codes": [],
+          "latency_ms": 539.08,
+          "details": {
+            "width": 1908,
+            "height": 1080,
+            "fps": 30.0,
+            "duration_sec": 21.0,
+            "mean_luminance": 114.25583663327897,
+            "mean_sharpness": 124.12808250872106
+          }
+        },
+        "intent_grounding": {
+          "extracted_parts": [
+            "front_bumper"
+          ],
+          "extracted_damages": [
+            "scratch"
+          ],
+          "latency_ms": 6.5,
+          "directional_modifiers": [
+            null
+          ]
+        },
+        "stage_1": {
+          "passed": true,
+          "failure_codes": [],
+          "latency_ms": 14263.93,
+          "escalation_code": null,
+          "keyframes_count": 3,
+          "keyframes_keys": [
+            "front_bumper",
+            "side_body_panel",
+            "damage_closeup_primary"
+          ],
+          "plate_text": "AX72JJV",
+          "color_delta_e": 24.11742508191371
+        },
+        "stage_2": {
+          "status": "STAGE_3_VLM_INSPECTION",
+          "escalation_code": null,
+          "failure_codes": [],
+          "latency_ms": 1318.34,
+          "grounded_parts_count": 1,
+          "billed_parts": [
+            "front_bumper"
+          ],
+          "quarantined_parts": []
+        }
+      },
+      "verdict": "PASS",
+      "divergence_stage": null,
+      "divergence_reason": null
+    },
+    {
+      "scenario_id": "SC-19",
+      "name": "Photo Pack: Unproven Door Scratch",
+      "modality": "photo_pack",
+      "policy_id": "POL-HAPPY-001",
+      "claim_id": "56fd2279-1dcb-4094-9fa0-ff0b6731727f",
+      "stages": {
+        "stage_0": {
+          "passed": true,
+          "failure_codes": [],
+          "latency_ms": 85.35,
+          "details": {
+            "photo_count": 3,
+            "resolution": "(1920, 1080)",
+            "mean_sharpness": 359.0809783238407,
+            "mean_luminance": 86.85129468878601
+          }
+        },
+        "intent_grounding": {
+          "extracted_parts": [
+            "front_left_door"
+          ],
+          "extracted_damages": [
+            "scratch"
+          ],
+          "latency_ms": 6.51,
+          "directional_modifiers": [
+            null
+          ]
+        },
+        "stage_1": {
+          "passed": true,
+          "failure_codes": [],
+          "latency_ms": 159.41,
+          "escalation_code": null,
+          "keyframes_count": 3,
+          "keyframes_keys": [
+            "front_bumper",
+            "damage_closeup_primary",
+            "side_body_panel"
+          ],
+          "plate_text": "MH12DE1433",
+          "color_delta_e": 0.0
+        },
+        "stage_2": {
+          "status": "ESCALATED_ESC_07",
+          "escalation_code": "ESC-07",
+          "failure_codes": [],
+          "latency_ms": 425.57,
+          "message": "Claimed damage (parts=['front_left_door'], damages=['scratch']) was not detected on camera. Routing to manual adjuster review."
+        }
+      },
+      "verdict": "PASS",
+      "divergence_stage": null,
+      "divergence_reason": null
+    },
+    {
+      "scenario_id": "SC-20",
+      "name": "Photo Pack: Unproven Rear Lamp & Bumper",
+      "modality": "photo_pack",
+      "policy_id": "POL-HAPPY-001",
+      "claim_id": "2c8607dc-1adc-41c3-b7ba-21d2ea94e67a",
+      "stages": {
+        "stage_0": {
+          "passed": true,
+          "failure_codes": [],
+          "latency_ms": 112.13,
+          "details": {
+            "photo_count": 4,
+            "resolution": "(1920, 1080)",
+            "mean_sharpness": 320.85306700943045,
+            "mean_luminance": 96.07801950713734
+          }
+        },
+        "intent_grounding": {
+          "extracted_parts": [
+            "back_bumper",
+            "back_left_light"
+          ],
+          "extracted_damages": [
+            "dent",
+            "lamp_broken"
+          ],
+          "latency_ms": 7.1,
+          "directional_modifiers": [
+            null,
+            null
+          ]
+        },
+        "stage_1": {
+          "passed": true,
+          "failure_codes": [],
+          "latency_ms": 153.22,
+          "escalation_code": null,
+          "keyframes_count": 4,
+          "keyframes_keys": [
+            "front_bumper",
+            "damage_closeup_primary",
+            "side_body_panel",
+            "rear_bumper"
+          ],
+          "plate_text": "MH12DE1433",
+          "color_delta_e": 0.0
+        },
+        "stage_2": {
+          "status": "ESCALATED_ESC_07",
+          "escalation_code": "ESC-07",
+          "failure_codes": [],
+          "latency_ms": 572.48,
+          "message": "Claimed damage (parts=['back_bumper', 'back_left_light'], damages=['dent', 'lamp_broken']) was not detected on camera. Routing to manual adjuster review."
+        }
+      },
+      "verdict": "PASS",
+      "divergence_stage": null,
+      "divergence_reason": null
+    }
+  ]
+}

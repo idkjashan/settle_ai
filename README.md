@@ -328,12 +328,58 @@ python -m app.infrastructure.db.seed
 pytest tests/ -v
 ```
 
-### 6. Start the API Server
+### 6. Run the End-to-End Scenario Evaluation Suite (20 Scenarios)
+```bash
+uv run python evals/e2e_scenario_eval_harness.py --manifest evals/curated_test_manifest.json
+```
+
+### 7. Start the API Server
 ```bash
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 - Interactive Swagger API Documentation: `http://localhost:8000/docs`
 - Healthcheck Endpoint: `http://localhost:8000/health`
+
+---
+
+## 🧪 End-to-End Scenario Evaluation Suite & Output Artifacts
+
+The system includes a 20-scenario real-world evaluation suite covering walkaround videos and structured photo packs across 6 operational clusters.
+
+- **Full Evaluation Guide**: See [`docs/END_TO_END_EVALUATION_AND_HARNESS_GUIDE.md`](docs/END_TO_END_EVALUATION_AND_HARNESS_GUIDE.md)
+- **Latest Evaluation Report**: [`evals/eval_report_latest.json`](evals/eval_report_latest.json)
+- **Curated Dataset Manifest**: [`evals/curated_test_manifest.json`](evals/curated_test_manifest.json)
+- **Extracted Video Keyframes**: `/tmp/autosettle_keyframes/<claim_id>/`
+- **Set-of-Marks (SoM) Polygon Annotated Crops**: [`evals/artifacts/som_output/<claim_id>/`](evals/artifacts/som_output/)
+
+### 20-Scenario Scorecard Summary
+```
+=========================================================================================================
+📊 SUMMARY: 20 Passed, 0 Failed (Total: 20) — Pass Rate: 100.0%
+=========================================================================================================
+```
+| Scenario ID | Name | Modality | Stage 0 | Stage 1 | Stage 2 | Final Verdict |
+| :--- | :--- | :--- | :---: | :---: | :---: | :---: |
+| **SC-01** | Right Flank Key Scratch | video | PASS | PASS | `STAGE_3_VLM` | **PASS** |
+| **SC-02** | Vehicle Identity Mismatch | video | PASS | FAIL | `ESC-01` | **PASS** |
+| **SC-03** | Driver Flank Sideswipe Scratch | video | PASS | PASS | `STAGE_3_VLM` | **PASS** |
+| **SC-04** | Multi-Panel Flank Sideswipe | video | PASS | PASS | `STAGE_3_VLM` | **PASS** |
+| **SC-05** | Phantom Claim: Rear Lamp & Bumper | video | PASS | PASS | `ESC-07` | **PASS** |
+| **SC-06** | Phantom Claim: Broken Wing Mirror | video | PASS | PASS | `ESC-07` | **PASS** |
+| **SC-07** | Phantom Claim: Hood Hail Dent | video | PASS | PASS | `ESC-07` | **PASS** |
+| **SC-08** | Phantom Claim: Bumper Crush | video | PASS | PASS | `ESC-07` | **PASS** |
+| **SC-09** | Reverse Walkaround Rear Start | video | PASS | PASS | `STAGE_3_VLM` | **PASS** |
+| **SC-10** | Crowded Parking Lot Occlusion | video | PASS | PASS | `ESC-07` | **PASS** |
+| **SC-11** | Macro Close-Up Zoom Frame | video | PASS | FAIL | `ESC-02` | **PASS** |
+| **SC-12** | Overcast to Tree Canopy Shadow | video | PASS | PASS | `ESC-06` | **PASS** |
+| **SC-13** | Unclaimed Pre-existing Quarantine | video | PASS | PASS | `STAGE_3_VLM` | **PASS** |
+| **SC-14** | Undamaged Negative Control | video | PASS | PASS | `ESC-07` | **PASS** |
+| **SC-15** | Opposite-Side Fraud Attempt | video | PASS | PASS | `ESC-07` | **PASS** |
+| **SC-16** | Faint Scratch vs Reflection Glare | video | PASS | PASS | `ESC-07` | **PASS** |
+| **SC-17** | Low-Light Basement Parking | video | FAIL | N/A | `REJECTED_STAGE0` | **PASS** |
+| **SC-18** | High-Speed Corner Whip-Pan | video | PASS | PASS | `STAGE_3_VLM` | **PASS** |
+| **SC-19** | Photo Pack: Unproven Door Scratch | photo_pack | PASS | PASS | `ESC-07` | **PASS** |
+| **SC-20** | Photo Pack: Unproven Rear Lamp | photo_pack | PASS | PASS | `ESC-07` | **PASS** |
 
 ---
 

@@ -1,0 +1,433 @@
+{
+  "dataset_version": "1.0.0",
+  "total_scenarios": 20,
+  "scenarios": [
+    {
+      "scenario_id": "SC-01",
+      "name": "Right Flank Key Scratch",
+      "modality": "video",
+      "media_path": "/home/jashan/settleai/test_assets/curated_scenarios/SC-01/front_bumper_curb_scrape.mp4",
+      "claim_description": "Deep key scratch along front right door and back right door",
+      "policy_id": "POL-HAPPY-001",
+      "expected_plate": "MH12DE1433",
+      "expected_color": "WHITE",
+      "expected_claimed_parts": [
+        "front_right_door",
+        "back_right_door"
+      ],
+      "expected_claimed_damages": [
+        "scratch"
+      ],
+      "expected_stage0_pass": true,
+      "expected_stage1_pass": true,
+      "expected_stage2_status": "STAGE_3_VLM_INSPECTION",
+      "expected_billed_parts": [
+        "back_right_door",
+        "front_right_door"
+      ]
+    },
+    {
+      "scenario_id": "SC-02",
+      "name": "Vehicle Identity Mismatch (White Vehicle vs Blue Policy)",
+      "modality": "video",
+      "media_path": "/home/jashan/settleai/test_assets/curated_scenarios/SC-02/rear_bumper_reversing_crease.mp4",
+      "claim_description": "Reversing into low wall creased and dented the rear bumper",
+      "policy_id": "POL-WRX-014",
+      "expected_plate": "MH12DE1433",
+      "expected_color": "BLUE",
+      "expected_claimed_parts": [
+        "back_bumper"
+      ],
+      "expected_claimed_damages": [
+        "dent"
+      ],
+      "expected_stage0_pass": true,
+      "expected_stage1_pass": false,
+      "expected_stage2_status": "ESC-01",
+      "expected_billed_parts": []
+    },
+    {
+      "scenario_id": "SC-03",
+      "name": "Driver Flank Sideswipe Scratch",
+      "modality": "video",
+      "media_path": "/home/jashan/settleai/test_assets/curated_scenarios/SC-03/key_vandalism_driver_door.mp4",
+      "claim_description": "Vandalism key scratch horizontally along the front right door",
+      "policy_id": "POL-HAPPY-001",
+      "expected_plate": "MH12DE1433",
+      "expected_color": "WHITE",
+      "expected_claimed_parts": [
+        "front_right_door"
+      ],
+      "expected_claimed_damages": [
+        "scratch"
+      ],
+      "expected_stage0_pass": true,
+      "expected_stage1_pass": true,
+      "expected_stage2_status": "STAGE_3_VLM_INSPECTION",
+      "expected_billed_parts": [
+        "front_right_door"
+      ]
+    },
+    {
+      "scenario_id": "SC-04",
+      "name": "Multi-Panel Flank Sideswipe",
+      "modality": "video",
+      "media_path": "/home/jashan/settleai/test_assets/curated_scenarios/SC-04/multi_panel_flank_sideswipe.mp4",
+      "claim_description": "Sideswipe collision scratched front right door and back right door",
+      "policy_id": "POL-HAPPY-001",
+      "expected_plate": "MH12DE1433",
+      "expected_color": "WHITE",
+      "expected_claimed_parts": [
+        "front_right_door",
+        "back_right_door"
+      ],
+      "expected_claimed_damages": [
+        "scratch"
+      ],
+      "expected_stage0_pass": true,
+      "expected_stage1_pass": true,
+      "expected_stage2_status": "STAGE_3_VLM_INSPECTION",
+      "expected_billed_parts": [
+        "back_right_door",
+        "front_right_door"
+      ]
+    },
+    {
+      "scenario_id": "SC-05",
+      "name": "Phantom Damage Claim: Rear Lamp & Bumper",
+      "modality": "video",
+      "media_path": "/home/jashan/settleai/test_assets/curated_scenarios/SC-05/fender_bender_taillight_bumper.mp4",
+      "claim_description": "Rear collision dented rear bumper and broke the back left light",
+      "policy_id": "POL-HAPPY-001",
+      "expected_plate": "MH12DE1433",
+      "expected_color": "WHITE",
+      "expected_claimed_parts": [
+        "back_bumper",
+        "back_left_light"
+      ],
+      "expected_claimed_damages": [
+        "dent",
+        "lamp_broken"
+      ],
+      "expected_stage0_pass": true,
+      "expected_stage1_pass": true,
+      "expected_stage2_status": "ESC-07",
+      "expected_billed_parts": []
+    },
+    {
+      "scenario_id": "SC-06",
+      "name": "Phantom Damage Claim: Broken Wing Mirror",
+      "modality": "video",
+      "media_path": "/home/jashan/settleai/test_assets/curated_scenarios/SC-06/broken_wing_mirror.mp4",
+      "claim_description": "Left side mirror housing cracked and broken by passing truck",
+      "policy_id": "POL-HAPPY-001",
+      "expected_plate": "MH12DE1433",
+      "expected_color": "WHITE",
+      "expected_claimed_parts": [
+        "left_mirror"
+      ],
+      "expected_claimed_damages": [
+        "crack"
+      ],
+      "expected_stage0_pass": true,
+      "expected_stage1_pass": true,
+      "expected_stage2_status": "ESC-07",
+      "expected_billed_parts": []
+    },
+    {
+      "scenario_id": "SC-07",
+      "name": "Phantom Damage Claim: Hood Hail Dent",
+      "modality": "video",
+      "media_path": "/home/jashan/settleai/test_assets/curated_scenarios/SC-07/hood_hail_dent.mp4",
+      "claim_description": "Hail storm caused minor hail denting across the front hood and bonnet",
+      "policy_id": "POL-HAPPY-001",
+      "expected_plate": "MH12DE1433",
+      "expected_color": "WHITE",
+      "expected_claimed_parts": [
+        "hood"
+      ],
+      "expected_claimed_damages": [
+        "dent"
+      ],
+      "expected_stage0_pass": true,
+      "expected_stage1_pass": true,
+      "expected_stage2_status": "ESC-07",
+      "expected_billed_parts": []
+    },
+    {
+      "scenario_id": "SC-08",
+      "name": "Phantom Damage Claim: Bumper Crush",
+      "modality": "video",
+      "media_path": "/home/jashan/settleai/test_assets/curated_scenarios/SC-08/front_fender_crush.mp4",
+      "claim_description": "Front bumper impact caused deformation and dent near wheel arch",
+      "policy_id": "POL-HAPPY-001",
+      "expected_plate": "MH12DE1433",
+      "expected_color": "WHITE",
+      "expected_claimed_parts": [
+        "front_bumper"
+      ],
+      "expected_claimed_damages": [
+        "dent"
+      ],
+      "expected_stage0_pass": true,
+      "expected_stage1_pass": true,
+      "expected_stage2_status": "ESC-07",
+      "expected_billed_parts": []
+    },
+    {
+      "scenario_id": "SC-09",
+      "name": "Reverse Walkaround Rear Start",
+      "modality": "video",
+      "media_path": "/home/jashan/settleai/test_assets/scenario_videos/scenario_04_reverse_walkaround_rear_start.mp4",
+      "claim_description": "Reverse walkaround starting from rear plate CJ09025 to front bumper",
+      "policy_id": "POL-ACCORD-017",
+      "expected_plate": "CJ09025",
+      "expected_color": "BLUE",
+      "expected_claimed_parts": [
+        "back_bumper"
+      ],
+      "expected_claimed_damages": [
+        "scratch"
+      ],
+      "expected_stage0_pass": true,
+      "expected_stage1_pass": true,
+      "expected_stage2_status": "STAGE_3_VLM_INSPECTION",
+      "expected_billed_parts": [
+        "back_bumper"
+      ]
+    },
+    {
+      "scenario_id": "SC-10",
+      "name": "Crowded Parking Lot Occlusion",
+      "modality": "video",
+      "media_path": "/home/jashan/settleai/test_assets/scenario_videos/scenario_03_parking_lot_multicar.mp4",
+      "claim_description": "Multi-car crowded dealership parking lot inspection, front bumper dent",
+      "policy_id": "POL-LEXUS-016",
+      "expected_plate": "LELB09",
+      "expected_color": "BLACK",
+      "expected_claimed_parts": [
+        "front_bumper"
+      ],
+      "expected_claimed_damages": [
+        "dent"
+      ],
+      "expected_stage0_pass": true,
+      "expected_stage1_pass": true,
+      "expected_stage2_status": "ESC-07",
+      "expected_billed_parts": []
+    },
+    {
+      "scenario_id": "SC-11",
+      "name": "Macro Close-Up Zoom Frame",
+      "modality": "video",
+      "media_path": "/home/jashan/settleai/test_assets/curated_scenarios/SC-11/macro_closeup_scratch.mp4",
+      "claim_description": "Macro close-up inspection zoom focusing on scratch line along panel seam",
+      "policy_id": "POL-MUSTANG-015",
+      "expected_plate": "MH12DE1433",
+      "expected_color": "GREY",
+      "expected_claimed_parts": [
+        "back_bumper"
+      ],
+      "expected_claimed_damages": [
+        "scratch"
+      ],
+      "expected_stage0_pass": true,
+      "expected_stage1_pass": false,
+      "expected_stage2_status": "ESC-02",
+      "expected_billed_parts": []
+    },
+    {
+      "scenario_id": "SC-12",
+      "name": "Overcast to Tree Canopy Shadow",
+      "modality": "video",
+      "media_path": "/home/jashan/settleai/test_assets/scenario_videos/scenario_05_challenging_lighting_overcast_canopy.mp4",
+      "claim_description": "Diffused daylight walkaround under dynamic tree canopy shadows, front bumper dent",
+      "policy_id": "POL-MERC-018",
+      "expected_plate": "LARNLEED",
+      "expected_color": "SILVER",
+      "expected_claimed_parts": [
+        "front_bumper"
+      ],
+      "expected_claimed_damages": [
+        "dent"
+      ],
+      "expected_stage0_pass": true,
+      "expected_stage1_pass": true,
+      "expected_stage2_status": "ESC-06",
+      "expected_billed_parts": []
+    },
+    {
+      "scenario_id": "SC-13",
+      "name": "Unclaimed Pre-existing Quarantine",
+      "modality": "video",
+      "media_path": "/home/jashan/settleai/test_assets/curated_scenarios/SC-13/unclaimed_preexisting_quarantine.mp4",
+      "claim_description": "Claiming only front right door scrape damage from sideswipe",
+      "policy_id": "POL-HAPPY-001",
+      "expected_plate": "MH12DE1433",
+      "expected_color": "WHITE",
+      "expected_claimed_parts": [
+        "front_right_door"
+      ],
+      "expected_claimed_damages": [
+        "scratch"
+      ],
+      "expected_stage0_pass": true,
+      "expected_stage1_pass": true,
+      "expected_stage2_status": "STAGE_3_VLM_INSPECTION",
+      "expected_billed_parts": [
+        "front_right_door"
+      ]
+    },
+    {
+      "scenario_id": "SC-14",
+      "name": "Undamaged Negative Control",
+      "modality": "video",
+      "media_path": "/home/jashan/settleai/test_assets/real_videos/toyota_hilux_white_ute.mp4",
+      "claim_description": "Front bumper dent",
+      "policy_id": "POL-HILUX-010",
+      "expected_plate": "1ILJ681",
+      "expected_color": "WHITE",
+      "expected_claimed_parts": [
+        "front_bumper"
+      ],
+      "expected_claimed_damages": [
+        "dent"
+      ],
+      "expected_stage0_pass": true,
+      "expected_stage1_pass": true,
+      "expected_stage2_status": "ESC-07",
+      "expected_billed_parts": []
+    },
+    {
+      "scenario_id": "SC-15",
+      "name": "Opposite-Side Fraud Attempt",
+      "modality": "video",
+      "media_path": "/home/jashan/settleai/test_assets/curated_scenarios/SC-15/opposite_side_fraud.mp4",
+      "claim_description": "Severe dent and scratch along front left door",
+      "policy_id": "POL-HAPPY-001",
+      "expected_plate": "MH12DE1433",
+      "expected_color": "WHITE",
+      "expected_claimed_parts": [
+        "front_left_door"
+      ],
+      "expected_claimed_damages": [
+        "dent"
+      ],
+      "expected_stage0_pass": true,
+      "expected_stage1_pass": true,
+      "expected_stage2_status": "ESC-07",
+      "expected_billed_parts": []
+    },
+    {
+      "scenario_id": "SC-16",
+      "name": "Faint Scratch vs Reflection Glare",
+      "modality": "video",
+      "media_path": "/home/jashan/settleai/test_assets/real_videos/vw_golf_grey_hatchback.mp4",
+      "claim_description": "High gloss paint reflection inspection, scratch on front bumper",
+      "policy_id": "POL-GOLF-012",
+      "expected_plate": "GD73KZS",
+      "expected_color": "GREY",
+      "expected_claimed_parts": [
+        "front_bumper"
+      ],
+      "expected_claimed_damages": [
+        "scratch"
+      ],
+      "expected_stage0_pass": true,
+      "expected_stage1_pass": true,
+      "expected_stage2_status": "ESC-07",
+      "expected_billed_parts": []
+    },
+    {
+      "scenario_id": "SC-17",
+      "name": "Low-Light Basement Parking",
+      "modality": "video",
+      "media_path": "/home/jashan/settleai/test_assets/curated_scenarios/SC-17/low_light_basement.mp4",
+      "claim_description": "Basement parking lot scrape on front bumper",
+      "policy_id": "POL-HAPPY-001",
+      "expected_plate": "MH12DE1433",
+      "expected_color": "WHITE",
+      "expected_claimed_parts": [
+        "front_bumper"
+      ],
+      "expected_claimed_damages": [
+        "scratch"
+      ],
+      "expected_stage0_pass": false,
+      "expected_stage1_pass": false,
+      "expected_stage2_status": "REJECTED_STAGE0",
+      "expected_billed_parts": []
+    },
+    {
+      "scenario_id": "SC-18",
+      "name": "High-Speed Corner Whip-Pan",
+      "modality": "video",
+      "media_path": "/home/jashan/settleai/test_assets/real_videos/fiat_500_blue_hatchback.mp4",
+      "claim_description": "Fast panning orbital sweep around corner, scratch on front bumper",
+      "policy_id": "POL-FIAT-011",
+      "expected_plate": "AX72JJV",
+      "expected_color": "BLUE",
+      "expected_claimed_parts": [
+        "front_bumper"
+      ],
+      "expected_claimed_damages": [
+        "scratch"
+      ],
+      "expected_stage0_pass": true,
+      "expected_stage1_pass": true,
+      "expected_stage2_status": "STAGE_3_VLM_INSPECTION",
+      "expected_billed_parts": []
+    },
+    {
+      "scenario_id": "SC-19",
+      "name": "Photo Pack: Unproven Door Scratch",
+      "modality": "photo_pack",
+      "media_path": [
+        "/home/jashan/settleai/test_assets/curated_scenarios/SC-19/plate_front_bumper.jpg",
+        "/home/jashan/settleai/test_assets/curated_scenarios/SC-19/context_side_view.jpg",
+        "/home/jashan/settleai/test_assets/curated_scenarios/SC-19/damage_closeup.jpg"
+      ],
+      "claim_description": "Key scratch along front left door",
+      "policy_id": "POL-HAPPY-001",
+      "expected_plate": "MH12DE1433",
+      "expected_color": "WHITE",
+      "expected_claimed_parts": [
+        "front_left_door"
+      ],
+      "expected_claimed_damages": [
+        "scratch"
+      ],
+      "expected_stage0_pass": true,
+      "expected_stage1_pass": true,
+      "expected_stage2_status": "ESC-07",
+      "expected_billed_parts": []
+    },
+    {
+      "scenario_id": "SC-20",
+      "name": "Photo Pack: Unproven Rear Lamp & Bumper",
+      "modality": "photo_pack",
+      "media_path": [
+        "/home/jashan/settleai/test_assets/curated_scenarios/SC-20/rear_plate_bumper.jpg",
+        "/home/jashan/settleai/test_assets/curated_scenarios/SC-20/context_side_view.jpg",
+        "/home/jashan/settleai/test_assets/curated_scenarios/SC-20/lamp_closeup.jpg",
+        "/home/jashan/settleai/test_assets/curated_scenarios/SC-20/damage_closeup_primary.jpg"
+      ],
+      "claim_description": "Rear impact dented the back bumper and broke the back left light",
+      "policy_id": "POL-HAPPY-001",
+      "expected_plate": "MH12DE1433",
+      "expected_color": "WHITE",
+      "expected_claimed_parts": [
+        "back_bumper",
+        "back_left_light"
+      ],
+      "expected_claimed_damages": [
+        "dent",
+        "lamp_broken"
+      ],
+      "expected_stage0_pass": true,
+      "expected_stage1_pass": true,
+      "expected_stage2_status": "ESC-07",
+      "expected_billed_parts": []
+    }
+  ]
+}
