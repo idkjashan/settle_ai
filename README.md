@@ -9,7 +9,7 @@
 [![YOLO11 & YOLOv8](https://img.shields.io/badge/Ultralytics-YOLO11%20%7C%20YOLOv8-00FFFF.svg)](https://docs.ultralytics.com/)
 [![PostgreSQL 16](https://img.shields.io/badge/PostgreSQL-16%20Async-336791.svg)](https://www.postgresql.org/)
 [![Redis 7](https://img.shields.io/badge/Redis-7%20PubSub-DC382D.svg)](https://redis.io/)
-[![Tests Passing](https://img.shields.io/badge/Tests-149%2F149%20Passed-brightgreen.svg)](https://github.com/idkjashan/settle_ai)
+[![Tests Passing](https://img.shields.io/badge/Tests-424%2F424%20Passed-brightgreen.svg)](https://github.com/idkjashan/settle_ai)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 *An autonomous, fraud-immune motor claims platform that transforms an unbroken 15-second mobile car walkaround video or structured 3–6 photo pack with natural-language intent grounding into an instant cash settlement voucher in under 90 seconds—eliminating physical surveyor fees, subjective estimating, and image fraud.*
@@ -27,10 +27,14 @@
 6. [Deep Dive: Stage 1 (Vehicle Identity & Continuity Grounding)](#-deep-dive-stage-1-vehicle-identity--continuity-grounding)
 7. [Deep Dive: System 1 Intent Grounding & Dynamic Taxonomy](#-deep-dive-system-1-intent-grounding--dynamic-taxonomy)
 8. [Deep Dive: Stage 2 (Conditioned Dual-Mask Segmentation & Damage Quarantine)](#-deep-dive-stage-2-conditioned-dual-mask-segmentation--damage-quarantine)
-9. [Downstream Pipeline (Stages 3 through 6)](#-downstream-pipeline-stages-3-through-6)
-10. [Hardware Budget, Local RTX 4060 GPU & Training Toolchain](#-hardware-budget-local-rtx-4060-gpu--training-toolchain)
-11. [Comprehensive Test Suite (149/149 Green)](#-comprehensive-test-suite-149149-green)
-12. [Quickstart & Installation](#-quickstart--installation)
+9. [Deep Dive: Stage 3 (Set-of-Marks VLM Damage Inspection & Forensic Gating)](#-deep-dive-stage-3-set-of-marks-vlm-damage-inspection--forensic-gating)
+10. [Deep Dive: Stage 4 (Deterministic Actuarial Pricing Engine & NCB Advisory)](#-deep-dive-stage-4-deterministic-actuarial-pricing-engine--ncb-advisory)
+11. [Deep Dive: Stage 5 (Negotiation Chatbot FSM & HMAC-SHA256 Signing)](#-deep-dive-stage-5-negotiation-chatbot-fsm--hmac-sha256-signing)
+12. [Deep Dive: Stage 6 (Settlement Router, Penny-Balanced Apportionment & Dossier)](#-deep-dive-stage-6-settlement-router-penny-balanced-apportionment--dossier)
+13. [Unified REST API Reference (All Stages)](#-unified-rest-api-reference-all-stages)
+14. [Hardware Budget, Local RTX 4060 GPU & Training Toolchain](#-hardware-budget-local-rtx-4060-gpu--training-toolchain)
+15. [Comprehensive Test Suite](#-comprehensive-test-suite)
+16. [Quickstart & Installation](#-quickstart--installation)
 
 ---
 
@@ -147,7 +151,7 @@ settleai/
 │   ├── STRESS_TEST_AND_SOLUTION_ARCHITECTURE.md  # Stress test findings & solution specs
 │   ├── MODEL_SOURCING_AND_TRAINING_REPORT.md     # Checkpoint sourcing & GPU training architecture
 │   ├── STAGE_2_MODEL_AND_DATASET_READINESS_AUDIT.md # Model readiness audit & resolution addendum
-│   └── lld/                                      # Stage 0, Stage 1, Stage 2 LLD specifications
+│   └── lld/                                      # Stage 0 through Stage 6 LLD specifications
 ├── tools/
 │   └── model_training/                           # YOLO segmentation dataset converter & training runner
 ├── scripts/
@@ -158,11 +162,12 @@ settleai/
 │   ├── carparts-yolo11n-seg.pt                   # 23 Carparts-Seg exterior part classes
 │   └── yolo11m-seg.pt                            # Base COCO vehicle detector
 ├── test_assets/                                  # Real vehicle walkaround video evaluation dataset
-└── tests/                                        # Comprehensive Pytest Suite (149 Tests Green)
+└── tests/                                        # Comprehensive Pytest Suite
     ├── fast_fail_gate/                           # Stage 0 tests (Video & Photo Pack gates)
     ├── vehicle_identity_continuity/              # Stage 1 tests (Video & Photo Pack continuity)
     ├── claim_intent/                             # Intent grounder & dynamic taxonomy tests
     ├── dual_mask_segmentation/                   # Stage 2 tests (Intersection, quarantine, catalog)
+    ├── vlm_damage_inspection/                    # Stage 3 tests (Adapters, edge cases, live Ollama, orchestrator)
     ├── adversarial/                              # Red-Team breaker suite
     ├── test_real_videos.py                       # Integration tests against real YouTube walkarounds
     └── test_scenarios_break.py                   # Scenario stress-testing & hardening tests
@@ -249,21 +254,196 @@ Stage 2 combines computer vision detections with the user's declared intent to p
 
 ---
 
-## 🔍 Downstream Pipeline (Stages 3 through 6)
+## 🔬 Deep Dive: Stage 3 (Set-of-Marks VLM Damage Inspection & Forensic Gating)
 
-*(Stages 4 through 6 are architected and will be integrated in upcoming sprints)*:
+Stage 3 bridges 2D segmentation detections into verified 3D physical reality and forensic integrity before any pricing calculation occurs. It takes the `Stage3HandoffPayload` generated by Stage 2 and runs an asynchronous, multi-provider inspection pipeline:
 
-- **Stage 3: Set-of-Marks (SoM) VLM Inspection**: Crops the damage with a boundary contour and queries Gemini 2.5 Flash (`temp=0.0`) in strict JSON mode to confirm physical damage depth and filter glare.
-- **Stage 4: Actuarial Pricing Engine**: 100% deterministic Python + PostgreSQL OEM spare part and labour schedule lookups with pro-consumer No Claim Bonus (NCB) protection alerts.
-- **Stage 5: Bounded Negotiation Chatbot**: Natural language chat UI limited to maximum 3 negotiation rounds using HMAC-SHA256 cryptographically signed offer cards.
-- **Stage 6: Settlement & Escalation**: Emits instant UPI cash payout vouchers or routes to cashless network garages.
+```mermaid
+flowchart TD
+    S2[/"Stage 2 Handoff (Stage3HandoffPayload)"/] --> Orch["Stage3VLMOrchestrator"]
+
+    subgraph Stage3["Stage 3: VLM Damage Inspection Engine"]
+        Orch --> PreProc["Dual-Crop Preprocessor\n(Image 1: 15px Cyan Dilated SoM Crop\nImage 2: Unmarked Raw Crop)"]
+        PreProc --> PromptEng["VLMPromptEngine\n(Dynamic Context + Immutable Forensic System Prompt)"]
+        PromptEng --> Router{"VLM Provider Router"}
+        
+        Router -->|Local| Ollama["OllamaVisionAdapter\n(minicpm-v:8b @ WSL2 172.29.128.1 / localhost)"]
+        Router -->|Cloud| Gemini["GeminiVisionAdapter\n(gemini-2.5-flash @ temp=0.0)"]
+        Router -->|OpenAI-compat| OpenAIVision["OpenAIVisionAdapter\n(vLLM / OpenRouter)"]
+        Router -->|Offline CI| Mock["DeterministicMockVLMAdapter\n(<5ms synthetic fixtures)"]
+
+        Ollama & Gemini & OpenAIVision & Mock --> ResilientParser["ResilientJSONParser\n(Codefence Stripping, Trailing Comma Repair, [0,1] Normalization)"]
+        ResilientParser --> DecisionEngine["ForensicDecisionEngine"]
+
+        DecisionEngine --> Gate1{"Real Physical\nDamage?"}
+        Gate1 -- "False" --> Quarantined["QuarantinedPartRecord\n(S3_FALSE_POSITIVE_FILTERED)"]
+        Gate1 -- "True" --> Gate2{"Pre-existing\nRust / Oxidation?"}
+
+        Gate2 -- "True" --> Esc04["ESC-04_PREEXISTING_CORROSION\n(Claim Halted -> Human Surveyor)"]
+        Gate2 -- "False" --> Gate3{"Panel Gap\nMisalignment?"}
+
+        Gate3 -- "True" --> Esc06["ESC-06_STRUCTURAL_HAZARD\n(Frame Shift -> Human Inspection)"]
+        Gate3 -- "False" --> Gate4{"Depth Severity\nGrading"}
+
+        Gate4 --> VerifiedPart["VerifiedDamagedPart\n(L1..L5 Depth Grade + Confidence)"]
+    end
+
+    VerifiedPart --> S4Payload[/"Stage 4 Handoff (Stage4HandoffPayload)"/]
+    Quarantined --> S4Payload
+    S4Payload --> S4Engine["Stage 4: Actuarial Pricing Engine"]
+```
+
+### 1. Dual-Crop Contrast Methodology
+- **Image 1 (Set-of-Marks Spatial Anchor):** Features a 15px exterior-dilated cyan boundary contour around the damage polygon, providing explicit visual guidance while guaranteeing **0.00% occlusion of interior damage pixels**.
+- **Image 2 (Clean Raw Crop):** Preserves original, unannotated paint gloss, specular reflections, and micro-cracks for tactile and textural evaluation.
+
+### 2. Multi-Provider Vision Architecture
+- **Local Ollama Inference (`minicpm-v:8b`)**: Zero-subshell kernel route discovery (`/proc/net/route`) resolves host endpoint (`http://172.29.128.1:11434` / `http://localhost:11434`) in $< 0.1\text{ms}$. Enforces strict JSON grammar decoding.
+- **Cloud Gemini 2.5 Flash**: Direct asynchronous REST calls via `httpx` with `temperature: 0.0` and structured Pydantic response schemas.
+- **Resilient JSON Parser & Circuit Breaker**: Recovers from conversational markdown fences (` ```json `), repairs trailing commas, auto-normalizes percentage confidence scores to `[0.0, 1.0]`, and trips an in-memory circuit breaker after 5 consecutive provider failures.
+
+### 3. Forensic Gating & Depth Severity Taxonomy
+- **Pre-Existing Rust / Oxidation Gate (`ESC-04`)**: Detects flaky reddish-brown iron oxide ($Fe_2O_3$), UV paint delamination, or aged cavity road grime, immediately halting automated payout for pre-existing vehicle degradation.
+- **Structural Safety & Misalignment Gate (`ESC-06`)**: Identifies jammed seams, uneven panel gaps, or subframe buckling for mandatory physical adjuster review.
+- **Superficial Contaminant Quarantine (`S3_FALSE_POSITIVE_FILTERED`)**: Classifies non-damage anomalies across 8 categories (`MUD_OR_DIRT`, `BIRD_DROPPINGS`, `CHALK_OR_MARKER`, `DECAL_OR_STICKER`, `WATER_DROPLET`, `SPECULAR_GLARE`, `ASPHALT_REFLECTION`, `OTHER_NON_DAMAGE`) and quarantines them without billing.
+- **Zero Real Damage Gate (`ESC-07`)**: Triggers adjuster escalation if all 2D candidates are filtered out as non-physical deposits.
+- **5-Grade Depth Severity Model**:
+  - `L1_SURFACE_SCUFF`: Clear-coat marring/foreign paint transfer $\rightarrow$ Rubbing & Polishing fee only.
+  - `L2_BASECOAT_SCRATCH`: Deep scratch penetrating primer/metal $\rightarrow$ Full panel repaint schedule.
+  - `L3_SHALLOW_DENT_PDR`: Smooth concave depression without crease $\rightarrow$ Paintless Dent Repair (PDR) flat fee.
+  - `L4_CREASED_DENT`: Sharp fold across character line $\rightarrow$ Panel beating + full repaint.
+  - `L5_STRUCTURAL_TEAR`: Torn sheet metal or fractured plastic/glass $\rightarrow$ Full OEM part replacement.
+
+---
+
+## 📐 Deep Dive: Stage 4 (Deterministic Actuarial Pricing Engine & NCB Advisory)
+
+Stage 4 transitions verified damage telemetry from Stage 3 into an exact, statutory itemized claim estimate. **Zero financial authority is granted to AI models**; all arithmetic is performed by deterministic standard library `decimal.Decimal` with `ROUND_HALF_UP` precision against official OEM part catalogs.
+
+```mermaid
+flowchart LR
+    S3[Stage 3 Handoff] --> PreFlight{"Pre-Flight Fraud Checks\n(ESC-03 Double-Dipping)"}
+    PreFlight -- Passed --> OEM["OEM Parts Catalogue\n(Hyundai Creta / Toyota Fortuner)"]
+    OEM --> Math["Actuarial Calculator Engine\n(IMT Depreciation, Labor, Paint, GST)"]
+    Math --> NCB["NCB Advisory Engine\n(Economic Utility & Renewal Loss)"]
+    NCB --> Band["Cash Settlement Band Engine\n(75% Initial, 85% Target, 95% Cap <= ₹25,000)"]
+    Band --> S5[Stage 5 Negotiation Handoff]
+```
+
+- **Statutory Depreciation Rules (IRDAI & IMT)**:
+  - *Glass Components*: $0\%$ statutory depreciation.
+  - *Plastic & Rubber*: Flat $50\%$ statutory depreciation.
+  - *Fiberglass*: Flat $30\%$ statutory depreciation.
+  - *Metal & Structural Body Panels*: Evaluated across 8 vehicle age brackets ($0\text{--}6\text{ months}: 0\%$, up to $> 10\text{ years}: 50\%$).
+  - *Zero-Depreciation Rider*: $0\%$ parts depreciation applied across all material classes when policy addon is active.
+- **Continuous Denting Labor Scaling**: Denting labor is dynamically scaled by panel surface area damage fraction ($\text{IoP}$):
+  $$\gamma(\text{IoP}) = \min(2.0, 1.0 + \text{IoP} \times 2.5)$$
+- **Paint Multiplier & Overlap Scheduling**:
+  - *Finish Types*: Solid ($1.0\times$), Metallic ($1.25\times$), Pearl/Matte ($1.40\times$).
+  - *Multi-Panel Overlap Deductions*: Adjacent panels undergoing painting receive statutory $10\%\text{--}20\%$ overlap labor discounts.
+- **Pro-Consumer No Claim Bonus (NCB) Advisory**:
+  Calculates renewal discount penalty against immediate payout to provide actionable advisory:
+  $$\Delta_{\text{benefit}} = \text{Liability}_{\text{net}} - \text{Loss}_{\text{NCB renewal}}$$
+  Issues `PAY_OUT_OF_POCKET` when $\Delta_{\text{benefit}} \le 0$ to save the policyholder money.
+- **Autonomous Settlement Band Guardrail**:
+  Generates the bounded cash-in-lieu negotiation interval:
+  $$O_0 = 75\% \times L_{\text{net}}, \quad O_{\text{target}} = 85\% \times L_{\text{net}}, \quad O_{\text{max}} = \min(₹25,000, 95\% \times L_{\text{net}})$$
+  Breaches of $L_{\text{net}} > ₹25,000$ trigger automatic escalation code `ESC-08_AUTONOMOUS_CEILING_BREACHED`.
+
+---
+
+## 💬 Deep Dive: Stage 5 (Negotiation Chatbot FSM & HMAC-SHA256 Signing)
+
+Stage 5 empowers the policyholder to negotiate their cash-in-lieu settlement through an intuitive natural language chat interface. The conversational engine is strictly bounded: **an LLM produces explanations, but has zero financial authority over numbers**.
+
+```mermaid
+stateDiagram-v2
+    [*] --> Round0_Initial: Stage 4 Pricing Handoff
+    Round0_Initial --> Round1_Counter: Claimant Counter / Plea
+    Round1_Counter --> Round2_Counter: Claimant Counter / Plea
+    Round2_Counter --> Round3_Final: Final Concession
+    Round3_Final --> Round3_Final: Locked at Walkaway Cap
+
+    Round0_Initial --> Settled: Accept Offer Card
+    Round1_Counter --> Settled: Accept Offer Card
+    Round2_Counter --> Settled: Accept Offer Card
+    Round3_Final --> Settled: Accept Offer Card
+
+    Round0_Initial --> CashlessGarage: Reject / Garage Request
+    Round1_Counter --> CashlessGarage: Reject / Garage Request
+    Round2_Counter --> CashlessGarage: Reject / Garage Request
+    Round3_Final --> CashlessGarage: Reject / Garage Request
+
+    Settled --> [*]: Stage 6 Finalization
+    CashlessGarage --> [*]: Stage 6 Escalation (ESC-USER-REJECT)
+```
+
+- **Deterministic 3-Round Concession Math**:
+  $$\Delta_r = \min(D_{\text{claimant}}, \text{Cap}_r) - O_{r-1}, \quad O_r = O_{r-1} + \alpha_r \Delta_r$$
+  where $\alpha_r \in [0.25, 0.50]$ scales dynamically based on technical rationale score.
+- **Anchor Inversion Guard**: Protects the insurer against user inputs lower than the active offer ($D_{\text{claimant}} \le O_{r-1}$). Existing offer is maintained; decreases are mathematically impossible.
+- **NLP Intent & Hinglish Currency Parsing**:
+  - Extracts explicit currency demands (`₹15,000`, `Rs. 12500`, `14000.50 INR`, `18000 rupees`).
+  - Supports relative deltas (`+2000`, `add 1500`, `extra 1000`).
+  - Recognizes Hinglish negotiation semantics (`paisa badhao`, `bohot kam hai`, `kharcha zyada hai`).
+  - Technical justification scoring: boosts concession $\alpha$ to $0.50$ when valid repair keywords (`OEM bumper`, `paint labor`, `dent repair`) are detected.
+- **HMAC-SHA256 Cryptographic Offer Signing**:
+  Every offer card is signed with a SHA-256 HMAC digest over `{claim_id}:{round}:{amount:.2f}:{expires_at_epoch}` with a 15-minute TTL. Altering the amount in the browser DOM causes immediate HTTP 403 rejection.
+
+---
+
+## 🏛️ Deep Dive: Stage 6 (Settlement Router, Penny-Balanced Apportionment & Dossier)
+
+Stage 6 handles legal finalization, payment disbursement preparation, and desk surveyor escalation.
+
+- **Pro-Rata Multi-Part Cash Apportionment with Exact Penny Balancing**:
+  When a lump-sum cash settlement ($O_{\text{settled}}$) is accepted for a claim with multiple damaged panels, the cash is distributed proportionally across parts by their gross line-item pre-tax repair cost:
+  $$S_i = \text{round}\left(O_{\text{settled}} \times \frac{C_i}{\sum C_k}\right)$$
+  Residual cent/paise rounding fractions are credited to the component with the largest gross cost, guaranteeing exact bit-level equality:
+  $$\sum_{i=1}^n S_i \equiv O_{\text{settled}}$$
+- **Anti-Fraud Unrepaired Claims Ledger Commitment (`ESC-03`)**:
+  Upon cash-in-lieu acceptance, every apportioned part is committed to PostgreSQL `unrepaired_claims_ledger` with `is_repaired_verified=False`. Any future claim for the same registration number and part is automatically intercepted by Stage 0/Stage 4 pre-flight checks to prevent double-dipping fraud.
+- **Instant Settlement Certificate Generation**:
+  Emits a tamper-evident digital voucher including:
+  - Canonical Voucher ID: `VOUCHER-AUTOSETTLE-YYYYMMDD-XXXX`
+  - Instant IMPS disbursement reference: `DISB-IMPS-YYYYMMDD-XXXXXX`
+  - Formal Indian Rupee words conversion (e.g. *"Twelve Thousand Five Hundred Rupees Only"*)
+  - SHA-256 digital certificate seal
+  - High-fidelity downloadable PDF via ReportLab in memory.
+- **Human Adjuster Review Dossier**:
+  Claims escalated at any stage (`ESC-00` to `ESC-09` or `ESC-USER-REJECT`) generate a comprehensive forensic dossier packaging:
+  - Diagnostic telemetry, video cut timestamps, HSV color distances, and Set-of-Marks forensic crops.
+  - Itemized preliminary actuarial estimate.
+  - Standardized 6-point physical surveyor on-site inspection checklist (VIN stamp verification, HSRP rivet audit, ultrasonic paint coating depth check, Set-of-Marks cross-examination, and oxidation aging inspection).
+  - Downloadable multi-page PDF Surveyor Dossier.
+
+---
+
+## 🌐 Unified REST API Reference (All Stages)
+
+The API is fully documented via interactive Swagger UI (`/docs`) and supports Server-Sent Events (SSE) for real-time progress:
+
+| Stage | Method | Endpoint | Description |
+| :---: | :---: | :--- | :--- |
+| **0 & 1** | `POST` | `/api/v1/claims/upload` | Upload walkaround video (`.mp4`, `.mov`) or photo pack (3–6 images) + claim description. |
+| **0 to 6** | `GET` | `/api/v1/claims/{id}` | Inspect complete claim record, current stage, telemetry, estimate, and settlement status. |
+| **Global** | `GET` | `/api/v1/claims/{id}/events` | Server-Sent Events (SSE) stream for real-time progress notifications. |
+| **5** | `POST` | `/api/v1/claims/{id}/negotiate` | Submit claimant counteroffer or chat message; returns updated turn and signed Offer Card. |
+| **5** | `GET` | `/api/v1/claims/{id}/negotiation` | Retrieve active negotiation session, rounds, active offer card, and full turn history. |
+| **6** | `POST` | `/api/v1/claims/{id}/accept` | Accept signed Offer Card, validate HMAC-SHA256 signature, commit ledger, and issue Settlement Voucher. |
+| **6** | `POST` | `/api/v1/claims/{id}/reject` | Reject cash offer; escalates claim to cashless network garage (`ESC-USER-REJECT`). |
+| **6** | `GET` | `/api/v1/claims/{id}/voucher` | Retrieve structured JSON settlement voucher for settled claim. |
+| **6** | `GET` | `/api/v1/claims/{id}/voucher/pdf` | Download official ReportLab PDF Settlement Certificate. |
+| **6** | `GET` | `/api/v1/claims/{id}/dossier` | Retrieve structured JSON desk adjuster review dossier for escalated claim. |
+| **6** | `GET` | `/api/v1/claims/{id}/dossier/pdf` | Download official ReportLab PDF Surveyor Review Dossier. |
+| **Demo** | `POST` | `/api/v1/demo/reset` | Resets rehearsal test claims, Redis locks, and policy limits for demonstration runs. |
 
 ---
 
 ## ⏱️ Hardware Budget, Local RTX 4060 GPU & Training Toolchain
 
 - **Target Hardware**: NVIDIA GeForce RTX 4060 Laptop GPU (8 GB VRAM) on Linux / WSL2 with CUDA acceleration.
-- **Inference Footprint**: Dual segmentation runs in $\approx 150\text{ ms}$ ($p50$) consuming $< 1.2\text{ GB}$ peak VRAM.
+- **Inference Footprint**: Dual segmentation runs in $\approx 150\text{ ms}$ ($p50$) consuming $< 1.2\text{ GB}$ peak VRAM; local VLM runs under $4.8\text{ GB}$ VRAM.
 - **Automated GPU Training Toolchain**:
   - `tools/model_training/prepare_dataset.py`: COCO to YOLO polygon segmentation dataset conversion.
   - `tools/model_training/train_yolo_seg.py`: FP16 AMP, early stopping, and automatic memory scaling.
@@ -272,24 +452,29 @@ Stage 2 combines computer vision detections with the user's declared intent to p
 
 ---
 
-## 🧪 Comprehensive Test Suite (149/149 Green)
+## 🧪 Comprehensive Test Suite
 
-The codebase is fortified by **149 automated pytest tests** covering unit math, database race conditions, adversarial attacks, photo pack gates, intent grounding, and real YouTube walkarounds:
+The codebase is fortified by **424 automated pytest tests** covering unit math, database race conditions, adversarial attacks, photo pack gates, intent grounding, dual-mask segmentation, VLM inspection, statutory actuarial pricing, FSM negotiation, penny-balanced apportionment, and REST APIs:
 
 ```bash
-================== 149 passed, 2 warnings in 95.46s (0:01:35) ==================
+uv run pytest -v
 ```
 
 | Test Suite | Directory / File | Tests | Primary Verifications |
 | :--- | :--- | :---: | :--- |
-| **Stage 0 Fast-Fail Gate** | `tests/fast_fail_gate/` | 28 | Video container forensics, NLE blacklist, 5-sample visual gate, 13 new photo pack tests (count boundaries, JPEG/PNG magic bytes, 1080p resolution, blur & luminance). |
-| **Stage 1 Identity & Continuity** | `tests/vehicle_identity_continuity/` | 23 | Continuous cut firewall, 2-line Indian HSRP OCR, homoglyph distance, HSV paint grounding, ByteTrack zoom handoff, and 5 new photo pack identity & canonical keyframe tests. |
+| **Stage 0 Fast-Fail Gate** | `tests/fast_fail_gate/` | 28 | Video container forensics, NLE blacklist, 5-sample visual gate, 13 photo pack tests (count boundaries, JPEG/PNG magic bytes, 1080p resolution, blur & luminance). |
+| **Stage 1 Identity & Continuity** | `tests/vehicle_identity_continuity/` | 23 | Continuous cut firewall, 2-line Indian HSRP OCR, homoglyph distance, HSV paint grounding, ByteTrack zoom handoff, and 5 photo pack identity & canonical keyframe tests. |
 | **Claim Intent Grounding** | `tests/claim_intent/` | 23 | FastEmbed ONNX embeddings, dynamic taxonomy registration, directional extraction, modifier inheritance across conjunctions, and conditioned Stage 2 polygon tagging. |
 | **Stage 2 Dual-Mask Segmentation** | `tests/dual_mask_segmentation/` | 39 | Polygon IoP calculation, zoom anti-inflation, part-side candidate resolution, model taxonomy validation, CI invariants, and end-to-end DB integration (`test_conditioned_integration.py`). |
+| **Stage 3 VLM Damage Inspection** | `tests/vlm_damage_inspection/` | 80 | Multi-provider adapters (Ollama, Gemini, OpenAI, Mock), 8-contaminant false-positive quarantine, rust fraud gate (`ESC-04`), structural misalignment (`ESC-06`), zero real damage gate (`ESC-07`), circuit breaker state transitions, resilient JSON normalization, and live Ollama (`minicpm-v:8b`) inference. |
+| **Stage 4 Actuarial Pricing Engine** | `tests/actuarial_pricing/` | 102 | Statutory IMT metal depreciation schedule (8 age brackets), material flat rates (plastic 50%, glass 0%, fiberglass 30%), repair vs. replace decisions, IoP labor scaling, paint multipliers, salvage scrap deductions, compulsory excess by displacement, and pro-consumer NCB advisory calculations. |
+| **Stage 5 Negotiation Chatbot FSM** | `tests/negotiation_chatbot/` | 51 | 3-round concession curves, dynamic $\alpha \in \{0.50, 0.35, 0.25\}$, anchor inversion defense, monotonic non-decreasing invariant, terminal lock at walkaway cap, HMAC-SHA256 signing, amount tampering rejection, TTL expiration, INR currency regex, and Hinglish keyword parsing. |
+| **Stage 6 Settlement & Escalation** | `tests/settlement_escalation/` | 35 | Single & multi-part pro-rata cash apportionment, exact penny balancing ($\sum S_i \equiv O_{\text{settled}}$), unrepaired ledger commitment (`ESC-03`), canonical voucher ID format, Indian rupee words conversion, SHA-256 seal, escalation codes mapping (`ESC-00`..`ESC-09` + `ESC-USER-REJECT`), 6-point surveyor checklist, and ReportLab PDF document rendering. |
+| **Unified Claims REST API** | `tests/api/` | 7 | Integration tests for FastAPI endpoints: `/negotiate`, `/accept`, `/reject`, `/negotiation`, `/voucher`, `/voucher/pdf`, `/dossier`, and `/dossier/pdf`. |
 | **Adversarial Red-Team** | `tests/adversarial/` | 13 | 0-frame videos, scratch file disk leaks, in-flight Redis lock races, degenerate bounding boxes, null tag handling, truncated quorum attacks, zombie claims. |
 | **Real Vehicle Walkarounds** | `tests/test_real_videos.py` | 5 | End-to-end evaluation against real YouTube car walkarounds: Toyota Hilux, Fiat 500, VW Golf, Ferrari 360 Coupe. |
 | **Scenario Stress Suite** | `tests/test_scenarios_break.py` | 18 | Multi-car parking lots, macro close-up zooms, reverse walkarounds, canopy lighting transitions, composite color normalization, daylight clearcoat gloss. |
-| **Total Test Suite** | **All Modules** | **149** | **100% Passed (0 Failures)** |
+| **Total Test Suite** | **All Modules** | **424** | **100% Passed (0 Failures)** |
 
 ---
 

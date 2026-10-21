@@ -22,6 +22,12 @@ HYUNDAI_CRETA_PARTS = [
     ("back_left_door", "Rear Left Door Panel", "77003-M0000", "metal", Decimal("10800.00"), Decimal("900.00"), Decimal("1350.00"), Decimal("4000.00"), Decimal("850.00"), True, False),
     ("back_right_door", "Rear Right Door Panel", "77004-M0000", "metal", Decimal("10800.00"), Decimal("900.00"), Decimal("1350.00"), Decimal("4000.00"), Decimal("850.00"), True, False),
     ("back_door", "Rear Door Panel (Generic Alias)", "77003-M0000", "metal", Decimal("10800.00"), Decimal("900.00"), Decimal("1350.00"), Decimal("4000.00"), Decimal("850.00"), True, False),
+    ("front_left_fender", "Front Left Fender Panel", "66311-M0000", "metal", Decimal("5200.00"), Decimal("750.00"), Decimal("1200.00"), Decimal("3200.00"), Decimal("800.00"), True, False),
+    ("front_right_fender", "Front Right Fender Panel", "66321-M0000", "metal", Decimal("5200.00"), Decimal("750.00"), Decimal("1200.00"), Decimal("3200.00"), Decimal("800.00"), True, False),
+    ("back_left_quarter_panel", "Rear Left Quarter Panel", "71503-M0000", "metal", Decimal("14500.00"), Decimal("1400.00"), Decimal("1800.00"), Decimal("4500.00"), Decimal("900.00"), True, False),
+    ("back_right_quarter_panel", "Rear Right Quarter Panel", "71504-M0000", "metal", Decimal("14500.00"), Decimal("1400.00"), Decimal("1800.00"), Decimal("4500.00"), Decimal("900.00"), True, False),
+    ("roof_spoiler", "Rear Aerodynamic Roof Spoiler", "87210-M0000", "fiberglass", Decimal("6500.00"), Decimal("600.00"), Decimal("0.00"), Decimal("2200.00"), Decimal("0.00"), True, False),
+    ("skid_plate", "Front Bumper Skid Plate", "86525-M0000", "fiberglass", Decimal("3800.00"), Decimal("400.00"), Decimal("0.00"), Decimal("1500.00"), Decimal("0.00"), True, False),
     ("left_mirror", "Left Outside Rear View Mirror", "87610-M0000", "assembly", Decimal("6400.00"), Decimal("450.00"), Decimal("0.00"), Decimal("900.00"), Decimal("400.00"), False, False),
     ("right_mirror", "Right Outside Rear View Mirror", "87620-M0000", "assembly", Decimal("6400.00"), Decimal("450.00"), Decimal("0.00"), Decimal("900.00"), Decimal("400.00"), False, False),
     ("front_left_light", "Front Left LED Headlamp", "92101-M0000", "assembly", Decimal("16500.00"), Decimal("650.00"), Decimal("0.00"), Decimal("0.00"), Decimal("0.00"), False, False),
@@ -33,6 +39,37 @@ HYUNDAI_CRETA_PARTS = [
     ("front_glass", "Front Laminated Windshield", "86110-M0000", "glass", Decimal("12400.00"), Decimal("1800.00"), Decimal("0.00"), Decimal("0.00"), Decimal("0.00"), False, True),
     ("back_glass", "Rear Heated Windshield Glass", "87110-M0000", "glass", Decimal("9200.00"), Decimal("1500.00"), Decimal("0.00"), Decimal("0.00"), Decimal("0.00"), False, True),
     ("wheel", "Alloy Wheel & Tire Assembly", "52910-M0000", "assembly", Decimal("18500.00"), Decimal("600.00"), Decimal("0.00"), Decimal("0.00"), Decimal("0.00"), False, True),
+]
+
+TOYOTA_FORTUNER_PARTS = [
+    ("front_bumper", "Front Bumper Assembly", "52119-0K900", "plastic", Decimal("18500.00"), Decimal("1200.00"), Decimal("1500.00"), Decimal("6500.00"), Decimal("1200.00"), True, False),
+    ("back_bumper", "Rear Bumper Assembly", "52159-0K900", "plastic", Decimal("17500.00"), Decimal("1200.00"), Decimal("1500.00"), Decimal("6200.00"), Decimal("1200.00"), True, False),
+    ("hood", "Front Engine Bonnet Panel", "53301-0K900", "metal", Decimal("28500.00"), Decimal("1800.00"), Decimal("2400.00"), Decimal("8500.00"), Decimal("1500.00"), True, False),
+    ("trunk", "Rear Tailgate Door Panel", "67005-0K900", "metal", Decimal("26000.00"), Decimal("1700.00"), Decimal("2200.00"), Decimal("7800.00"), Decimal("1400.00"), True, False),
+    ("tailgate", "Rear Tailgate Door Panel", "67005-0K900", "metal", Decimal("26000.00"), Decimal("1700.00"), Decimal("2200.00"), Decimal("7800.00"), Decimal("1400.00"), True, False),
+    ("front_left_door", "Front Left Door Shell", "67002-0K900", "metal", Decimal("24000.00"), Decimal("1600.00"), Decimal("2200.00"), Decimal("7500.00"), Decimal("1400.00"), True, False),
+    ("front_right_door", "Front Right Door Shell", "67001-0K900", "metal", Decimal("24000.00"), Decimal("1600.00"), Decimal("2200.00"), Decimal("7500.00"), Decimal("1400.00"), True, False),
+    ("front_door", "Front Door Shell (Generic)", "67002-0K900", "metal", Decimal("24000.00"), Decimal("1600.00"), Decimal("2200.00"), Decimal("7500.00"), Decimal("1400.00"), True, False),
+    ("back_left_door", "Rear Left Door Shell", "67004-0K900", "metal", Decimal("22500.00"), Decimal("1500.00"), Decimal("2100.00"), Decimal("7200.00"), Decimal("1300.00"), True, False),
+    ("back_right_door", "Rear Right Door Shell", "67003-0K900", "metal", Decimal("22500.00"), Decimal("1500.00"), Decimal("2100.00"), Decimal("7200.00"), Decimal("1300.00"), True, False),
+    ("back_door", "Rear Door Shell (Generic)", "67004-0K900", "metal", Decimal("22500.00"), Decimal("1500.00"), Decimal("2100.00"), Decimal("7200.00"), Decimal("1300.00"), True, False),
+    ("front_left_fender", "Front Left Fender Panel", "53812-0K900", "metal", Decimal("11000.00"), Decimal("1100.00"), Decimal("1600.00"), Decimal("4800.00"), Decimal("1100.00"), True, False),
+    ("front_right_fender", "Front Right Fender Panel", "53811-0K900", "metal", Decimal("11000.00"), Decimal("1100.00"), Decimal("1600.00"), Decimal("4800.00"), Decimal("1100.00"), True, False),
+    ("back_left_quarter_panel", "Rear Left Quarter Panel", "61612-0K900", "metal", Decimal("28000.00"), Decimal("2100.00"), Decimal("2600.00"), Decimal("8200.00"), Decimal("1500.00"), True, False),
+    ("back_right_quarter_panel", "Rear Right Quarter Panel", "61611-0K900", "metal", Decimal("28000.00"), Decimal("2100.00"), Decimal("2600.00"), Decimal("8200.00"), Decimal("1500.00"), True, False),
+    ("roof_spoiler", "Aerodynamic Rear Spoiler", "76085-0K900", "fiberglass", Decimal("12500.00"), Decimal("950.00"), Decimal("0.00"), Decimal("4200.00"), Decimal("0.00"), True, False),
+    ("skid_plate", "Front Heavy Duty Skid Plate", "51441-0K900", "fiberglass", Decimal("8500.00"), Decimal("650.00"), Decimal("0.00"), Decimal("2800.00"), Decimal("0.00"), True, False),
+    ("left_mirror", "Left Door Mirror Assembly", "87940-0K900", "assembly", Decimal("14500.00"), Decimal("750.00"), Decimal("0.00"), Decimal("1800.00"), Decimal("600.00"), False, False),
+    ("right_mirror", "Right Door Mirror Assembly", "87910-0K900", "assembly", Decimal("14500.00"), Decimal("750.00"), Decimal("0.00"), Decimal("1800.00"), Decimal("600.00"), False, False),
+    ("front_left_light", "Front Left Bi-LED Headlamp", "81150-0K900", "assembly", Decimal("38000.00"), Decimal("1100.00"), Decimal("0.00"), Decimal("0.00"), Decimal("0.00"), False, False),
+    ("front_right_light", "Front Right Bi-LED Headlamp", "81110-0K900", "assembly", Decimal("38000.00"), Decimal("1100.00"), Decimal("0.00"), Decimal("0.00"), Decimal("0.00"), False, False),
+    ("front_light", "Front Headlamp Assembly (Generic)", "81150-0K900", "assembly", Decimal("38000.00"), Decimal("1100.00"), Decimal("0.00"), Decimal("0.00"), Decimal("0.00"), False, False),
+    ("back_left_light", "Rear Left LED Combination Lamp", "81560-0K900", "assembly", Decimal("16500.00"), Decimal("750.00"), Decimal("0.00"), Decimal("0.00"), Decimal("0.00"), False, False),
+    ("back_right_light", "Rear Right LED Combination Lamp", "81550-0K900", "assembly", Decimal("16500.00"), Decimal("750.00"), Decimal("0.00"), Decimal("0.00"), Decimal("0.00"), False, False),
+    ("back_light", "Rear Lamp Assembly (Generic)", "81560-0K900", "assembly", Decimal("16500.00"), Decimal("750.00"), Decimal("0.00"), Decimal("0.00"), Decimal("0.00"), False, False),
+    ("front_glass", "Acoustic Windshield Glass", "56111-0K900", "glass", Decimal("22500.00"), Decimal("2800.00"), Decimal("0.00"), Decimal("0.00"), Decimal("0.00"), False, True),
+    ("back_glass", "Rear Defogger Glass", "68105-0K900", "glass", Decimal("16500.00"), Decimal("2200.00"), Decimal("0.00"), Decimal("0.00"), Decimal("0.00"), False, True),
+    ("wheel", "Alloy Wheel Rim 18-inch", "42611-0K900", "assembly", Decimal("29500.00"), Decimal("850.00"), Decimal("0.00"), Decimal("0.00"), Decimal("0.00"), False, True),
 ]
 
 
@@ -151,6 +188,101 @@ class InMemoryDatabase:
                 compulsory_deductible_inr=Decimal("1000.00"),
                 estimated_ncb_loss_inr=Decimal("3200.00"),
             ),
+            "POL-ZERO-DEP-NEW": InsuredPolicy(
+                policy_id="POL-ZERO-DEP-NEW",
+                policy_status="ACTIVE",
+                policy_start_date=date(2026, 1, 1),
+                policy_end_date=date(2026, 12, 31),
+                max_cash_claims_per_year=2,
+                cash_claims_ytd=0,
+                registration_number="MH12ZD2026",
+                vin_last_6="77889A",
+                make="Hyundai",
+                model="Creta",
+                manufacturing_year=2024,
+                registered_color="WHITE",
+                registered_color_hsv={"h_min": 0, "h_max": 180, "s_min": 0, "s_max": 45, "v_min": 180, "v_max": 255},
+                paint_type="metallic",
+                zero_dep_addon=True,
+                compulsory_deductible_inr=Decimal("1000.00"),
+                estimated_ncb_loss_inr=Decimal("3200.00"),
+            ),
+            "POL-NON-DEP-4YR": InsuredPolicy(
+                policy_id="POL-NON-DEP-4YR",
+                policy_status="ACTIVE",
+                policy_start_date=date(2026, 1, 1),
+                policy_end_date=date(2026, 12, 31),
+                max_cash_claims_per_year=2,
+                cash_claims_ytd=0,
+                registration_number="MH14ND4444",
+                vin_last_6="66554B",
+                make="Hyundai",
+                model="Creta",
+                manufacturing_year=2022,
+                registered_color="SILVER",
+                registered_color_hsv={"h_min": 0, "h_max": 180, "s_min": 0, "s_max": 50, "v_min": 100, "v_max": 220},
+                paint_type="metallic",
+                zero_dep_addon=False,
+                compulsory_deductible_inr=Decimal("1000.00"),
+                estimated_ncb_loss_inr=Decimal("3200.00"),
+            ),
+            "POL-HIGH-CC-OLD": InsuredPolicy(
+                policy_id="POL-HIGH-CC-OLD",
+                policy_status="ACTIVE",
+                policy_start_date=date(2026, 1, 1),
+                policy_end_date=date(2026, 12, 31),
+                max_cash_claims_per_year=2,
+                cash_claims_ytd=0,
+                registration_number="KA05HC9999",
+                vin_last_6="44332C",
+                make="Toyota",
+                model="Fortuner",
+                manufacturing_year=2018,
+                registered_color="BLACK",
+                registered_color_hsv={"h_min": 0, "h_max": 180, "s_min": 0, "s_max": 255, "v_min": 0, "v_max": 50},
+                paint_type="metallic",
+                zero_dep_addon=False,
+                compulsory_deductible_inr=Decimal("2000.00"),
+                estimated_ncb_loss_inr=Decimal("7500.00"),
+            ),
+            "POL-HIGH-NCB-PENALTY": InsuredPolicy(
+                policy_id="POL-HIGH-NCB-PENALTY",
+                policy_status="ACTIVE",
+                policy_start_date=date(2026, 1, 1),
+                policy_end_date=date(2026, 12, 31),
+                max_cash_claims_per_year=2,
+                cash_claims_ytd=0,
+                registration_number="DL04NC5400",
+                vin_last_6="11223D",
+                make="Hyundai",
+                model="Creta",
+                manufacturing_year=2024,
+                registered_color="WHITE",
+                registered_color_hsv={"h_min": 0, "h_max": 180, "s_min": 0, "s_max": 45, "v_min": 180, "v_max": 255},
+                paint_type="metallic",
+                zero_dep_addon=True,
+                compulsory_deductible_inr=Decimal("1000.00"),
+                estimated_ncb_loss_inr=Decimal("5400.00"),
+            ),
+            "POL-CEILING-BREACH": InsuredPolicy(
+                policy_id="POL-CEILING-BREACH",
+                policy_status="ACTIVE",
+                policy_start_date=date(2026, 1, 1),
+                policy_end_date=date(2026, 12, 31),
+                max_cash_claims_per_year=2,
+                cash_claims_ytd=0,
+                registration_number="MH01CB2500",
+                vin_last_6="99001E",
+                make="Toyota",
+                model="Fortuner",
+                manufacturing_year=2023,
+                registered_color="WHITE",
+                registered_color_hsv={"h_min": 0, "h_max": 180, "s_min": 0, "s_max": 45, "v_min": 180, "v_max": 255},
+                paint_type="metallic",
+                zero_dep_addon=True,
+                compulsory_deductible_inr=Decimal("2000.00"),
+                estimated_ncb_loss_inr=Decimal("6000.00"),
+            ),
         }
 
     def _seed_oem_parts(self) -> Dict[Tuple[str, str, str], OemPart]:
@@ -220,6 +352,27 @@ class InMemoryDatabase:
             )
             parts[("tata", "nexon", key)] = part
 
+        # Toyota Fortuner (>1500cc, Luxury / Large SUV)
+        for idx, (key, name, pnum, mat, cost, rr, dent, paint, pdr, rep, safe) in enumerate(TOYOTA_FORTUNER_PARTS, start=300):
+            part = OemPart(
+                catalogue_id=idx,
+                make="Toyota",
+                model="Fortuner",
+                canonical_part_key=key,
+                display_part_name=name,
+                oem_part_number=pnum,
+                part_material=mat,
+                depreciation_rate_non_zero_dep=Decimal("0.00"),
+                oem_part_cost_inr=cost,
+                rr_labour_inr=rr,
+                denting_base_labour_inr=dent,
+                full_panel_paint_inr=paint,
+                pdr_or_polish_flat_inr=pdr,
+                is_repairable=rep,
+                is_safety_critical=safe,
+            )
+            parts[("toyota", "fortuner", key)] = part
+
         return parts
 
     def _seed_unrepaired(self) -> List[UnrepairedClaim]:
@@ -232,7 +385,34 @@ class InMemoryDatabase:
                 settled_amount_inr=Decimal("4200.00"),
                 is_repaired_verified=False,
                 settled_at=datetime(2026, 9, 15),
-            )
+            ),
+            UnrepairedClaim(
+                ledger_id=2,
+                registration_number="MH12ZD2026",
+                canonical_part_key="front_left_door",
+                damage_class="scratch",
+                settled_amount_inr=Decimal("3500.00"),
+                is_repaired_verified=False,
+                settled_at=datetime(2026, 8, 10),
+            ),
+            UnrepairedClaim(
+                ledger_id=3,
+                registration_number="MH14ND4444",
+                canonical_part_key="hood",
+                damage_class="dent",
+                settled_amount_inr=Decimal("6000.00"),
+                is_repaired_verified=False,
+                settled_at=datetime(2026, 7, 20),
+            ),
+            UnrepairedClaim(
+                ledger_id=4,
+                registration_number="KA05HC9999",
+                canonical_part_key="front_bumper",
+                damage_class="dent",
+                settled_amount_inr=Decimal("8000.00"),
+                is_repaired_verified=False,
+                settled_at=datetime(2026, 6, 15),
+            ),
         ]
 
 
@@ -325,7 +505,7 @@ class FakeAsyncSession:
                             part_keys.append(v.lower())
                     elif isinstance(v, str):
                         v_lower = v.lower()
-                        if any(p[0] == v_lower for p in HYUNDAI_CRETA_PARTS) or "_" in v:
+                        if any(p[0] == v_lower for p in HYUNDAI_CRETA_PARTS) or any(p[0] == v_lower for p in TOYOTA_FORTUNER_PARTS) or "_" in v:
                             part_keys.append(v_lower)
                     elif isinstance(v, (list, tuple)):
                         part_keys.extend([x.lower() if isinstance(x, str) else x for x in v])
@@ -433,6 +613,56 @@ async def fake_update_claim_stage(
     return claim
 
 
+async def fake_update_negotiation_session(
+    self,
+    claim_id: uuid.UUID,
+    session_data: Dict[str, Any],
+    status: Optional[str] = None,
+) -> Optional[Claim]:
+    claim = in_memory_db.claims.get(claim_id)
+    if not claim:
+        return None
+    claim.negotiation_session = session_data
+    if status:
+        claim.claim_status = status
+    return claim
+
+
+async def fake_update_settlement_voucher(
+    self,
+    claim_id: uuid.UUID,
+    voucher_data: Dict[str, Any],
+    status: str = "SETTLED_CASH_IN_LIEU",
+) -> Optional[Claim]:
+    claim = in_memory_db.claims.get(claim_id)
+    if not claim:
+        return None
+    claim.settlement_voucher = voucher_data
+    claim.claim_status = status
+    claim.current_stage = "STAGE_6_SETTLEMENT"
+    return claim
+
+
+async def fake_record_cash_payout(
+    self,
+    registration_number: str,
+    canonical_part_key: str,
+    damage_class: str,
+    settled_amount: Decimal,
+) -> UnrepairedClaim:
+    rec = UnrepairedClaim(
+        ledger_id=len(in_memory_db.unrepaired_claims) + 1,
+        registration_number=registration_number,
+        canonical_part_key=canonical_part_key,
+        damage_class=damage_class,
+        settled_amount_inr=settled_amount,
+        is_repaired_verified=False,
+        settled_at=datetime.now(),
+    )
+    in_memory_db.unrepaired_claims.append(rec)
+    return rec
+
+
 async def fake_reset_demo_state(self) -> Dict[str, Any]:
     to_del = [
         cid for cid, c in in_memory_db.claims.items()
@@ -453,9 +683,22 @@ async def fake_get_part(self, make: str, model: str, canonical_part_key: str) ->
 
 async def fake_has_unrepaired_claim(self, registration_number: str, canonical_part_key: str) -> bool:
     return any(
-        u.registration_number == registration_number and u.canonical_part_key == canonical_part_key and not u.is_repaired_verified
+        u.registration_number.upper() == registration_number.upper()
+        and u.canonical_part_key == canonical_part_key
+        and not u.is_repaired_verified
         for u in in_memory_db.unrepaired_claims
     )
+
+
+async def fake_get_unrepaired_claims(
+    self, registration_number: str, canonical_part_keys: Optional[List[str]] = None
+) -> List[UnrepairedClaim]:
+    return [
+        u for u in in_memory_db.unrepaired_claims
+        if u.registration_number.upper() == registration_number.upper()
+        and (not canonical_part_keys or u.canonical_part_key in canonical_part_keys)
+        and not u.is_repaired_verified
+    ]
 
 
 async def fake_acquire_video_lock(self, video_sha256: str, claim_id: uuid.UUID, ttl_sec: int = 60) -> bool:
@@ -493,9 +736,13 @@ def patch_in_memory_db():
     repos.ClaimRepository.check_historical_duplicate = fake_check_historical_duplicate
     repos.ClaimRepository.create_claim = fake_create_claim
     repos.ClaimRepository.update_claim_stage = fake_update_claim_stage
+    repos.ClaimRepository.update_negotiation_session = fake_update_negotiation_session
+    repos.ClaimRepository.update_settlement_voucher = fake_update_settlement_voucher
     repos.DemoResetRepository.reset_demo_state = fake_reset_demo_state
     repos.OemRepository.get_part = fake_get_part
     repos.UnrepairedClaimsRepository.has_unrepaired_claim = fake_has_unrepaired_claim
+    repos.UnrepairedClaimsRepository.get_unrepaired_claims = fake_get_unrepaired_claims
+    repos.UnrepairedClaimsRepository.record_cash_payout = fake_record_cash_payout
 
     rm.RedisManager.acquire_video_lock = fake_acquire_video_lock
     rm.RedisManager.release_video_lock = fake_release_video_lock

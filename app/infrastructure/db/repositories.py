@@ -75,6 +75,38 @@ class ClaimRepository:
         await self.session.refresh(claim)
         return claim
 
+    async def update_negotiation_session(
+        self,
+        claim_id: uuid.UUID,
+        session_data: Dict[str, Any],
+        status: Optional[str] = None,
+    ) -> Optional[Claim]:
+        claim = await self.get_by_id(claim_id)
+        if not claim:
+            return None
+        claim.negotiation_session = session_data
+        if status:
+            claim.claim_status = status
+        await self.session.commit()
+        await self.session.refresh(claim)
+        return claim
+
+    async def update_settlement_voucher(
+        self,
+        claim_id: uuid.UUID,
+        voucher_data: Dict[str, Any],
+        status: str = "SETTLED_CASH_IN_LIEU",
+    ) -> Optional[Claim]:
+        claim = await self.get_by_id(claim_id)
+        if not claim:
+            return None
+        claim.settlement_voucher = voucher_data
+        claim.claim_status = status
+        claim.current_stage = "STAGE_6_SETTLEMENT"
+        await self.session.commit()
+        await self.session.refresh(claim)
+        return claim
+
 
 class OemRepository:
     def __init__(self, session: AsyncSession):

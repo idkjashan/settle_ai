@@ -3,8 +3,9 @@ import json
 import uuid
 from pathlib import Path
 from typing import Optional, List, Union
-from fastapi import APIRouter, Depends, File, Form, UploadFile, BackgroundTasks, HTTPException, status
+from fastapi import APIRouter, Depends, File, Form, UploadFile, BackgroundTasks, HTTPException, Response, status
 from fastapi.responses import StreamingResponse, JSONResponse
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.infrastructure.db.session import get_db_session
 from app.infrastructure.db.repositories import PolicyRepository, ClaimRepository
@@ -30,6 +31,16 @@ from app.domain.vehicle_identity_continuity.object_tracker import object_tracker
 from app.infrastructure.db.session import async_session_factory
 from app.core.exceptions import PayloadTooLargeException, LockConflictException, AutoSettleException
 from app.core.logging import logger
+from app.domain.negotiation_chatbot.schemas import (
+    ClaimantMessageDTO,
+    OfferCardDTO,
+    NegotiationTurnDTO,
+    NegotiationSessionDTO,
+)
+from app.domain.settlement_escalation.schemas import (
+    SettlementVoucherDTO,
+    HumanAdjusterDossierDTO,
+)
 
 
 async def run_stage1_pipeline_task(
@@ -150,6 +161,112 @@ async def run_stage1_pipeline_task(
                         f"Stage 2 background execution complete for {claim_id}: "
                         f"{len(stage3_payload.grounded_parts)} parts grounded."
                     )
+
+                    # Step 3: Handoff to Stage 3 (Set-of-Marks VLM Damage Inspection)
+                    stage4_payload = None
+                    if stage3_payload and getattr(stage3_payload, "grounded_parts", None):
+                        logger.info(f"Handoff to Stage 3 VLM Damage Inspection for claim {claim_id}...")
+                        from app.domain.vlm_damage_inspection.orchestrator import Stage3VLMOrchestrator
+                        from app.domain.vlm_damage_inspection.exceptions import Stage3Error
+
+                        try:
+                            stage3_orch = Stage3VLMOrchestrator()
+                            stage4_payload = await stage3_orch.inspect_claim(stage3_payload)
+                            logger.info(
+                                f"Stage 3 inspection complete for claim {claim_id}: "
+                                f"{len(stage4_payload.verified_parts)} verified damaged parts."
+                            )
+                        except Stage3Error as s3e:
+                            logger.warning(
+                                f"Stage 3 domain escalation for claim {claim_id}: code={s3e.code}, message={s3e.message}"
+                            )
+                            return
+                        except Exception as s3_err:
+                            logger.error(f"Stage 3 unexpected execution failure for {claim_id}: {s3_err}", exc_info=True)
+                            try:
+                                await claim_repo.update_claim_stage(
+                                    claim_id=claim_id,
+                                    stage="STAGE_3_VLM_INSPECTION",
+                                    status="REJECTED_STAGE3_ERROR",
+                                    escalation_code="ESC-07",
+                                    failure_codes=["STAGE_3_INTERNAL_ERROR"],
+                                )
+                                await redis_manager.publish_event(
+                                    claim_id=claim_id,
+                                    event_name="STAGE_3_FAILED",
+                                    payload={
+                                        "claim_id": str(claim_id),
+                                        "status": "REJECTED_STAGE3_ERROR",
+                                        "failure_codes": ["STAGE_3_INTERNAL_ERROR"],
+                                    },
+                                )
+                            except Exception as db_err:
+                                logger.critical(f"Failed to record stage 3 crash in DB for {claim_id}: {db_err}")
+                            return
+
+                    # Step 4: Handoff to Stage 4 (Actuarial Pricing Engine)
+                    actuarial_estimate = None
+                    if stage4_payload and getattr(stage4_payload, "verified_parts", None):
+                        logger.info(f"Handoff to Stage 4 Actuarial Pricing Engine for claim {claim_id}...")
+                        from app.domain.actuarial_pricing.orchestrator import Stage4ActuarialOrchestrator
+                        from app.domain.actuarial_pricing.exceptions import ActuarialPricingError
+
+                        try:
+                            stage4_orch = Stage4ActuarialOrchestrator(
+                                session=db,
+                                redis_manager=redis_manager,
+                            )
+                            actuarial_estimate = await stage4_orch.execute(stage4_payload)
+                            logger.info(
+                                f"Stage 4 pricing complete for claim {claim_id}: "
+                                f"gross repair ₹{actuarial_estimate.summary.gross_garage_repair_inr}, "
+                                f"initial offer ₹{actuarial_estimate.settlement_band.initial_offer_inr}"
+                            )
+                        except ActuarialPricingError as s4e:
+                            logger.warning(
+                                f"Stage 4 actuarial escalation for claim {claim_id}: code={s4e.code}, message={s4e.message}"
+                            )
+                            return
+                        except Exception as s4_err:
+                            logger.error(f"Stage 4 unexpected execution failure for {claim_id}: {s4_err}", exc_info=True)
+                            try:
+                                await claim_repo.update_claim_stage(
+                                    claim_id=claim_id,
+                                    stage="STAGE_4_ACTUARIAL_PRICING",
+                                    status="REJECTED_STAGE4_ERROR",
+                                    escalation_code=None,
+                                    failure_codes=["STAGE_4_INTERNAL_ERROR"],
+                                )
+                                await redis_manager.publish_event(
+                                    claim_id=claim_id,
+                                    event_name="STAGE_4_FAILED",
+                                    payload={
+                                        "claim_id": str(claim_id),
+                                        "status": "REJECTED_STAGE4_ERROR",
+                                        "failure_codes": ["STAGE_4_INTERNAL_ERROR"],
+                                    },
+                                )
+                            except Exception as db_err:
+                                logger.critical(f"Failed to record stage 4 crash in DB for {claim_id}: {db_err}")
+                            return
+
+                    # Step 5: Initialize Stage 5 (Negotiation Chatbot Session)
+                    if actuarial_estimate and not getattr(actuarial_estimate, "is_ceiling_breached", False):
+                        logger.info(f"Handoff to Stage 5 Negotiation Chatbot for claim {claim_id}...")
+                        from app.domain.negotiation_chatbot.orchestrator import Stage5NegotiationOrchestrator
+
+                        try:
+                            stage5_orch = Stage5NegotiationOrchestrator(
+                                db_session=db,
+                                redis_mgr=redis_manager,
+                            )
+                            negotiation_session = await stage5_orch.initialize_session(actuarial_estimate)
+                            logger.info(
+                                f"Stage 5 negotiation session initialized for claim {claim_id}: "
+                                f"initial offer ₹{negotiation_session.active_offer_card.amount_inr}"
+                            )
+                        except Exception as s5_err:
+                            logger.error(f"Stage 5 initialization failure for {claim_id}: {s5_err}", exc_info=True)
                 except Stage2Error as s2e:
                     # Expected domain guardrail escalation (ESC-03, ESC-05, ESC-06, ESC-07)
                     # The orchestrator has already recorded the escalation in PostgreSQL and emitted the SSE event.
@@ -373,8 +490,196 @@ async def get_claim(claim_id: uuid.UUID, db: AsyncSession = Depends(get_db_sessi
             "dual_mask": claim.dual_mask_telemetry,
             "vlm_inspection": claim.vlm_inspection_telemetry,
             "actuarial_estimate": claim.actuarial_estimate,
+            "negotiation_session": claim.negotiation_session,
+            "settlement_voucher": claim.settlement_voucher,
         },
     }
+
+
+class AcceptOfferRequestDTO(BaseModel):
+    offer_card: OfferCardDTO
+    beneficiary_upi_id: Optional[str] = None
+
+
+class RejectOfferRequestDTO(BaseModel):
+    reason: Optional[str] = None
+    preferred_garage: Optional[str] = None
+
+
+@router.post("/{claim_id}/negotiate", response_model=NegotiationTurnDTO, status_code=status.HTTP_200_OK)
+async def negotiate_claim(
+    claim_id: uuid.UUID,
+    payload: ClaimantMessageDTO,
+    db: AsyncSession = Depends(get_db_session),
+):
+    """
+    Submits claimant counteroffer or conversational feedback.
+    Returns the updated negotiation turn, chatbot explanation, and signed Offer Card.
+    """
+    from app.domain.negotiation_chatbot.orchestrator import Stage5NegotiationOrchestrator
+    from app.domain.negotiation_chatbot.exceptions import (
+        InvalidOfferTokenError,
+        NegotiationRoundExhaustedError,
+        NegotiationSessionTerminatedError,
+        NegotiationError,
+    )
+
+    stage5_orch = Stage5NegotiationOrchestrator(db_session=db, redis_mgr=redis_manager)
+    try:
+        turn = await stage5_orch.process_claimant_turn(claim_id, payload)
+        return turn
+    except InvalidOfferTokenError as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+    except NegotiationRoundExhaustedError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except NegotiationSessionTerminatedError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+    except NegotiationError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.post("/{claim_id}/accept", response_model=SettlementVoucherDTO, status_code=status.HTTP_200_OK)
+async def accept_settlement_offer(
+    claim_id: uuid.UUID,
+    payload: AcceptOfferRequestDTO,
+    db: AsyncSession = Depends(get_db_session),
+):
+    """
+    Accepts cryptographic Offer Card, validates HMAC-SHA256 signature, commits
+    damaged parts to unrepaired_claims_ledger, and issues official SettlementVoucher.
+    """
+    from app.domain.settlement_escalation.orchestrator import Stage6SettlementOrchestrator
+    from app.domain.negotiation_chatbot.exceptions import InvalidOfferTokenError
+    from app.domain.settlement_escalation.exceptions import SettlementError
+
+    stage6_orch = Stage6SettlementOrchestrator(db_session=db, redis_mgr=redis_manager)
+    try:
+        voucher = await stage6_orch.finalize_settlement(
+            claim_id=claim_id,
+            accepted_offer=payload.offer_card,
+            beneficiary_upi_id=payload.beneficiary_upi_id,
+        )
+        return voucher
+    except InvalidOfferTokenError as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+    except SettlementError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.post("/{claim_id}/reject", status_code=status.HTTP_200_OK)
+async def reject_cash_settlement(
+    claim_id: uuid.UUID,
+    payload: Optional[RejectOfferRequestDTO] = None,
+    db: AsyncSession = Depends(get_db_session),
+):
+    """
+    Claimant rejects cash settlement to opt for Cashless Network Garage repair
+    or Human Surveyor inspection.
+    """
+    from app.domain.settlement_escalation.orchestrator import Stage6SettlementOrchestrator
+
+    stage6_orch = Stage6SettlementOrchestrator(db_session=db, redis_mgr=redis_manager)
+    reason = payload.reason if payload and payload.reason else "Claimant selected authorized network cashless garage repair."
+    dossier = await stage6_orch.escalate_claim(
+        claim_id=claim_id,
+        escalation_code="ESC-USER-REJECT",
+        escalation_reason=reason,
+    )
+    return {
+        "status": "ROUTED_CASHLESS_GARAGE",
+        "claim_id": str(claim_id),
+        "dossier_id": dossier.dossier_id,
+        "message": "Claim transferred to Authorized Cashless Network Garage queue.",
+    }
+
+
+@router.get("/{claim_id}/negotiation", response_model=NegotiationSessionDTO, status_code=status.HTTP_200_OK)
+async def get_negotiation_session(
+    claim_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db_session),
+):
+    """Retrieves complete conversation history, rounds, and active offer card."""
+    from app.domain.negotiation_chatbot.orchestrator import Stage5NegotiationOrchestrator
+
+    stage5_orch = Stage5NegotiationOrchestrator(db_session=db, redis_mgr=redis_manager)
+    session = await stage5_orch.get_session(claim_id)
+    if not session:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Negotiation session not found for this claim.")
+    return session
+
+
+@router.get("/{claim_id}/voucher", response_model=SettlementVoucherDTO, status_code=status.HTTP_200_OK)
+async def get_settlement_voucher(
+    claim_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db_session),
+):
+    """Retrieves structured JSON settlement voucher for a settled claim."""
+    from app.domain.settlement_escalation.orchestrator import Stage6SettlementOrchestrator
+
+    stage6_orch = Stage6SettlementOrchestrator(db_session=db, redis_mgr=redis_manager)
+    voucher = await stage6_orch.get_voucher(claim_id)
+    if not voucher:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Settlement voucher not found for this claim.")
+    return voucher
+
+
+@router.get("/{claim_id}/voucher/pdf")
+async def download_settlement_voucher_pdf(
+    claim_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db_session),
+):
+    """Downloads official printable PDF Settlement Certificate."""
+    from app.domain.settlement_escalation.orchestrator import Stage6SettlementOrchestrator
+    from app.domain.settlement_escalation.pdf_service import reportlab_pdf_service
+
+    stage6_orch = Stage6SettlementOrchestrator(db_session=db, redis_mgr=redis_manager)
+    voucher = await stage6_orch.get_voucher(claim_id)
+    if not voucher:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Settlement voucher not found for this claim.")
+
+    pdf_bytes = reportlab_pdf_service.generate_settlement_voucher_pdf(voucher)
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=voucher_{claim_id}.pdf"},
+    )
+
+
+@router.get("/{claim_id}/dossier", response_model=HumanAdjusterDossierDTO, status_code=status.HTTP_200_OK)
+async def get_adjuster_dossier(
+    claim_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db_session),
+):
+    """Retrieves structured JSON Human Adjuster Review Dossier for an escalated claim."""
+    from app.domain.settlement_escalation.orchestrator import Stage6SettlementOrchestrator
+
+    stage6_orch = Stage6SettlementOrchestrator(db_session=db, redis_mgr=redis_manager)
+    dossier = await stage6_orch.get_dossier(claim_id)
+    if not dossier:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Adjuster review dossier not found for this claim.")
+    return dossier
+
+
+@router.get("/{claim_id}/dossier/pdf")
+async def download_adjuster_dossier_pdf(
+    claim_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db_session),
+):
+    """Downloads official printable PDF Surveyor Claims Review Dossier."""
+    from app.domain.settlement_escalation.orchestrator import Stage6SettlementOrchestrator
+    from app.domain.settlement_escalation.pdf_service import reportlab_pdf_service
+
+    stage6_orch = Stage6SettlementOrchestrator(db_session=db, redis_mgr=redis_manager)
+    dossier = await stage6_orch.get_dossier(claim_id)
+    if not dossier:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Adjuster review dossier not found for this claim.")
+
+    pdf_bytes = reportlab_pdf_service.generate_adjuster_dossier_pdf(dossier)
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=dossier_{claim_id}.pdf"},
+    )
 
 
 @router.get("/{claim_id}/events")

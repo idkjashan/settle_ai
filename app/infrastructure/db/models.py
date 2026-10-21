@@ -55,6 +55,8 @@ class Claim(Base):
     dual_mask_telemetry: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
     vlm_inspection_telemetry: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
     actuarial_estimate: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    negotiation_session: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    settlement_voucher: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

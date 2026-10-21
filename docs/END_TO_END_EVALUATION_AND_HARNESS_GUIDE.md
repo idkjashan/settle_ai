@@ -71,3 +71,4 @@ For each admitted damage candidate, Stage 2 renders raw bounding crops, dilated 
 | **4. Environmental Edge Cases** | `SC-10`, `SC-12`, `SC-16` | Parking lot occlusions, dynamic tree canopy shadows, paint reflections/swirls. | `ESC-06` (Safety Critical) / `ESC-07` (Manual Adjuster) |
 | **5. Severe Capture Failures** | `SC-11`, `SC-17` | Close-up macro without initial plate anchor, pitch-black basement parking. | `ESC-02` (Macro Missing Anchor), `REJECTED_STAGE0` |
 | **6. Photo Pack Integrity** | `SC-19`, `SC-20` | Photo pack submissions lacking clear panel damage closeups. | `ESC-07` (Escalate to Adjuster) |
+
