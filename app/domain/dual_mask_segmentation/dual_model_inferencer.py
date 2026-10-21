@@ -13,7 +13,9 @@ from app.domain.dual_mask_segmentation.schemas import (
 )
 from app.domain.dual_mask_segmentation.taxonomy import (
     CARDD_CLASS_MAP,
+    CARPARTS_ALLOWED_TAXONOMIES,
     CARPARTS_CLASS_MAP,
+    CARPARTS_33_TO_CANONICAL,
     IGNORED_PART_CLASSES,
     validate_model_taxonomy,
 )
@@ -32,8 +34,15 @@ class DualModelInferencer:
         validate_taxonomy: bool = True,
     ):
         if validate_taxonomy:
-            validate_model_taxonomy(carparts_model, CARPARTS_CLASS_MAP, model_role="Carparts-Seg")
-            validate_model_taxonomy(cardd_model, CARDD_CLASS_MAP, model_role="CarDD-Seg")
+            self.part_class_map = validate_model_taxonomy(
+                carparts_model, CARPARTS_ALLOWED_TAXONOMIES, model_role="Carparts-Seg"
+            )
+            self.damage_class_map = validate_model_taxonomy(
+                cardd_model, CARDD_CLASS_MAP, model_role="CarDD-Seg"
+            )
+        else:
+            self.part_class_map = getattr(carparts_model, "names", CARPARTS_CLASS_MAP)
+            self.damage_class_map = getattr(cardd_model, "names", CARDD_CLASS_MAP)
 
         self.carparts_model = carparts_model
         self.cardd_model = cardd_model
@@ -112,10 +121,10 @@ class DualModelInferencer:
                 frame_idx = self._extract_frame_idx(kf_key, start_i + b_idx)
 
                 p_preds = self._parse_ultralytics_result(
-                    part_results[b_idx], CARPARTS_CLASS_MAP, w_px, h_px, filter_ignored=True
+                    part_results[b_idx], self.part_class_map, w_px, h_px, filter_ignored=True
                 )
                 d_preds = self._parse_ultralytics_result(
-                    dmg_results[b_idx], CARDD_CLASS_MAP, w_px, h_px, filter_ignored=False
+                    dmg_results[b_idx], self.damage_class_map, w_px, h_px, filter_ignored=False
                 )
 
                 predictions_out.append(
@@ -150,7 +159,8 @@ class DualModelInferencer:
             cid = int(cls_ids[i])
             if cid not in class_map:
                 continue
-            cname = class_map[cid]
+            raw_cname = class_map[cid]
+            cname = CARPARTS_33_TO_CANONICAL.get(raw_cname, raw_cname)
             if filter_ignored and cname in IGNORED_PART_CLASSES:
                 continue
             xyn = polygons_xyn[i]

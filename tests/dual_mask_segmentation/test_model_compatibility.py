@@ -25,6 +25,8 @@ from app.domain.dual_mask_segmentation.orchestrator import get_stage2_orchestrat
 from app.domain.dual_mask_segmentation.taxonomy import (
     CARDD_CLASS_MAP,
     CARPARTS_CLASS_MAP,
+    CARPARTS_33_CLASS_MAP,
+    CARPARTS_ALLOWED_TAXONOMIES,
     validate_model_taxonomy,
 )
 from tests.in_memory_db import FakeAsyncSession
@@ -129,6 +131,55 @@ class TestModelTaxonomyValidation:
         )
         assert inferencer.carparts_model == valid_carparts
         assert inferencer.cardd_model == valid_cardd
+
+    def test_carparts_33_class_model_accepted(self):
+        """Models with the 33-class AutoInspect Carparts taxonomy pass validation and set part_class_map."""
+        valid_33_carparts = make_mock_yolo_model(CARPARTS_33_CLASS_MAP)
+        valid_cardd = make_mock_yolo_model(CARDD_CLASS_MAP)
+
+        matched = validate_model_taxonomy(valid_33_carparts, CARPARTS_ALLOWED_TAXONOMIES, model_role="Carparts-Seg")
+        assert matched == CARPARTS_33_CLASS_MAP
+
+        inferencer = DualModelInferencer(
+            carparts_model=valid_33_carparts,
+            cardd_model=valid_cardd,
+            validate_taxonomy=True,
+        )
+        assert inferencer.carparts_model == valid_33_carparts
+        assert inferencer.part_class_map == CARPARTS_33_CLASS_MAP
+
+    def test_carparts_33_class_prediction_canonical_mapping(self):
+        """Verifies 33-class predictions are mapped to canonical 22-part keys and ignored classes filtered."""
+        valid_33_carparts = make_mock_yolo_model(CARPARTS_33_CLASS_MAP)
+        valid_cardd = make_mock_yolo_model(CARDD_CLASS_MAP)
+        inferencer = DualModelInferencer(valid_33_carparts, valid_cardd, validate_taxonomy=True)
+
+        # Mock Ultralytics result:
+        # Box 0: class 9 -> 'left_front-door' -> mapped to 'front_left_door'
+        # Box 1: class 17 -> 'license-plate' -> mapped to 'object' (should be filtered out when filter_ignored=True)
+        # Box 2: class 0 -> 'back-bumper' -> mapped to 'back_bumper'
+        mock_res = MagicMock()
+        mock_res.boxes.xyxy.cpu().numpy.return_value = np.array([
+            [10, 20, 200, 300],
+            [30, 40, 50, 60],
+            [100, 150, 400, 450],
+        ], dtype=float)
+        mock_res.boxes.conf.cpu().numpy.return_value = np.array([0.91, 0.85, 0.88], dtype=float)
+        mock_res.boxes.cls.cpu().numpy.return_value = np.array([9, 17, 0])
+        mock_res.masks.xyn = [
+            np.array([[0.1, 0.1], [0.5, 0.1], [0.5, 0.5], [0.1, 0.5]]),
+            np.array([[0.2, 0.2], [0.3, 0.2], [0.3, 0.3], [0.2, 0.3]]),
+            np.array([[0.6, 0.6], [0.8, 0.6], [0.8, 0.8], [0.6, 0.8]]),
+        ]
+
+        parsed = inferencer._parse_ultralytics_result(
+            mock_res, CARPARTS_33_CLASS_MAP, width_px=1000, height_px=500, filter_ignored=True
+        )
+        assert len(parsed) == 2, "Class 17 ('license-plate' -> 'object') must be filtered out"
+        assert parsed[0].class_name == "front_left_door"
+        assert parsed[0].confidence == 0.91
+        assert parsed[1].class_name == "back_bumper"
+        assert parsed[1].confidence == 0.88
 
     def test_prediction_mapping_with_compatible_model(self):
         """Verifies output parsing maps class IDs to canonical part and damage names."""
@@ -252,6 +303,7 @@ class TestStage2PipelineErrorHandling:
         from unittest.mock import patch
         from app.api.v1.endpoints.claims_router import run_stage1_pipeline_task
         from app.domain.vehicle_identity_continuity.orchestrator import VehicleIdentityContinuityOrchestrator
+        import app.domain.dual_mask_segmentation.orchestrator as s2_orch_mod
         from app.infrastructure.db.models import Claim
         from app.infrastructure.db.repositories import ClaimRepository
         from tests.in_memory_db import in_memory_db
@@ -270,12 +322,20 @@ class TestStage2PipelineErrorHandling:
         await claim_repo.create_claim(active_claim)
 
         with patch.object(VehicleIdentityContinuityOrchestrator, "execute", return_value=valid_stage1_telemetry):
-            await run_stage1_pipeline_task(
-                claim_id=claim_id,
-                scratch_path=Path("/tmp/dummy_scratch.mp4"),
-                policy_id="POL-HAPPY-001",
-                is_demo_rehearsal=False,
-            )
+            with patch.object(
+                s2_orch_mod,
+                "get_stage2_orchestrator",
+                side_effect=Stage2ModelCompatibilityError(
+                    "Carparts-Seg model weights not found at 'weights/yolo11m-carparts-seg.pt'. "
+                    "Required: YOLO11m-seg fine-tuned on Carparts-Seg taxonomy (23 or 33 classes)."
+                ),
+            ):
+                await run_stage1_pipeline_task(
+                    claim_id=claim_id,
+                    scratch_path=Path("/tmp/dummy_scratch.mp4"),
+                    policy_id="POL-HAPPY-001",
+                    is_demo_rehearsal=False,
+                )
 
         fresh = in_memory_db.claims[claim_id]
         assert fresh.claim_status == "REJECTED_STAGE2_ERROR", f"Expected REJECTED_STAGE2_ERROR, got {fresh.claim_status}"
@@ -388,6 +448,7 @@ class TestStage2PipelineErrorHandling:
         from unittest.mock import patch
         from app.api.v1.endpoints.claims_router import run_stage1_pipeline_task
         from app.domain.vehicle_identity_continuity.orchestrator import VehicleIdentityContinuityOrchestrator
+        import app.domain.dual_mask_segmentation.orchestrator as s2_orch_mod
         from app.infrastructure.db.models import Claim
         from app.infrastructure.db.repositories import ClaimRepository
         from tests.in_memory_db import in_memory_db
@@ -406,12 +467,20 @@ class TestStage2PipelineErrorHandling:
         await claim_repo.create_claim(active_claim)
 
         with patch.object(VehicleIdentityContinuityOrchestrator, "execute", return_value=valid_stage1_telemetry):
-            await run_stage1_pipeline_task(
-                claim_id=claim_id,
-                scratch_path=Path("/tmp/dummy_scratch.mp4"),
-                policy_id="POL-HAPPY-001",
-                is_demo_rehearsal=False,
-            )
+            with patch.object(
+                s2_orch_mod,
+                "get_stage2_orchestrator",
+                side_effect=Stage2ModelCompatibilityError(
+                    "Carparts-Seg model weights not found at 'weights/yolo11m-carparts-seg.pt'. "
+                    "Required: YOLO11m-seg fine-tuned on Carparts-Seg taxonomy (23 or 33 classes)."
+                ),
+            ):
+                await run_stage1_pipeline_task(
+                    claim_id=claim_id,
+                    scratch_path=Path("/tmp/dummy_scratch.mp4"),
+                    policy_id="POL-HAPPY-001",
+                    is_demo_rehearsal=False,
+                )
 
         fresh = in_memory_db.claims[claim_id]
         assert fresh.current_stage != "STAGE_3_VLM_INSPECTION", "Stage 3 handoff must not occur"

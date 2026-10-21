@@ -1,4 +1,4 @@
-from typing import Dict, FrozenSet, Tuple
+from typing import Dict, FrozenSet, Sequence, Tuple, Union
 
 # Official 23-class Ultralytics Carparts-Seg mapping (Class 18 'object' is ignored)
 CARPARTS_CLASS_MAP: Dict[int, str] = {
@@ -26,6 +26,85 @@ CARPARTS_CLASS_MAP: Dict[int, str] = {
     21: "trunk",
     22: "wheel",
 }
+
+# 33-class AutoInspect Carparts mapping (native sided parts)
+CARPARTS_33_CLASS_MAP: Dict[int, str] = {
+    0: "back-bumper",
+    1: "back-windshield",
+    2: "front-bumper",
+    3: "grille",
+    4: "hood",
+    5: "left_back-door",
+    6: "left_back-wheel",
+    7: "left_back-window",
+    8: "left_fender",
+    9: "left_front-door",
+    10: "left_front-wheel",
+    11: "left_front-window",
+    12: "left_headlight",
+    13: "left_mirror",
+    14: "left_quarter-panel",
+    15: "left_rocker-panel",
+    16: "left_tail-light",
+    17: "license-plate",
+    18: "right_back-door",
+    19: "right_back-wheel",
+    20: "right_back-window",
+    21: "right_fender",
+    22: "right_front-door",
+    23: "right_front-wheel",
+    24: "right_front-window",
+    25: "right_headlight",
+    26: "right_mirror",
+    27: "right_quarter-panel",
+    28: "right_rocker-panel",
+    29: "right_tail-light",
+    30: "roof",
+    31: "trunk",
+    32: "windshield",
+}
+
+# Maps 33-class AutoInspect labels to canonical 22 catalogue keys
+CARPARTS_33_TO_CANONICAL: Dict[str, str] = {
+    "back-bumper": "back_bumper",
+    "back-windshield": "back_glass",
+    "front-bumper": "front_bumper",
+    "grille": "front_bumper",
+    "hood": "hood",
+    "left_back-door": "back_left_door",
+    "left_back-wheel": "wheel",
+    "left_back-window": "back_glass",
+    "left_fender": "front_left_door",
+    "left_front-door": "front_left_door",
+    "left_front-wheel": "wheel",
+    "left_front-window": "front_glass",
+    "left_headlight": "front_left_light",
+    "left_mirror": "left_mirror",
+    "left_quarter-panel": "back_left_door",
+    "left_rocker-panel": "front_left_door",
+    "left_tail-light": "back_left_light",
+    "license-plate": "object",  # Filtered out by IGNORED_PART_CLASSES
+    "right_back-door": "back_right_door",
+    "right_back-wheel": "wheel",
+    "right_back-window": "back_glass",
+    "right_fender": "front_right_door",
+    "right_front-door": "front_right_door",
+    "right_front-wheel": "wheel",
+    "right_front-window": "front_glass",
+    "right_headlight": "front_right_light",
+    "right_mirror": "right_mirror",
+    "right_quarter-panel": "back_right_door",
+    "right_rocker-panel": "front_right_door",
+    "right_tail-light": "back_right_light",
+    "roof": "hood",
+    "trunk": "trunk",
+    "windshield": "front_glass",
+}
+
+CARPARTS_ALLOWED_TAXONOMIES: Tuple[Dict[int, str], ...] = (
+    CARPARTS_CLASS_MAP,
+    CARPARTS_33_CLASS_MAP,
+)
 
 IGNORED_PART_CLASSES: FrozenSet[str] = frozenset({"object"})
 
@@ -96,16 +175,20 @@ def select_primary_damage_class(damage_classes: list[str]) -> str:
 
 def validate_model_taxonomy(
     model: object,
-    expected_class_map: Dict[int, str],
+    expected_class_map: Union[Dict[int, str], Sequence[Dict[int, str]]],
     model_role: str = "Model",
-) -> None:
+) -> Dict[int, str]:
     """Validates that a YOLO model instance exposes the exact expected class count,
     indices, and label names.
+
+    Supports either a single expected taxonomy dict or a sequence of valid candidate
+    taxonomies (e.g. 23-class or 33-class Carparts models).
+    Returns the matched taxonomy Dict[int, str].
 
     Inspects `model.names` (standard Ultralytics attribute).
     Raises Stage2ModelCompatibilityError if:
     1. The model does not expose a valid `names` attribute.
-    2. The class count != len(expected_class_map).
+    2. None of the candidate class maps match in length and labels.
     3. Any expected class ID is missing or maps to an unexpected label.
     """
     from app.domain.dual_mask_segmentation.exceptions import Stage2ModelCompatibilityError
@@ -133,37 +216,48 @@ def validate_model_taxonomy(
             details={"model_role": model_role},
         )
 
-    expected_count = len(expected_class_map)
-    actual_count = len(model_names)
-    if actual_count != expected_count:
-        raise Stage2ModelCompatibilityError(
-            f"{model_role} class count mismatch: expected {expected_count} classes, "
-            f"but model has {actual_count} classes. (Generic COCO or incompatible checkpoint detected).",
-            details={
-                "model_role": model_role,
-                "expected_count": expected_count,
-                "actual_count": actual_count,
-            },
-        )
+    candidates: Sequence[Dict[int, str]]
+    if isinstance(expected_class_map, dict):
+        candidates = [expected_class_map]
+    else:
+        candidates = list(expected_class_map)
 
-    for cid, expected_label in expected_class_map.items():
-        if cid not in model_names:
-            raise Stage2ModelCompatibilityError(
-                f"{model_role} missing expected class ID {cid} ('{expected_label}').",
-                details={
-                    "model_role": model_role,
-                    "missing_cid": cid,
-                    "expected_label": expected_label,
-                },
+    last_error_msg = ""
+    for candidate in candidates:
+        expected_count = len(candidate)
+        actual_count = len(model_names)
+        if actual_count != expected_count:
+            last_error_msg = (
+                f"{model_role} class count mismatch: expected {expected_count} classes, "
+                f"but model has {actual_count} classes."
             )
-        actual_label = model_names[cid].strip()
-        if actual_label.lower() != expected_label.lower():
-            raise Stage2ModelCompatibilityError(
-                f"{model_role} taxonomy mismatch at class ID {cid}: expected '{expected_label}', got '{actual_label}'.",
-                details={
-                    "model_role": model_role,
-                    "cid": cid,
-                    "expected_label": expected_label,
-                    "actual_label": actual_label,
-                },
-            )
+            continue
+
+        matched = True
+        for cid, expected_label in candidate.items():
+            if cid not in model_names:
+                last_error_msg = f"{model_role} missing expected class ID {cid} ('{expected_label}')."
+                matched = False
+                break
+            actual_label = model_names[cid].strip()
+            if actual_label.lower() != expected_label.lower():
+                last_error_msg = (
+                    f"{model_role} taxonomy mismatch at class ID {cid}: expected '{expected_label}', got '{actual_label}'."
+                )
+                matched = False
+                break
+
+        if matched:
+            return candidate
+
+    allowed_counts = [len(c) for c in candidates]
+    raise Stage2ModelCompatibilityError(
+        f"{model_role} validation failed against allowed taxonomies (expected {allowed_counts} classes, got {len(model_names)}). "
+        f"{last_error_msg} (Generic COCO or incompatible checkpoint detected).",
+        details={
+            "model_role": model_role,
+            "allowed_counts": allowed_counts,
+            "actual_count": len(model_names),
+            "last_error": last_error_msg,
+        },
+    )
