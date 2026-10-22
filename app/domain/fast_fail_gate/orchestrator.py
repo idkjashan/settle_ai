@@ -61,6 +61,8 @@ class FastFailGateOrchestrator:
         claim_id: Optional[uuid.UUID] = None,
         downstream_task = None,
         claim_description: Optional[str] = None,
+        skip_stage_0: bool = False,
+        skip_stage_1: bool = False,
     ) -> FastFailResponseDTO:
         t0 = time.perf_counter()
         claim_id = claim_id or uuid.uuid4()
@@ -89,7 +91,7 @@ class FastFailGateOrchestrator:
                 is_demo_rehearsal=is_demo_rehearsal,
             )
 
-            if not tier1_report.passed:
+            if not tier1_report.passed and not skip_stage_0:
                 # Short-circuit immediately (0% GPU, 0ms wasted on ffprobe/OpenCV)
                 await self.redis_mgr.release_video_lock(lease.sha256_hex)
                 lease.cleanup()
@@ -131,6 +133,8 @@ class FastFailGateOrchestrator:
                     remediation=remediation,
                     telemetry=telemetry,
                 )
+            elif not tier1_report.passed and skip_stage_0:
+                logger.info(f"[SKIP_STAGE_0] Bypassing Tier-1 policy check failure for claim {claim_id}")
 
             # Step 4: Tier-2 Media Forensic Gates (ffprobe + OpenCV in threadpool)
             container_report: ContainerGateReport = await asyncio.to_thread(
@@ -162,7 +166,7 @@ class FastFailGateOrchestrator:
                 total_execution_ms=total_ms,
             )
 
-            if tier2_codes:
+            if tier2_codes and not skip_stage_0:
                 # Tier-2 failed
                 await self.redis_mgr.release_video_lock(lease.sha256_hex)
                 lease.cleanup()
@@ -197,6 +201,8 @@ class FastFailGateOrchestrator:
                     remediation=remediation,
                     telemetry=telemetry,
                 )
+            elif tier2_codes and skip_stage_0:
+                logger.info(f"[SKIP_STAGE_0] Bypassing Tier-2 media check failures for claim {claim_id}: {tier2_codes}")
 
             # Step 5: All Gates Passed!
             active_claim = Claim(
@@ -233,7 +239,17 @@ class FastFailGateOrchestrator:
                 if downstream_task:
                     import inspect
                     sig = inspect.signature(downstream_task)
-                    if (
+                    if "skip_stage_1" in sig.parameters:
+                        background_tasks.add_task(
+                            downstream_task,
+                            claim_id,
+                            scratch_path,
+                            policy_id,
+                            is_demo_rehearsal,
+                            claim_description,
+                            skip_stage_1=skip_stage_1,
+                        )
+                    elif (
                         "claim_description" in sig.parameters
                         or len(sig.parameters) >= 5
                         or any(p.kind == inspect.Parameter.VAR_POSITIONAL for p in sig.parameters.values())
@@ -266,6 +282,8 @@ class FastFailGateOrchestrator:
         downstream_task = None,
         claim_description: Optional[str] = None,
         capture_source: CaptureSource = CaptureSource.FILE_UPLOAD,
+        skip_stage_0: bool = False,
+        skip_stage_1: bool = False,
     ) -> FastFailResponseDTO:
         """
         Executes Stage 0 Fast-Fail Gates for a structured photo pack.
@@ -330,7 +348,7 @@ class FastFailGateOrchestrator:
                 is_demo_rehearsal=is_demo_rehearsal,
             )
 
-            if not tier1_report.passed:
+            if not tier1_report.passed and not skip_stage_0:
                 await self.redis_mgr.release_video_lock(lease.sha256_hex)
                 lease.cleanup()
 
@@ -369,6 +387,8 @@ class FastFailGateOrchestrator:
                     remediation=remediation,
                     telemetry=telemetry,
                 )
+            elif not tier1_report.passed and skip_stage_0:
+                logger.info(f"[SKIP_STAGE_0] Bypassing Tier-1 policy check failure for photo pack claim {claim_id}")
 
             # Step 4: Tier-2 Photo Pack Forensics (container metadata + visual quality)
             meta_report: PhotoPackMetadataDTO = await asyncio.to_thread(
@@ -390,7 +410,7 @@ class FastFailGateOrchestrator:
                 total_execution_ms=total_ms,
             )
 
-            if tier2_codes:
+            if tier2_codes and not skip_stage_0:
                 await self.redis_mgr.release_video_lock(lease.sha256_hex)
                 lease.cleanup()
 
@@ -424,6 +444,8 @@ class FastFailGateOrchestrator:
                     remediation=remediation,
                     telemetry=telemetry,
                 )
+            elif tier2_codes and skip_stage_0:
+                logger.info(f"[SKIP_STAGE_0] Bypassing Tier-2 photo pack check failures for claim {claim_id}: {tier2_codes}")
 
             # Step 5: All Gates Passed!
             active_claim = Claim(
@@ -466,7 +488,17 @@ class FastFailGateOrchestrator:
                 if downstream_task:
                     import inspect
                     sig = inspect.signature(downstream_task)
-                    if (
+                    if "skip_stage_1" in sig.parameters:
+                        background_tasks.add_task(
+                            downstream_task,
+                            claim_id,
+                            scratch_paths,
+                            policy_id,
+                            is_demo_rehearsal,
+                            claim_description,
+                            skip_stage_1=skip_stage_1,
+                        )
+                    elif (
                         "claim_description" in sig.parameters
                         or len(sig.parameters) >= 5
                         or any(p.kind == inspect.Parameter.VAR_POSITIONAL for p in sig.parameters.values())

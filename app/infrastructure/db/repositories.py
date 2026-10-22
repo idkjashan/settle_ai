@@ -29,6 +29,11 @@ class ClaimRepository:
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def list_recent_claims(self, limit: int = 50) -> List[Claim]:
+        stmt = select(Claim).order_by(Claim.created_at.desc()).limit(limit)
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
     async def check_historical_duplicate(self, video_sha256: str) -> bool:
         stmt = (
             select(Claim.claim_id)

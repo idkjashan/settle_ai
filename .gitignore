@@ -53,4 +53,10 @@ data/
 evals/artifacts/[0-9a-f]*
 evals/eval_report_20*.json
 
+# Environment variables
+.env
+.env.local
+*.local
+
+
 

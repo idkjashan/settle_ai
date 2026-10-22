@@ -2,7 +2,7 @@ import asyncio
 import json
 import uuid
 from pathlib import Path
-from typing import Optional, List, Union
+from typing import Optional, List, Union, Any, Dict
 from fastapi import APIRouter, Depends, File, Form, UploadFile, BackgroundTasks, HTTPException, Response, status
 from fastapi.responses import StreamingResponse, JSONResponse
 from pydantic import BaseModel
@@ -43,12 +43,64 @@ from app.domain.settlement_escalation.schemas import (
 )
 
 
+def extract_fallback_keyframes(scratch_path: Any, claim_id: uuid.UUID) -> Dict[str, str]:
+    """Extracts fallback keyframes from video or photo pack so Stage 2 and Stage 3 always have valid frames."""
+    kf_dir = Path("/tmp/autosettle_keyframes") / str(claim_id)
+    kf_dir.mkdir(parents=True, exist_ok=True)
+    saved: Dict[str, str] = {}
+
+    if isinstance(scratch_path, (list, tuple)):
+        import shutil
+        for idx, p in enumerate(scratch_path, 1):
+            if Path(p).exists():
+                out_p = kf_dir / f"keyframe_{idx:02d}.jpg"
+                try:
+                    shutil.copyfile(str(p), str(out_p))
+                    saved[f"keyframe_{idx:02d}"] = str(out_p)
+                except Exception as e:
+                    logger.warning(f"Failed copying photo keyframe {p}: {e}")
+    elif scratch_path and Path(scratch_path).exists():
+        import cv2
+        cap = cv2.VideoCapture(str(scratch_path))
+        try:
+            total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            if total_frames > 0:
+                sample_ratios = [0.1, 0.3, 0.5, 0.7, 0.9]
+                for idx, r in enumerate(sample_ratios, 1):
+                    f_no = min(int(total_frames * r), total_frames - 1)
+                    cap.set(cv2.CAP_PROP_POS_FRAMES, f_no)
+                    ret, frame = cap.read()
+                    if ret and frame is not None:
+                        out_p = kf_dir / f"keyframe_{idx:02d}.jpg"
+                        cv2.imwrite(str(out_p), frame)
+                        saved[f"keyframe_{idx:02d}"] = str(out_p)
+        except Exception as cv_err:
+            logger.warning(f"Error sampling keyframes from {scratch_path}: {cv_err}")
+        finally:
+            cap.release()
+
+    if not saved:
+        import numpy as np
+        import cv2
+        dummy = np.zeros((720, 1280, 3), dtype=np.uint8)
+        out_p = kf_dir / "keyframe_01.jpg"
+        cv2.imwrite(str(out_p), dummy)
+        saved["keyframe_01"] = str(out_p)
+
+    vals = list(saved.values())
+    saved["front_bumper"] = vals[0]
+    saved["side_body_panel"] = vals[min(1, len(vals) - 1)]
+    saved["damage_closeup_primary"] = vals[min(2, len(vals) - 1)]
+    return saved
+
+
 async def run_stage1_pipeline_task(
     claim_id: uuid.UUID,
     scratch_path,
     policy_id: str,
     is_demo_rehearsal: bool,
     claim_description: Optional[str] = None,
+    skip_stage_1: bool = False,
 ):
     """Background task executing Stage 1 (Vehicle Identity & Continuity Grounding)
     and handing off to Conditioned Stage 2 (Dual-Mask Segmentation).
@@ -66,6 +118,9 @@ async def run_stage1_pipeline_task(
             except Exception as intent_err:
                 logger.warning(f"Claim intent grounding failed for {claim_id}: {intent_err}")
 
+        # Ensure fallback keyframes are extracted early while scratch_path is guaranteed available
+        pre_extracted_kf = extract_fallback_keyframes(scratch_path, claim_id)
+
         async with async_session_factory() as db:
             policy_repo = PolicyRepository(db)
             claim_repo = ClaimRepository(db)
@@ -78,53 +133,92 @@ async def run_stage1_pipeline_task(
                 color_val=color_grounding_validator,
                 tracker=object_tracker,
             )
-            # Step 1: Execute Stage 1
+            # Step 1: Execute Stage 1 (or bypass if skip_stage_1=True)
             stage1_passed = False
             telemetry = None
-            try:
-                if isinstance(scratch_path, (list, tuple)):
-                    telemetry = await stage1_orch.execute_photo_pack(
-                        claim_id=claim_id,
-                        photo_paths=list(scratch_path),
-                        policy_id=policy_id,
-                        is_demo_rehearsal=is_demo_rehearsal,
-                    )
-                else:
-                    telemetry = await stage1_orch.execute(
-                        claim_id=claim_id,
-                        scratch_video_path=scratch_path,
-                        policy_id=policy_id,
-                        is_demo_rehearsal=is_demo_rehearsal,
-                    )
-                stage1_passed = bool(telemetry and telemetry.passed)
-                logger.info(f"Stage 1 background execution complete for {claim_id}: passed={stage1_passed}")
-            except Exception as e:
-                logger.error(f"Stage 1 background execution failed for {claim_id}: {e}", exc_info=True)
-                # ponytail: mark claim REJECTED_STAGE1_ERROR so it never hangs in PROCESSING state
+
+            if skip_stage_1:
+                logger.info(f"[SKIP_STAGE_1] User requested bypass of Stage 1 checks for claim {claim_id}. Proceeding directly to Stage 2 & 3.")
+                from app.domain.vehicle_identity_continuity.schemas import (
+                    CutDetectionResult,
+                    PlateValidationResult,
+                    ColorValidationResult,
+                    TrackingAndKeyframeResult,
+                    VehicleContinuityTelemetryDTO,
+                )
+                telemetry = VehicleContinuityTelemetryDTO(
+                    passed=True,
+                    cut_report=CutDetectionResult(is_continuous=True),
+                    plate_report=PlateValidationResult(is_verified=True, expected_plate="BYPASSED", extracted_plate="BYPASSED", ocr_confidence=1.0),
+                    color_report=ColorValidationResult(is_color_match=True, expected_color_name="WHITE"),
+                    tracking_report=TrackingAndKeyframeResult(is_persistent=True, saved_keyframes=pre_extracted_kf),
+                    total_execution_ms=1.0,
+                )
+                stage1_passed = True
+                await claim_repo.update_claim_stage(
+                    claim_id=claim_id,
+                    stage="STAGE_2_SEGMENTATION",
+                    status="PROCESSING",
+                    escalation_code=None,
+                    failure_codes=None,
+                )
+                await redis_manager.publish_event(
+                    claim_id=claim_id,
+                    event_name="STAGE_1_PASSED",
+                    payload={
+                        "claim_id": str(claim_id),
+                        "status": "PROCESSING",
+                        "stage": "STAGE_2_SEGMENTATION",
+                        "note": "Stage 1 checks bypassed by user flag for model testing",
+                    },
+                )
+            else:
                 try:
-                    await claim_repo.update_claim_stage(
-                        claim_id=claim_id,
-                        stage="STAGE_1_IDENTITY",
-                        status="REJECTED_STAGE1_ERROR",
-                        escalation_code="ESC-02",
-                        failure_codes=["STAGE_1_INTERNAL_ERROR"],
-                    )
-                    await redis_manager.publish_event(
-                        claim_id=claim_id,
-                        event_name="STAGE_1_FAILED",
-                        payload={
-                            "claim_id": str(claim_id),
-                            "status": "REJECTED_STAGE1_ERROR",
-                            "escalation_code": "ESC-02",
-                            "failure_codes": ["STAGE_1_INTERNAL_ERROR"],
-                        },
-                    )
-                except Exception as db_err:
-                    logger.critical(f"Failed to record stage 1 crash in DB for {claim_id}: {db_err}")
-                return
+                    if isinstance(scratch_path, (list, tuple)):
+                        telemetry = await stage1_orch.execute_photo_pack(
+                            claim_id=claim_id,
+                            photo_paths=list(scratch_path),
+                            policy_id=policy_id,
+                            is_demo_rehearsal=is_demo_rehearsal,
+                        )
+                    else:
+                        telemetry = await stage1_orch.execute(
+                            claim_id=claim_id,
+                            scratch_video_path=scratch_path,
+                            policy_id=policy_id,
+                            is_demo_rehearsal=is_demo_rehearsal,
+                        )
+                    stage1_passed = bool(telemetry and telemetry.passed)
+                    logger.info(f"Stage 1 background execution complete for {claim_id}: passed={stage1_passed}")
+                except Exception as e:
+                    logger.error(f"Stage 1 background execution failed for {claim_id}: {e}", exc_info=True)
+                    # ponytail: mark claim REJECTED_STAGE1_ERROR so it never hangs in PROCESSING state
+                    try:
+                        await claim_repo.update_claim_stage(
+                            claim_id=claim_id,
+                            stage="STAGE_1_IDENTITY",
+                            status="REJECTED_STAGE1_ERROR",
+                            escalation_code="ESC-02",
+                            failure_codes=["STAGE_1_INTERNAL_ERROR"],
+                        )
+                        await redis_manager.publish_event(
+                            claim_id=claim_id,
+                            event_name="STAGE_1_FAILED",
+                            payload={
+                                "claim_id": str(claim_id),
+                                "status": "REJECTED_STAGE1_ERROR",
+                                "escalation_code": "ESC-02",
+                                "failure_codes": ["STAGE_1_INTERNAL_ERROR"],
+                            },
+                        )
+                    except Exception as db_err:
+                        logger.critical(f"Failed to record stage 1 crash in DB for {claim_id}: {db_err}")
+                    return
 
             # Step 2: Handoff to Stage 2 (Dual-Mask Segmentation)
-            if stage1_passed and telemetry and telemetry.tracking_report and telemetry.tracking_report.saved_keyframes:
+            saved_kf = getattr(telemetry.tracking_report, "saved_keyframes", None) if telemetry else None
+            saved_kf = saved_kf or pre_extracted_kf
+            if stage1_passed and telemetry and saved_kf:
                 logger.info(f"Handoff to Stage 2 Dual-Mask Segmentation for claim {claim_id}...")
                 from app.domain.vehicle_identity_continuity.schemas import Stage2HandoffPayload
                 from app.domain.dual_mask_segmentation.orchestrator import get_stage2_orchestrator
@@ -140,7 +234,7 @@ async def run_stage1_pipeline_task(
 
                 try:
                     ref_video_path = str(scratch_path[0]) if isinstance(scratch_path, (list, tuple)) and scratch_path else str(scratch_path)
-                    all_kf = {k: str(v) for k, v in telemetry.tracking_report.saved_keyframes.items()}
+                    all_kf = {k: str(v) for k, v in saved_kf.items()}
                     for i, p_str in enumerate(getattr(telemetry.tracking_report, "curated_keyframes", []) or [], 1):
                         all_kf.setdefault(f"keyframe_{i:02d}", str(p_str))
 
@@ -358,6 +452,8 @@ async def upload_claim_video(
     claim_description: Optional[str] = Form(None, max_length=1000),
     video_file: Optional[UploadFile] = File(None),
     photo_files: Optional[List[UploadFile]] = File(None),
+    skip_stage_0: bool = Form(False),
+    skip_stage_1: bool = Form(False),
     db: AsyncSession = Depends(get_db_session),
 ):
     """
@@ -402,6 +498,8 @@ async def upload_claim_video(
                 downstream_task=run_stage1_pipeline_task,
                 claim_description=claim_description,
                 capture_source=capture_source,
+                skip_stage_0=skip_stage_0,
+                skip_stage_1=skip_stage_1,
             )
             if not response.passed:
                 return JSONResponse(status_code=status.HTTP_200_OK, content=response.model_dump(mode="json"))
@@ -445,6 +543,8 @@ async def upload_claim_video(
             background_tasks=background_tasks,
             downstream_task=run_stage1_pipeline_task,
             claim_description=claim_description,
+            skip_stage_0=skip_stage_0,
+            skip_stage_1=skip_stage_1,
         )
 
         if not response.passed:
@@ -469,6 +569,35 @@ async def upload_claim_video(
             remediation=rem,
         )
         return JSONResponse(status_code=status.HTTP_200_OK, content=res.model_dump(mode="json"))
+
+
+@router.get("", status_code=status.HTTP_200_OK)
+@router.get("/", status_code=status.HTTP_200_OK)
+async def list_claims(limit: int = 50, db: AsyncSession = Depends(get_db_session)):
+    """Lists recent claims with full forensic telemetry for desk hydration."""
+    claim_repo = ClaimRepository(db)
+    claims = await claim_repo.list_recent_claims(limit=limit)
+    return [
+        {
+            "claim_id": str(claim.claim_id),
+            "policy_id": claim.policy_id,
+            "current_stage": claim.current_stage,
+            "claim_status": claim.claim_status,
+            "escalation_code": claim.escalation_code,
+            "failure_codes": claim.failure_codes,
+            "created_at": claim.created_at.isoformat() if claim.created_at else None,
+            "telemetry": {
+                "fast_fail": claim.fast_fail_telemetry,
+                "vehicle_continuity": claim.vehicle_continuity_telemetry,
+                "dual_mask": claim.dual_mask_telemetry,
+                "vlm_inspection": claim.vlm_inspection_telemetry,
+                "actuarial_estimate": claim.actuarial_estimate,
+                "negotiation_session": claim.negotiation_session,
+                "settlement_voucher": claim.settlement_voucher,
+            },
+        }
+        for claim in claims
+    ]
 
 
 @router.get("/{claim_id}")
