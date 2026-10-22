@@ -91,9 +91,14 @@ class SoMCropRenderer:
 
             # 3. Save clean raw crop and exterior-annotated SoM crop atomically
             raw_crop = frame_bgr[cy1:cy2, cx1:cx2].copy()
+
+            # Render SoM crop (strictly exterior dilated contour, guaranteeing 0% interior occlusion)
+            som_full_scratch = frame_bgr.copy()
+            cv2.drawContours(som_full_scratch, ext_contours, -1, (0, 255, 255), thickness=2, lineType=cv2.LINE_AA)
+            som_crop = som_full_scratch[cy1:cy2, cx1:cx2].copy()
+
+            # Render full keyframe visualization with rich contextual overlays
             annotated_full = frame_bgr.copy()
-            
-            # Draw semi-transparent overlay on full image
             overlay = annotated_full.copy()
             if hasattr(area_hit, "part_polygon") and area_hit.part_polygon is not None:
                 part_contours = self._geometry_to_cv_contours(area_hit.part_polygon)
@@ -131,7 +136,6 @@ class SoMCropRenderer:
                 2,
                 cv2.LINE_AA,
             )
-            som_crop = annotated_full[cy1:cy2, cx1:cx2].copy()
 
             raw_path = claim_som_dir / f"{cand.canonical_part_key}_raw.jpg"
             som_path = claim_som_dir / f"{cand.canonical_part_key}_som.jpg"

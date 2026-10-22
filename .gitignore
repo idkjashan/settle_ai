@@ -47,6 +47,7 @@ weights/*.pt
 # Training run logs
 runs/
 data/
+.playwright-mcp/
 
 # Transient Evaluation artifacts
 evals/artifacts/[0-9a-f]*

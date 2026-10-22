@@ -46,9 +46,13 @@
       <header class="topbar">
         <div class="crumbs"><span>Claims desk</span><span class="crumb-slash">/</span><span id="topbar-context">Overview</span></div>
         <div class="topbar-actions">
-          <span class="demo-pill"><span class="live-dot"></span> DEMO ENVIRONMENT</span>
-          <button class="icon-button" type="button" data-toast="Search is available in the full product." aria-label="Search"><span class="icon" data-icon="search"></span></button>
-          <button class="icon-button help-button" type="button" data-toast="This prototype is fully local. No claim data is transmitted." aria-label="Help"><span class="icon" data-icon="help"></span></button>
+          <span class="demo-pill" id="api-status-pill"><span class="live-dot"></span> CONNECTING...</span>
+          <div class="search-wrap">
+            <span class="search-icon-pos"><span class="icon" data-icon="search"></span></span>
+            <input type="text" id="global-search" class="search-input" placeholder="Search claims..." aria-label="Search claims">
+          </div>
+          <button class="icon-button" type="button" id="theme-toggle" aria-label="Toggle dark/light theme" title="Toggle theme"><span class="icon" data-icon="spark"></span></button>
+          <button class="icon-button help-button" type="button" data-toast="Auto-Settle AI: Autonomous video-to-cash claims adjuster. Stage 0 to Stage 6 active." aria-label="Help"><span class="icon" data-icon="help"></span></button>
           <span class="avatar avatar-small">NR</span>
         </div>
       </header>
@@ -67,14 +71,22 @@
         <div class="section-heading queue-heading"><div><p class="eyebrow">THURSDAY, 22 OCTOBER</p><h2>Your claim queue</h2></div><button class="text-button" type="button" data-view="claim">Open sample claim <span>↗</span></button></div>
         <div class="overview-layout">
           <section class="panel queue-panel" aria-labelledby="queue-title">
-            <div class="panel-topline"><div><h3 id="queue-title">Recent claims</h3><p>Sorted by latest activity</p></div><button class="filter-button" type="button" data-toast="Queue filters are a visual prototype control."><span class="icon" data-icon="filter"></span> Filter</button></div>
-            <div class="table-scroll"><table class="claims-table"><thead><tr><th>CLAIM</th><th>VEHICLE</th><th>DAMAGE</th><th>EST. REPAIR</th><th>STATUS</th><th></th></tr></thead><tbody>
-              <tr class="claim-row selected-row" tabindex="0" data-view="claim"><td><span class="claim-id">CLM-48291</span><small>Today · 10:42 AM</small></td><td><span class="vehicle-name">Hyundai Creta</span><small>2022 · KA 03 •• 4921</small></td><td><span class="table-damage">Creased dent</span><small>Driver-side door</small></td><td class="currency-cell">₹10,620</td><td><span class="status-tag status-ready"><i></i>Ready to settle</span></td><td class="row-arrow">↗</td></tr>
-              <tr class="claim-row" tabindex="0" data-view="claim"><td><span class="claim-id">CLM-48290</span><small>Today · 10:18 AM</small></td><td><span class="vehicle-name">Maruti Baleno</span><small>2021 · MH 12 •• 1048</small></td><td><span class="table-damage">Mirror crack</span><small>Left mirror</small></td><td class="currency-cell">₹7,850</td><td><span class="status-tag status-review"><i></i>Human review</span></td><td class="row-arrow">↗</td></tr>
-              <tr class="claim-row" tabindex="0" data-view="claim"><td><span class="claim-id">CLM-48287</span><small>Today · 9:56 AM</small></td><td><span class="vehicle-name">Tata Nexon</span><small>2023 · TN 09 •• 7812</small></td><td><span class="table-damage">Surface scuff</span><small>Rear bumper</small></td><td class="currency-cell">₹3,240</td><td><span class="status-tag status-paid"><i></i>Settled</span></td><td class="row-arrow">↗</td></tr>
-              <tr class="claim-row" tabindex="0" data-view="claim"><td><span class="claim-id">CLM-48284</span><small>Today · 9:31 AM</small></td><td><span class="vehicle-name">Honda City</span><small>2020 · DL 8C •• 0334</small></td><td><span class="table-damage">Paint scratch</span><small>Rear passenger door</small></td><td class="currency-cell">₹6,980</td><td><span class="status-tag status-review"><i></i>Evidence check</span></td><td class="row-arrow">↗</td></tr>
+            <div class="panel-topline">
+              <div><h3 id="queue-title">Recent claims</h3><p>Sorted by latest activity</p></div>
+              <div class="filter-group" id="queue-filter-group">
+                <button class="filter-pill is-active" type="button" data-filter="all">All (<span id="count-all">4</span>)</button>
+                <button class="filter-pill" type="button" data-filter="ready">Ready (<span id="count-ready">1</span>)</button>
+                <button class="filter-pill" type="button" data-filter="review">Review (<span id="count-review">2</span>)</button>
+                <button class="filter-pill" type="button" data-filter="settled">Settled (<span id="count-settled">1</span>)</button>
+              </div>
+            </div>
+            <div class="table-scroll"><table class="claims-table"><thead><tr><th>CLAIM</th><th>VEHICLE</th><th>DAMAGE</th><th>EST. REPAIR</th><th>STATUS</th><th></th></tr></thead><tbody id="claims-table-body">
+              <tr class="claim-row selected-row" tabindex="0" data-view="claim" data-claim-id="CLM-48291"><td><span class="claim-id">CLM-48291</span><small>Today · 10:42 AM</small></td><td><span class="vehicle-name">Hyundai Creta</span><small>2022 · KA 03 •• 4921</small></td><td><span class="table-damage">Creased dent</span><small>Driver-side door</small></td><td class="currency-cell">₹10,620</td><td><span class="status-tag status-ready"><i></i>Ready to settle</span></td><td class="row-arrow">↗</td></tr>
+              <tr class="claim-row" tabindex="0" data-view="claim" data-claim-id="CLM-48290"><td><span class="claim-id">CLM-48290</span><small>Today · 10:18 AM</small></td><td><span class="vehicle-name">Maruti Baleno</span><small>2021 · MH 12 •• 1048</small></td><td><span class="table-damage">Mirror crack</span><small>Left mirror</small></td><td class="currency-cell">₹7,850</td><td><span class="status-tag status-review"><i></i>Human review</span></td><td class="row-arrow">↗</td></tr>
+              <tr class="claim-row" tabindex="0" data-view="claim" data-claim-id="CLM-48287"><td><span class="claim-id">CLM-48287</span><small>Today · 9:56 AM</small></td><td><span class="vehicle-name">Tata Nexon</span><small>2023 · TN 09 •• 7812</small></td><td><span class="table-damage">Surface scuff</span><small>Rear bumper</small></td><td class="currency-cell">₹3,240</td><td><span class="status-tag status-paid"><i></i>Settled</span></td><td class="row-arrow">↗</td></tr>
+              <tr class="claim-row" tabindex="0" data-view="claim" data-claim-id="CLM-48284"><td><span class="claim-id">CLM-48284</span><small>Today · 9:31 AM</small></td><td><span class="vehicle-name">Honda City</span><small>2020 · DL 8C •• 0334</small></td><td><span class="table-damage">Paint scratch</span><small>Rear passenger door</small></td><td class="currency-cell">₹6,980</td><td><span class="status-tag status-review"><i></i>Evidence check</span></td><td class="row-arrow">↗</td></tr>
             </tbody></table></div>
-            <div class="panel-footer"><span>Showing 4 of 18 claims</span><button type="button" class="quiet-link" data-view="claim">View all claims <span>→</span></button></div>
+            <div class="panel-footer"><span id="queue-footer-count">Showing 4 of 4 claims</span><button type="button" class="quiet-link" data-view="claim">Open workstation <span>→</span></button></div>
           </section>
           <aside class="attention-card">
             <div class="attention-head"><span class="attention-icon"><span class="icon" data-icon="spark"></span></span><span class="small-caps">NEXT UP</span></div>
@@ -109,16 +121,56 @@
           <div class="assessment-layout">
             <div class="assessment-main">
               <section class="panel evidence-panel">
-                <div class="panel-topline evidence-topline"><div><div class="title-inline"><h2>Evidence review</h2><span class="verified-tag"><span class="icon" data-icon="check"></span>Identity verified</span></div><p>Continuous walkaround · 18 sec · 1080p</p></div><button type="button" class="quiet-icon-button" data-view="new-claim" aria-label="Add evidence"><span class="icon" data-icon="plus"></span></button></div>
-                <figure class="evidence-figure"><img src="/assets/damage-evidence.svg" data-generated-src="/manus-storage/async-images/tcFImVzJi0Xt2gwNBIoJ7B/image-1.webp" alt="Illustrative evidence view showing a highlighted crease dent on the driver-side door of a graphite SUV" class="evidence-photo"><span class="evidence-frame-label"><span class="live-dot"></span> FRAME 08:42 / 00:18</span><span class="damage-outline" aria-hidden="true"><span></span></span><span class="damage-callout"><span>Detected damage</span><strong>Driver-side door · L4</strong></span><button type="button" class="zoom-control" aria-label="Enlarge evidence" data-action="zoom"><span class="icon" data-icon="expand"></span></button><figcaption class="sr-only">Best frame selected from the submitted continuous video.</figcaption></figure>
-                <div class="evidence-controls"><button class="video-play" type="button" data-toast="Video playback is represented by the selected keyframe in this demo."><span class="icon" data-icon="play"></span></button><div class="timeline-track"><span class="timeline-progress"></span><i class="timeline-pin pin-one"></i><i class="timeline-pin pin-two"></i></div><span class="timeline-time">08:42 / 18:03</span><button type="button" class="quiet-icon-button" data-toast="Keyframe preview controls are illustrative." aria-label="Evidence playback options"><span class="icon" data-icon="more"></span></button></div>
+                <div class="panel-topline evidence-topline"><div><div class="title-inline"><h2>Evidence review</h2><span class="verified-tag"><span class="icon" data-icon="check"></span>Identity verified</span></div><p id="evidence-summary-subtitle">Continuous walkaround · 18 sec · 720p HD</p></div><button type="button" class="quiet-icon-button" data-view="new-claim" aria-label="Add evidence"><span class="icon" data-icon="plus"></span></button></div>
+                <div class="media-switcher">
+                  <button class="media-tab is-active" type="button" data-media-mode="video"><span class="icon" data-icon="play"></span> Walkaround video</button>
+                  <button class="media-tab" type="button" data-media-mode="yolo"><span class="icon" data-icon="spark"></span> Dual-mask YOLO</button>
+                  <button class="media-tab" type="button" data-media-mode="som"><span class="icon" data-icon="shield"></span> Set-of-Marks VLM</button>
+                </div>
+                <figure class="evidence-figure" id="evidence-figure">
+                  <video id="evidence-video-player" class="media-video-element" src="/test_assets/videos/simple/car_002.mp4" controls autoplay loop playsinline muted></video>
+                  <img id="evidence-photo-player" src="/docs_assets/stage2_annotated_samples/scenario_02_front_door_scratch_comparison.jpg" alt="Dual mask segmentation" class="evidence-photo is-hidden">
+                  <span class="evidence-frame-label" id="evidence-frame-label"><span class="live-dot"></span> FRAME 08:42 / 18:00</span>
+                  <span class="damage-outline" id="damage-outline" aria-hidden="true"><span></span></span>
+                  <span class="damage-callout" id="damage-callout"><span>Detected damage</span><strong>Driver-side door · L4</strong></span>
+                  <button type="button" class="zoom-control" aria-label="Enlarge evidence" data-action="zoom"><span class="icon" data-icon="expand"></span></button>
+                  <figcaption class="sr-only">Keyframe extracted from continuous ByteTrack walkaround.</figcaption>
+                </figure>
                 <div class="evidence-meta"><span><span class="icon" data-icon="check"></span> Video continuity passed</span><span><span class="icon" data-icon="check"></span> Plate &amp; vehicle match</span><span><span class="icon" data-icon="check"></span> No edit metadata found</span></div>
               </section>
-              <section class="panel damage-panel"><div class="panel-topline"><div><h2>Damage assessment</h2><p>Findings from the clearest frame and close-up review</p></div><span class="confidence-chip"><span class="confidence-dot"></span> 96% confidence</span></div>
+              <section class="panel damage-panel"><div class="panel-topline"><div><h2>Damage assessment</h2><p>Dual-model YOLO inference conditioned by intent</p></div><span class="confidence-chip"><span class="confidence-dot"></span> 96% confidence</span></div>
                 <div class="damage-summary"><div class="damage-type-icon"><span class="icon" data-icon="car"></span></div><div class="damage-copy"><strong>Creased dent</strong><span>Driver-side front door <b>·</b> Exterior body panel</span></div><span class="severity-chip">L4 <span>·</span> Moderate</span></div>
-                <div class="severity-scale" aria-label="Damage grades from minor surface scuff to structural tear or crack"><span class="severity-scale-label">DAMAGE SCALE</span><span><b>L1</b><small>Surface scuff</small></span><span><b>L2</b><small>Basecoat scratch</small></span><span><b>L3</b><small>Shallow dent · PDR</small></span><span class="is-current"><b>L4</b><small>Creased dent</small></span><span><b>L5</b><small>Structural tear / crack</small></span></div>
+                <div class="severity-scale" aria-label="Damage grades from minor surface scuff to structural tear or crack"><span class="severity-scale-label">DAMAGE SCALE</span><span data-grade="L1"><b>L1</b><small>Surface scuff</small></span><span data-grade="L2"><b>L2</b><small>Basecoat scratch</small></span><span data-grade="L3"><b>L3</b><small>Shallow dent · PDR</small></span><span data-grade="L4" class="is-current"><b>L4</b><small>Creased dent</small></span><span data-grade="L5"><b>L5</b><small>Structural tear / crack</small></span></div>
                 <div class="assessment-metrics"><div><span>Damage coverage</span><strong>8.4% <small>of panel</small></strong></div><div><span>Paint condition</span><strong>Creased <small>· paint broken</small></strong></div><div><span>Rust / oxidation</span><strong class="good-text"><span class="icon" data-icon="check"></span> Not detected</strong></div></div>
-                <div class="finding-note"><span class="icon" data-icon="info"></span><p>A visible crease is consistent across 6 frames. The damaged panel is identifiable, with no rust or adjacent safety-critical parts in view.</p></div>
+                <div class="finding-note"><span class="icon" data-icon="info"></span><p>A visible crease is consistent across continuous trajectory frames. Damaged panel verified against policy OEM catalogue.</p></div>
+              </section>
+              <section class="panel quarantine-panel">
+                <div class="panel-topline">
+                  <div>
+                    <p class="eyebrow">STAGE 2 INTENT-CONDITIONED SEGMENTATION</p>
+                    <h2>Damage quarantine engine</h2>
+                    <p>Distinguishing admitted claim defects from pre-existing road wear</p>
+                  </div>
+                  <span class="quarantine-chip"><span class="icon" data-icon="shield"></span> Intent Filter Active</span>
+                </div>
+                <div class="quarantine-grid">
+                  <div class="quarantine-col billed">
+                    <div class="col-head"><span class="icon" data-icon="check"></span> <strong>Billed Claim Items (Admitted)</strong><span class="badge" id="billed-count">1</span></div>
+                    <div id="billed-items-list" class="damage-items-list">
+                      <div class="damage-item-card"><span><b>Driver-Side Front Door</b><br><small style="color:var(--muted)">Creased dent · 8.4% IoP</small></span><strong style="color:var(--green2)">₹9,000</strong></div>
+                    </div>
+                  </div>
+                  <div class="quarantine-col quarantined">
+                    <div class="col-head"><span class="icon" data-icon="lock"></span> <strong>Pre-Existing Wear (Quarantined)</strong><span class="badge" id="quarantined-count">1</span></div>
+                    <div id="quarantined-items-list" class="damage-items-list">
+                      <div class="damage-item-card"><span><b>Rear Bumper</b><br><small style="color:var(--muted)">Unclaimed scuff · Bypasses ESC-05</small></span><span style="font-size:10px;color:var(--muted)">Quarantined</span></div>
+                    </div>
+                  </div>
+                </div>
+                <div class="quarantine-note">
+                  <span class="icon" data-icon="info"></span>
+                  <span>Unclaimed background damage is quarantined to UNCLAIMED_PREEXISTING_DAMAGE and logged to ledger without false fraud flags.</span>
+                </div>
               </section>
             </div>
             <aside class="assessment-side">
@@ -171,18 +223,47 @@
       </section>
 
       <section class="view" id="view-new-claim" data-title="New claim">
-        <div class="backline"><button class="back-button" type="button" data-view="overview">← <span>Overview</span></button><span class="backline-sep">/</span><span>New claim</span><span class="demo-tag">LOCAL DEMO</span></div>
-        <div class="page-heading intake-heading"><div><p class="eyebrow">NEW MOTOR CLAIM · STEP 1 OF 3</p><h1>Start with the evidence<span class="period">.</span></h1><p class="subhead">A single, steady walkaround helps connect the damage to the insured vehicle.</p></div><div class="intake-step-pills"><span class="step-pill active">01 <b>Evidence</b></span><i></i><span class="step-pill">02 <b>Vehicle</b></span><i></i><span class="step-pill">03 <b>Review</b></span></div></div>
+        <div class="backline"><button class="back-button" type="button" data-view="overview">← <span>Overview</span></button><span class="backline-sep">/</span><span>New claim</span><span class="demo-tag" id="intake-mode-tag">LIVE / DEMO</span></div>
+        <div class="page-heading intake-heading"><div><p class="eyebrow">NEW MOTOR CLAIM · STEP 1 OF 3</p><h1>Start with the evidence<span class="period">.</span></h1><p class="subhead">An unbroken walkaround video or 3–6 photo pack connects damage to the insured vehicle.</p></div><div class="intake-step-pills"><span class="step-pill active">01 <b>Evidence</b></span><i></i><span class="step-pill">02 <b>Vehicle</b></span><i></i><span class="step-pill">03 <b>Review</b></span></div></div>
+
+        <div class="preset-bar">
+          <span class="preset-label"><span class="icon" data-icon="spark"></span> <strong>Quick Presets:</strong></span>
+          <button type="button" class="preset-btn" data-preset="happy">Creta · POL-HAPPY-001 (Happy Path · L4)</button>
+          <button type="button" class="preset-btn" data-preset="photopack">Photo Pack (3–6 Photos)</button>
+          <button type="button" class="preset-btn" data-preset="expired">Swift · POL-EXPIRED-002 (Expired)</button>
+          <button type="button" class="preset-btn" data-preset="claimcap">Nexon · POL-CLAIMCAP-004 (Claim Limit)</button>
+          <button type="button" class="preset-btn" data-preset="cancelled">City · POL-CANCELLED-005 (Cancelled)</button>
+          <button type="button" class="preset-btn" data-preset="safety">Seltos · POL-FUTURE-003 (Safety Damage)</button>
+        </div>
+
         <form id="claim-form" class="intake-layout">
-          <div class="intake-main"><section class="panel upload-panel"><div class="panel-topline"><div><h2>Upload vehicle media</h2><p>Images or one unbroken walkaround video</p></div><span class="required-label">REQUIRED</span></div>
-              <label class="dropzone" id="dropzone" for="evidence-file"><input id="evidence-file" type="file" accept="image/*,video/*" multiple aria-label="Upload vehicle images or video"><span class="upload-illustration"><span class="icon" data-icon="upload"></span></span><strong>Drop evidence here, or <u>browse files</u></strong><span>JPG, PNG or MP4 · up to 60 seconds · 20 MB per file</span><span class="upload-footnote"><span class="icon" data-icon="shield"></span> Files stay in this browser demo; nothing is uploaded to a server.</span></label>
-              <div class="capture-guidance"><div class="guidance-icon"><span class="icon" data-icon="video"></span></div><div><strong>Best results with one continuous video</strong><p>Start at the number plate, show the full vehicle, then move closer to the damage. Film in daylight and hold steady.</p><div class="guidance-tags"><span>720p or higher</span><span>5–60 seconds</span><span>No cuts or edits</span></div></div><button class="button button-outline" type="button" id="open-camera"><span class="icon" data-icon="camera"></span> Use camera</button></div>
+          <div class="intake-main"><section class="panel upload-panel"><div class="panel-topline"><div><h2>Upload vehicle media</h2><p>1 unbroken video (5–60s) OR 3–6 photo pack</p></div><span class="required-label">REQUIRED</span></div>
+              <label class="dropzone" id="dropzone" for="evidence-file"><input id="evidence-file" type="file" accept="image/*,video/*" multiple aria-label="Upload vehicle images or video"><span class="upload-illustration"><span class="icon" data-icon="upload"></span></span><strong>Drop evidence here, or <u>browse files</u></strong><span>MP4 video (5–60s) or 3–6 JPG/PNG photos · Max 20 MB each</span><span class="upload-footnote"><span class="icon" data-icon="shield"></span> Auto-detects video walkaround vs photo pack modality automatically.</span></label>
+              <div class="capture-guidance"><div class="guidance-icon"><span class="icon" data-icon="video"></span></div><div><strong>Continuous walkaround guidance</strong><p>Start at number plate, show full vehicle, then hold on damage. Film in daylight without scene cuts.</p><div class="guidance-tags"><span>720p minimum</span><span>5–60 seconds</span><span>Continuous tracking</span></div></div><button class="button button-outline" type="button" id="open-camera"><span class="icon" data-icon="camera"></span> Use camera</button></div>
               <div class="upload-preview is-hidden" id="upload-preview"><div class="preview-top"><span class="small-caps">SELECTED EVIDENCE</span><button type="button" class="quiet-link" id="clear-upload">Remove all</button></div><div id="preview-list" class="preview-list"></div></div>
             </section>
-            <section class="panel claim-context-panel"><div class="panel-topline"><div><h2>Claim context</h2><p>What happened and which vehicle is insured?</p></div><span class="optional-label">DEMO FIELDS</span></div><div class="form-grid"><label class="field-label">Registration number <span>*</span><input id="registration" type="text" placeholder="e.g. KA 03 AB 4921" value="" required autocomplete="off"><small>We’ll match this to the policy record in a full implementation.</small></label><label class="field-label">Vehicle make &amp; model <span>*</span><input id="vehicle-model" type="text" placeholder="e.g. Hyundai Creta" required></label><label class="field-label">Approximate incident date <span>*</span><input id="incident-date" type="date" required></label><label class="field-label">Incident location <span>OPTIONAL</span><input id="incident-location" type="text" placeholder="City or area"></label><label class="field-label field-full">What happened? <span>OPTIONAL</span><textarea id="incident-note" rows="3" placeholder="A short description helps give the adjuster context."></textarea></label></div></section>
+            <section class="panel claim-context-panel"><div class="panel-topline"><div><h2>Claim context</h2><p>Policy details &amp; incident narrative</p></div><span class="optional-label">POLICY DATA</span></div>
+              <div class="form-grid">
+                <label class="field-label field-full">Insured policy record <span>*</span>
+                  <select id="policy-select" required>
+                    <option value="POL-HAPPY-001" selected>POL-HAPPY-001 · Hyundai Creta (MH12DE1433) · Active · White</option>
+                    <option value="POL-RED-007">POL-RED-007 · Hyundai Creta (KA01MJ5555) · Active · Red</option>
+                    <option value="POL-EXPIRED-002">POL-EXPIRED-002 · Maruti Swift (DL01AB9999) · Expired · Silver</option>
+                    <option value="POL-CLAIMCAP-004">POL-CLAIMCAP-004 · Tata Nexon (MH14EU4321) · Limit Reached (2 claims YTD)</option>
+                    <option value="POL-CANCELLED-005">POL-CANCELLED-005 · Honda City (MH02BQ1111) · Cancelled</option>
+                    <option value="POL-FUTURE-003">POL-FUTURE-003 · Kia Seltos (KA03MJ7777) · Future Effective Date</option>
+                  </select>
+                </label>
+                <label class="field-label">Registration number <span>*</span><input id="registration" type="text" placeholder="e.g. MH12DE1433" value="MH12DE1433" required autocomplete="off"><small>Matched against ANPR plate OCR extraction.</small></label>
+                <label class="field-label">Vehicle make &amp; model <span>*</span><input id="vehicle-model" type="text" placeholder="e.g. Hyundai Creta" value="Hyundai Creta" required></label>
+                <label class="field-label">Incident date <span>*</span><input id="incident-date" type="date" required></label>
+                <label class="field-label">Incident location <span>OPTIONAL</span><input id="incident-location" type="text" placeholder="e.g. Indiranagar, Bengaluru" value="Bengaluru"></label>
+                <label class="field-label field-full">What happened? (Claim Intent Grounding) <span>*</span><textarea id="incident-note" rows="3" placeholder="Describe the damage in your own words (e.g. Crease dent on driver-side front door from parking pole)...">Creased dent on driver-side front door from reversing near concrete parking pillar.</textarea><small>Processed by local FastEmbed ONNX to extract claimed parts &amp; damage type for quarantine.</small></label>
+              </div>
+            </section>
           </div>
-          <aside class="intake-aside"><section class="panel intake-checklist"><p class="eyebrow">BEFORE YOU SEND</p><h3>Three things to capture</h3><ol><li><span>01</span><div><strong>Start at the number plate</strong><p>Keep the insured vehicle in view throughout.</p></div></li><li><span>02</span><div><strong>Show the whole vehicle</strong><p>Move around it slowly, without cutting the clip.</p></div></li><li><span>03</span><div><strong>Move closer to the damage</strong><p>Hold still for a clear close-up in daylight.</p></div></li></ol><div class="checklist-callout"><span class="icon" data-icon="info"></span><p>Dark, blurry, edited, or very short clips may need to be recorded again.</p></div></section><div class="privacy-note"><span class="icon" data-icon="lock"></span><span><strong>Private by design</strong><small>This demonstration uses local, sample data only.</small></span></div></aside>
-          <div class="intake-submit-bar"><span><span class="live-dot"></span> Local demo · no data is transmitted</span><button class="button button-dark" type="submit">Continue to vehicle review <span>→</span></button></div>
+          <aside class="intake-aside"><section class="panel intake-checklist"><p class="eyebrow">BEFORE YOU SEND</p><h3>Three things to capture</h3><ol><li><span>01</span><div><strong>Start at the number plate</strong><p>Keep the insured vehicle in view throughout.</p></div></li><li><span>02</span><div><strong>Show the whole vehicle</strong><p>Move around it slowly, without cutting the clip.</p></div></li><li><span>03</span><div><strong>Move closer to the damage</strong><p>Hold still for a clear close-up in daylight.</p></div></li></ol><div class="checklist-callout"><span class="icon" data-icon="info"></span><p>Dark, blurry, edited, or very short clips will be caught by Stage 0 Fast-Fail perimeter checks.</p></div></section><div class="privacy-note"><span class="icon" data-icon="lock"></span><span><strong>Fraud-immune architecture</strong><small>SHA-256 dedupe, ByteTrack continuity, and OEM pricing.</small></span></div></aside>
+          <div class="intake-submit-bar"><span><span class="live-dot"></span> Ready to submit to autonomous claims adjuster</span><button class="button button-dark" type="submit" id="submit-claim-btn">Submit claim &amp; run pipeline <span>→</span></button></div>
         </form>
       </section>
 
@@ -202,7 +283,37 @@
           <article class="rule-row"><span class="rule-id">ESC-07</span><div class="rule-main"><strong>Confidence below 55%</strong><p>Uncertain part/damage detection, or evidence may be dirt, glare, or a reflection.</p></div><span class="rule-trigger">Low confidence</span><span class="rule-outcome"><span class="outcome-symbol outcome-amber">↗</span><span><b>Human desk adjuster</b><small>Ask for a clearer close-up if it can resolve the uncertainty.</small></span></span></article>
           <article class="rule-row"><span class="rule-id">ESC-08</span><div class="rule-main"><strong>Estimated net repair above ₹25,000</strong><p>Claim exceeds the autonomous approval ceiling, regardless of customer offer.</p></div><span class="rule-trigger">Above cap</span><span class="rule-outcome"><span class="outcome-symbol outcome-red">!</span><span><b>Licensed surveyor</b><small>Move to human assessment; do not negotiate outside the limit.</small></span></span></article>
         </div>
-        <section class="scenario-panel panel"><div class="scenario-copy"><p class="eyebrow">DEMO A GUARDRAIL</p><h2>See what happens when a check fails.</h2><p>Select a scenario to preview the interface state. This does not run a claim or change policy data.</p><div class="scenario-select-wrap"><label for="scenario-select">Example condition</label><select id="scenario-select"><option value="clear">All checks clear</option><option value="confidence">Confidence below 55%</option><option value="safety">Safety-critical part detected</option><option value="continuity">Video continuity failure</option><option value="limit">Repair estimate over ₹25,000</option><option value="rust">Possible pre-existing rust</option></select></div></div><div class="scenario-result" id="scenario-result" aria-live="polite"><span class="scenario-result-icon clear"><span class="icon" data-icon="check"></span></span><div><span class="small-caps">CURRENT OUTCOME</span><strong>Continue to bounded offer</strong><p>Evidence is clear and the claim remains inside the autonomous limit.</p></div></div></section>
+        <section class="scenario-panel panel">
+          <div class="scenario-copy">
+            <p class="eyebrow">DEMO A GUARDRAIL</p>
+            <h2>See what happens when a check fails.</h2>
+            <p>Select a scenario to preview the interface state. You can also test this scenario live in the claim review workstation.</p>
+            <div class="scenario-select-wrap">
+              <label for="scenario-select">Example condition</label>
+              <select id="scenario-select">
+                <option value="clear">All checks clear (Happy Path · Within limits)</option>
+                <option value="confidence">ESC-07: Confidence below 55%</option>
+                <option value="safety">ESC-06: Safety-critical part detected</option>
+                <option value="continuity">ESC-02: Video continuity failure</option>
+                <option value="limit">ESC-08: Repair estimate over ₹25,000</option>
+                <option value="rust">ESC-04: Possible pre-existing rust</option>
+                <option value="mismatch">ESC-01: Vehicle plate mismatch</option>
+                <option value="repeat">ESC-03: Repeated unrepaired damage</option>
+              </select>
+            </div>
+            <div style="margin-top:14px;">
+              <button class="button button-dark" type="button" id="apply-scenario-btn"><span class="icon" data-icon="spark"></span> Test this scenario in Claims desk <span>→</span></button>
+            </div>
+          </div>
+          <div class="scenario-result" id="scenario-result" aria-live="polite">
+            <span class="scenario-result-icon clear"><span class="icon" data-icon="check"></span></span>
+            <div>
+              <span class="small-caps">CURRENT OUTCOME</span>
+              <strong>Continue to bounded offer</strong>
+              <p>Evidence is clear and the claim remains inside the autonomous limit.</p>
+            </div>
+          </div>
+        </section>
       </section>
 
       <section class="view" id="view-audit" data-title="Audit trail">
@@ -217,6 +328,32 @@
   </div>
 
   <dialog id="camera-dialog" class="camera-dialog"><div class="dialog-head"><div><p class="eyebrow">LIVE INSPECTION</p><h2>Record a walkaround</h2></div><button type="button" class="icon-button" id="close-camera" aria-label="Close camera"><span class="icon" data-icon="close"></span></button></div><div class="camera-stage"><video id="camera-preview" autoplay playsinline muted></video><div class="camera-placeholder" id="camera-placeholder"><span class="camera-placeholder-icon"><span class="icon" data-icon="camera"></span></span><strong>Camera preview</strong><span>Allow access to start a local recording.</span></div><span class="record-indicator is-hidden" id="record-indicator"><i></i> RECORDING <b id="record-timer">00:00</b></span></div><div class="camera-guidance"><span class="icon" data-icon="info"></span> Start with the plate, walk slowly around the vehicle, then hold on the damage.</div><div class="dialog-actions"><button type="button" class="button button-outline" id="start-camera"><span class="icon" data-icon="camera"></span> Start camera</button><button type="button" class="button button-green" id="record-video" disabled><span class="icon" data-icon="record"></span> Start recording</button><button type="button" class="button button-dark is-hidden" id="finish-recording">Use this video <span>→</span></button></div></dialog>
+
+  <dialog id="pipeline-dialog" class="pipeline-dialog">
+    <div class="pipeline-head">
+      <div>
+        <p class="eyebrow">AUTONOMOUS CLAIMS PIPELINE</p>
+        <h2 id="pipeline-title">Processing Claim Evidence</h2>
+      </div>
+      <span class="demo-tag" id="pipeline-status-badge">RUNNING</span>
+    </div>
+    <div class="pipeline-body">
+      <p class="pipeline-desc" id="pipeline-desc">Executing perimeter forensics, continuity tracking, dual-mask segmentation, and OEM pricing calculation.</p>
+      <div class="pipeline-progress-bar"><div class="pipeline-progress-fill" id="pipeline-progress-fill"></div></div>
+      <div class="pipeline-steps">
+        <div class="pipeline-step" id="pstep-0"><span class="pipeline-step-dot">0</span><span>Stage 0: Dual-Modality Perimeter Fast-Fail Gate</span></div>
+        <div class="pipeline-step" id="pstep-1"><span class="pipeline-step-dot">1</span><span>Stage 1: Vehicle Identity &amp; Continuity Grounding (ANPR + ByteTrack)</span></div>
+        <div class="pipeline-step" id="pstep-2"><span class="pipeline-step-dot">2</span><span>Stage 2: Intent Grounding &amp; Conditioned Dual-Mask Segmentation</span></div>
+        <div class="pipeline-step" id="pstep-3"><span class="pipeline-step-dot">3</span><span>Stage 3: Set-of-Marks VLM Depth &amp; Pre-Existing Rust Gate</span></div>
+        <div class="pipeline-step" id="pstep-4"><span class="pipeline-step-dot">4</span><span>Stage 4: Deterministic Actuarial OEM Pricing &amp; NCB Advisory</span></div>
+        <div class="pipeline-step" id="pstep-5"><span class="pipeline-step-dot">5</span><span>Stage 5: Bounded FSM Negotiation &amp; Cryptographic HMAC Signing</span></div>
+      </div>
+      <div class="dialog-actions" style="margin-top:20px;padding:0;gap:8px;">
+        <button class="button button-green is-hidden" id="pipeline-continue-btn" type="button">Open in Claim Workstation <span>→</span></button>
+        <button class="button button-outline is-hidden" id="pipeline-dismiss-btn" type="button">Close</button>
+      </div>
+    </div>
+  </dialog>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script src="/src/app.js" defer></script>
 </body>

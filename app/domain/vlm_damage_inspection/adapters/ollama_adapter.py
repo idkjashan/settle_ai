@@ -49,12 +49,17 @@ class OllamaVisionAdapter(IVLMInspectionAdapter):
         som_crop_bytes: bytes,
         raw_crop_bytes: bytes,
         context: InspectionContext,
+        full_frame_bytes: Optional[bytes] = None,
     ) -> VLMInspectionOutput:
-        """Send dual crops and prompt to Ollama /api/chat with constrained JSON grammar."""
+        """Send crops and prompt to Ollama /api/chat with constrained JSON grammar."""
         client = self._get_client()
 
         b64_som = base64.b64encode(som_crop_bytes).decode("utf-8")
         b64_raw = base64.b64encode(raw_crop_bytes).decode("utf-8")
+        images = [b64_som, b64_raw]
+        if full_frame_bytes:
+            images.append(base64.b64encode(full_frame_bytes).decode("utf-8"))
+
         user_prompt = build_user_prompt(context)
 
         payload = {
@@ -64,7 +69,7 @@ class OllamaVisionAdapter(IVLMInspectionAdapter):
                 {
                     "role": "user",
                     "content": user_prompt,
-                    "images": [b64_som, b64_raw],
+                    "images": images,
                 },
             ],
             "format": VLMInspectionOutput.model_json_schema(),

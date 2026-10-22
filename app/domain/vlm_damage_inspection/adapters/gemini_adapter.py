@@ -49,8 +49,9 @@ class GeminiVisionAdapter(IVLMInspectionAdapter):
         som_crop_bytes: bytes,
         raw_crop_bytes: bytes,
         context: InspectionContext,
+        full_frame_bytes: Optional[bytes] = None,
     ) -> VLMInspectionOutput:
-        """Send dual crops to Gemini REST generateContent with constrained JSON schema."""
+        """Send crops to Gemini REST generateContent with constrained JSON schema."""
         if not self.api_key:
             raise Stage3ProviderUnreachableError(
                 "Gemini API key is missing or not configured.",
@@ -65,15 +66,20 @@ class GeminiVisionAdapter(IVLMInspectionAdapter):
 
         url = f"{self.api_endpoint}/models/{self.model_name}:generateContent?key={self.api_key}"
 
+        content_parts = [
+            {"text": user_prompt},
+            {"inline_data": {"mime_type": "image/jpeg", "data": b64_som}},
+            {"inline_data": {"mime_type": "image/jpeg", "data": b64_raw}},
+        ]
+        if full_frame_bytes:
+            b64_full = base64.b64encode(full_frame_bytes).decode("utf-8")
+            content_parts.append({"inline_data": {"mime_type": "image/jpeg", "data": b64_full}})
+
         payload = {
             "system_instruction": {"parts": [{"text": SYSTEM_PROMPT}]},
             "contents": [
                 {
-                    "parts": [
-                        {"text": user_prompt},
-                        {"inline_data": {"mime_type": "image/jpeg", "data": b64_som}},
-                        {"inline_data": {"mime_type": "image/jpeg", "data": b64_raw}},
-                    ]
+                    "parts": content_parts,
                 }
             ],
             "generationConfig": {

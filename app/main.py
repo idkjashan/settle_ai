@@ -1,6 +1,8 @@
 from contextlib import asynccontextmanager
+from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from app.core.config import settings
 from app.core.logging import logger
 from app.api.v1.router import api_v1_router
@@ -41,4 +43,21 @@ app.include_router(api_v1_router)
 @app.get("/health")
 async def health_check():
     return {"status": "HEALTHY", "version": "2.1.0"}
+
+test_assets_dir = Path(__file__).resolve().parent.parent / "test_assets"
+if test_assets_dir.exists():
+    app.mount("/test_assets", StaticFiles(directory=str(test_assets_dir)), name="test_assets")
+
+docs_dir = Path(__file__).resolve().parent.parent / "docs"
+if docs_dir.exists():
+    app.mount("/docs_assets", StaticFiles(directory=str(docs_dir)), name="docs_assets")
+
+evals_dir = Path(__file__).resolve().parent.parent / "evals"
+if evals_dir.exists():
+    app.mount("/evals", StaticFiles(directory=str(evals_dir)), name="evals")
+
+frontend_dir = Path(__file__).resolve().parent.parent / "frontend"
+if frontend_dir.exists():
+    app.mount("/", StaticFiles(directory=str(frontend_dir), html=True), name="frontend")
+
 

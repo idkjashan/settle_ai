@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Protocol, runtime_checkable
+from typing import Optional, Protocol, runtime_checkable
 
 from app.domain.vlm_damage_inspection.schemas import InspectionContext, VLMInspectionOutput
 
@@ -16,8 +16,9 @@ class IVLMInspectionAdapter(Protocol):
         som_crop_bytes: bytes,
         raw_crop_bytes: bytes,
         context: InspectionContext,
+        full_frame_bytes: Optional[bytes] = None,
     ) -> VLMInspectionOutput:
-        """Inspect dual-crop visual evidence and return structured forensic reality."""
+        """Inspect visual evidence (SoM crop, raw crop, and optional full frame) and return structured forensic reality."""
         ...
 
     async def health_check(self) -> bool:

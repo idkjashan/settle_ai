@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+from typing import Optional
+
 from app.domain.vlm_damage_inspection.adapters.interfaces import IVLMInspectionAdapter
 from app.domain.vlm_damage_inspection.schemas import (
     DepthGrade,
     FalsePositiveReason,
+    HarnessAction,
     InspectionContext,
     VehicleOrientation,
     VLMInspectionOutput,
@@ -20,6 +23,7 @@ class DeterministicMockVLMAdapter(IVLMInspectionAdapter):
         som_crop_bytes: bytes,
         raw_crop_bytes: bytes,
         context: InspectionContext,
+        full_frame_bytes: Optional[bytes] = None,
     ) -> VLMInspectionOutput:
         # Build search text across paths and context identifiers
         text_corpus = " ".join([
@@ -46,6 +50,17 @@ class DeterministicMockVLMAdapter(IVLMInspectionAdapter):
         missing_parts = ["fog_lamp_bezel_left", "tow_eye_cap"] if "missing" in text_corpus else []
         needs_reid = "reidentify" in text_corpus or "mismatch" in text_corpus
         comp_matches = not ("mismatch" in text_corpus)
+
+        # Harness action inference for test fixtures
+        harness_act = HarnessAction.PASS
+        recrop_bbox = None
+        reextract_reason = None
+        if "recrop" in text_corpus or "dynamic" in text_corpus:
+            harness_act = HarnessAction.REQUEST_DYNAMIC_RECROP
+            recrop_bbox = [0.1, 0.2, 0.8, 0.9]
+            reextract_reason = "Adaptive crop requested from full frame to inspect complete panel seam."
+        elif "quarantine" in text_corpus:
+            harness_act = HarnessAction.QUARANTINE
 
         # 1. Check for simulated pre-existing rust / oxidation fixture (ESC-04)
         if "rust" in text_corpus or "oxidation" in text_corpus or "corrosion" in text_corpus:
@@ -134,6 +149,9 @@ class DeterministicMockVLMAdapter(IVLMInspectionAdapter):
             missing_parts_detected=missing_parts,
             needs_reidentification=needs_reid,
             reidentification_roi_bbox=[0.1, 0.1, 0.9, 0.9] if needs_reid else None,
+            harness_action=harness_act,
+            requested_crop_bbox=recrop_bbox,
+            reextraction_reason=reextract_reason,
         )
 
     async def health_check(self) -> bool:

@@ -49,8 +49,9 @@ class OpenAIVisionAdapter(IVLMInspectionAdapter):
         som_crop_bytes: bytes,
         raw_crop_bytes: bytes,
         context: InspectionContext,
+        full_frame_bytes: Optional[bytes] = None,
     ) -> VLMInspectionOutput:
-        """Send dual crops to OpenAI /chat/completions with json_object response format."""
+        """Send crops to OpenAI /chat/completions with json_object response format."""
         if not self.api_key:
             raise Stage3ProviderUnreachableError(
                 "OpenAI API key is missing or not configured.",
@@ -63,21 +64,29 @@ class OpenAIVisionAdapter(IVLMInspectionAdapter):
         b64_raw = base64.b64encode(raw_crop_bytes).decode("utf-8")
         user_prompt = build_user_prompt(context)
 
+        user_content: List[Dict[str, Any]] = [
+            {"type": "text", "text": user_prompt},
+            {
+                "type": "image_url",
+                "image_url": {"url": f"data:image/jpeg;base64,{b64_som}"},
+            },
+            {
+                "type": "image_url",
+                "image_url": {"url": f"data:image/jpeg;base64,{b64_raw}"},
+            },
+        ]
+        if full_frame_bytes:
+            b64_full = base64.b64encode(full_frame_bytes).decode("utf-8")
+            user_content.append({
+                "type": "image_url",
+                "image_url": {"url": f"data:image/jpeg;base64,{b64_full}"},
+            })
+
         messages = [
             {"role": "system", "content": SYSTEM_PROMPT},
             {
                 "role": "user",
-                "content": [
-                    {"type": "text", "text": user_prompt},
-                    {
-                        "type": "image_url",
-                        "image_url": {"url": f"data:image/jpeg;base64,{b64_som}"},
-                    },
-                    {
-                        "type": "image_url",
-                        "image_url": {"url": f"data:image/jpeg;base64,{b64_raw}"},
-                    },
-                ],
+                "content": user_content,
             },
         ]
 

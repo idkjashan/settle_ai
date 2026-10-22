@@ -29,6 +29,7 @@ from app.domain.vlm_damage_inspection.prompt_engine import VLMPromptEngine
 from app.domain.vlm_damage_inspection.schemas import (
     DepthGrade,
     FalsePositiveReason,
+    HarnessAction,
     InspectionContext,
     QuarantinedPartRecord,
     Stage4HandoffPayload,
@@ -621,3 +622,124 @@ async def test_orchestrator_telemetry_captures_missing_parts():
     assert "missing_parts_detected" in s3_telemetry
     assert "fog_lamp_bezel_left" in s3_telemetry["missing_parts_detected"]
     assert "tow_eye_cap" in s3_telemetry["missing_parts_detected"]
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_harness_action_quarantine():
+    """Verify harness_action=QUARANTINE immediately directs candidate to quarantined_parts."""
+    adapter = DeterministicMockVLMAdapter()
+    orchestrator = Stage3VLMOrchestrator(adapter=adapter)
+
+    claim_id = uuid4()
+    p1 = _make_grounded_part("hood", "scratch", iop_ratio=0.04)
+
+    async def mock_inspect_damage(som_crop_bytes, raw_crop_bytes, context, full_frame_bytes=None):
+        return VLMInspectionOutput(
+            is_real_physical_damage=False,
+            false_positive_reason=FalsePositiveReason.SPECULAR_GLARE,
+            depth_grade=DepthGrade.L1_SURFACE_SCUFF,
+            confidence=0.98,
+            visual_reasoning_short="Optical sunlight reflection flare across bonnet curve.",
+            vehicle_orientation=VehicleOrientation.FRONT,
+            harness_action=HarnessAction.QUARANTINE,
+            reextraction_reason="Optical flare confirmed from full frame angle.",
+        )
+
+    adapter.inspect_damage = AsyncMock(side_effect=mock_inspect_damage)
+
+    handoff = Stage3HandoffPayload(
+        claim_id=claim_id,
+        policy_id="POL-QUARANTINE",
+        registration_number="MH12QR9999",
+        make="Hyundai",
+        model="Creta",
+        grounded_parts=[p1],
+        telemetry={},
+    )
+
+    with pytest.raises(Stage3NoRealDamageDetectedError):
+        await orchestrator.inspect_claim(handoff)
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_dynamic_recrop_loop():
+    """Verify harness_action=REQUEST_DYNAMIC_RECROP triggers dynamic cropping against full frame and re-inspection."""
+    adapter = DeterministicMockVLMAdapter()
+    orchestrator = Stage3VLMOrchestrator(adapter=adapter)
+
+    claim_id = uuid4()
+    p1 = _make_grounded_part("front_door", "dent", iop_ratio=0.12)
+    # Give it mock full frame path
+    p1.som_full_annotated_path = Path("/tmp/mock_full_frame.jpg")
+
+    inspection_calls = 0
+
+    async def mock_inspect_damage(som_crop_bytes, raw_crop_bytes, context, full_frame_bytes=None):
+        nonlocal inspection_calls
+        inspection_calls += 1
+        if inspection_calls == 1:
+            # First pass: harness judges crop is too tight, requests adaptive recrop
+            return VLMInspectionOutput(
+                is_real_physical_damage=True,
+                depth_grade=DepthGrade.L3_SHALLOW_DENT_PDR,
+                confidence=0.75,
+                visual_reasoning_short="Initial crop cuts through door handle crease line.",
+                vehicle_orientation=VehicleOrientation.LEFT_SIDE,
+                detected_component="front_door",
+                component_matches_target=True,
+                harness_action=HarnessAction.REQUEST_DYNAMIC_RECROP,
+                requested_crop_bbox=[0.1, 0.2, 0.8, 0.9],
+                reextraction_reason="Re-extract wider window from full frame to verify complete dent perimeter.",
+            )
+        else:
+            # Second pass: inspects the newly cut dynamic crop and passes
+            return VLMInspectionOutput(
+                is_real_physical_damage=True,
+                depth_grade=DepthGrade.L4_CREASED_DENT,
+                confidence=0.96,
+                visual_reasoning_short="Adaptive recrop confirms deep creased dent extending across handle.",
+                vehicle_orientation=VehicleOrientation.LEFT_SIDE,
+                detected_component="front_door",
+                component_matches_target=True,
+                harness_action=HarnessAction.PASS,
+            )
+
+    adapter.inspect_damage = AsyncMock(side_effect=mock_inspect_damage)
+
+    handoff = Stage3HandoffPayload(
+        claim_id=claim_id,
+        policy_id="POL-RECROP",
+        registration_number="MH04RC3333",
+        make="Mahindra",
+        model="Thar",
+        grounded_parts=[p1],
+        telemetry={},
+    )
+
+    payload = await orchestrator.inspect_claim(handoff)
+
+    assert inspection_calls == 2
+    assert len(payload.verified_parts) == 1
+    assert payload.verified_parts[0].depth_grade == DepthGrade.L4_CREASED_DENT
+    s3_telemetry = payload.telemetry.get("stage3_telemetry", {})
+    assert s3_telemetry.get("dynamic_recrops_count") == 1
+
+
+def test_prompt_engine_tri_stream_and_harness_instructions():
+    """Verify prompt engine generates instructions for tri-stream evidence and dynamic recrop harness."""
+    ctx = InspectionContext(
+        canonical_part_key="quarter_panel_rear_left",
+        part_display_name="Rear Left Quarter Panel",
+        primary_damage_class="dent",
+        make="Skoda",
+        model="Slavia",
+        iop_ratio=0.22,
+    )
+    prompt = VLMPromptEngine.build_inspection_prompt(ctx)
+    assert "Image 1 (Set-of-Marks)" in prompt
+    assert "Image 2 (Raw Crop)" in prompt
+    assert "Image 3 (Full Keyframe Frame)" in prompt
+    assert "HARNESS ORCHESTRATION & DYNAMIC RE-EXTRACTION" in prompt
+    assert "REQUEST_DYNAMIC_RECROP" in prompt
+    assert "requested_crop_bbox" in prompt
+    assert "reextraction_reason" in prompt

@@ -16,6 +16,7 @@ from app.domain.vlm_damage_inspection.forensic_engine import ForensicDecisionEng
 from app.domain.vlm_damage_inspection.prompt_engine import VLMPromptEngine
 from app.domain.vlm_damage_inspection.schemas import (
     FalsePositiveReason,
+    HarnessAction,
     InspectionContext,
     QuarantinedPartRecord,
     Stage4HandoffPayload,
@@ -193,6 +194,7 @@ class Stage3VLMOrchestrator:
         seen_verified_keys: set[str] = set()
         missing_parts_discovered: List[str] = []
         duplicates_quarantined_count = 0
+        dynamic_recrops_count = 0
 
         logger.info(
             "Starting Stage 3 VLM inspection for claim %s (%s %s, %d candidate parts)",
@@ -222,9 +224,10 @@ class Stage3VLMOrchestrator:
                 )
                 continue
 
-            # 2. Read dual-crop buffers (gracefully handling existing files or synthetic test bytes)
+            # 2. Read visual evidence buffers (Image 1: SoM, Image 2: Pristine Raw, Image 3: Full Keyframe)
             som_bytes = _read_crop_bytes(part.som_annotated_crop_path)
             raw_bytes = _read_crop_bytes(part.som_raw_crop_path)
+            full_frame_bytes = _read_crop_bytes(getattr(part, "som_full_annotated_path", None))
 
             # 3. Build inspection context
             iop_val = getattr(part, "final_iop_ratio", getattr(part, "iop_percentage", 0.0) / 100.0)
@@ -241,22 +244,108 @@ class Stage3VLMOrchestrator:
                 claim_id=str(stage2_handoff.claim_id),
                 som_annotated_crop_path=part.som_annotated_crop_path,
                 som_raw_crop_path=part.som_raw_crop_path,
+                som_full_annotated_path=getattr(part, "som_full_annotated_path", None),
             )
 
-            # 4. Dispatch to VLM adapter
+            # 4. Dispatch to VLM adapter with tri-stream visual evidence
             t0 = time.perf_counter()
-            vlm_output: VLMInspectionOutput = await self.adapter.inspect_damage(
-                som_crop_bytes=som_bytes,
-                raw_crop_bytes=raw_bytes,
-                context=context,
-            )
+            try:
+                vlm_output: VLMInspectionOutput = await self.adapter.inspect_damage(
+                    som_crop_bytes=som_bytes,
+                    raw_crop_bytes=raw_bytes,
+                    context=context,
+                    full_frame_bytes=full_frame_bytes,
+                )
+            except TypeError as err:
+                if "full_frame_bytes" in str(err):
+                    vlm_output = await self.adapter.inspect_damage(
+                        som_crop_bytes=som_bytes,
+                        raw_crop_bytes=raw_bytes,
+                        context=context,
+                    )
+                else:
+                    raise
             part_latency_ms = (time.perf_counter() - t0) * 1000.0
 
-            # 5. Component-Wise Re-identification Loop
-            if vlm_output.needs_reidentification or not vlm_output.component_matches_target:
+            # 5. Dynamic Adaptive Recrop / Re-extraction Loop (Bounded depth = 1)
+            if (
+                vlm_output.harness_action == HarnessAction.REQUEST_DYNAMIC_RECROP
+                and vlm_output.requested_crop_bbox
+            ):
+                logger.info(
+                    "Harness requested dynamic recrop for %s: %s (bbox: %s)",
+                    part.canonical_part_key,
+                    vlm_output.reextraction_reason,
+                    vlm_output.requested_crop_bbox,
+                )
+                adaptive_crop_bytes = _cut_roi_bytes(full_frame_bytes, vlm_output.requested_crop_bbox)
+                dynamic_recrops_count += 1
+
+                if vlm_output.needs_reidentification or not vlm_output.component_matches_target:
+                    await self._handle_reidentification(part, adaptive_crop_bytes, vlm_output)
+
+                recrop_t0 = time.perf_counter()
+                recrop_context = InspectionContext(
+                    canonical_part_key=part.canonical_part_key,
+                    part_display_name=part.display_part_name,
+                    primary_damage_class=part.primary_damage_class,
+                    make=stage2_handoff.make,
+                    model=stage2_handoff.model,
+                    iop_ratio=iop_val,
+                    is_claimed=getattr(part, "is_claimed", True),
+                    claim_id=str(stage2_handoff.claim_id),
+                    som_annotated_crop_path=part.som_annotated_crop_path,
+                    som_raw_crop_path=part.som_raw_crop_path,
+                    som_full_annotated_path=getattr(part, "som_full_annotated_path", None),
+                )
+                try:
+                    re_vlm_output = await self.adapter.inspect_damage(
+                        som_crop_bytes=adaptive_crop_bytes,
+                        raw_crop_bytes=adaptive_crop_bytes,
+                        context=recrop_context,
+                        full_frame_bytes=full_frame_bytes,
+                    )
+                except TypeError as err:
+                    if "full_frame_bytes" in str(err):
+                        re_vlm_output = await self.adapter.inspect_damage(
+                            som_crop_bytes=adaptive_crop_bytes,
+                            raw_crop_bytes=adaptive_crop_bytes,
+                            context=recrop_context,
+                        )
+                    else:
+                        raise
+                part_latency_ms += (time.perf_counter() - recrop_t0) * 1000.0
+                if re_vlm_output.harness_action == HarnessAction.REQUEST_DYNAMIC_RECROP:
+                    re_vlm_output.harness_action = HarnessAction.PASS
+                vlm_output = re_vlm_output
+            elif vlm_output.needs_reidentification or not vlm_output.component_matches_target:
+                # Component-Wise Re-identification Loop
                 await self._handle_reidentification(part, raw_bytes, vlm_output)
 
-            # 6. Deduplication Check
+            # 6. Harness Quarantine Gate
+            if vlm_output.harness_action == HarnessAction.QUARANTINE:
+                reason = (
+                    vlm_output.false_positive_reason
+                    if not vlm_output.is_real_physical_damage
+                    else FalsePositiveReason.OTHER_NON_DAMAGE
+                )
+                quarantined_parts.append(
+                    QuarantinedPartRecord(
+                        canonical_part_key=part.canonical_part_key,
+                        primary_damage_class=part.primary_damage_class,
+                        false_positive_reason=reason,
+                        visual_reasoning_short=vlm_output.visual_reasoning_short,
+                        vlm_confidence=vlm_output.confidence,
+                        som_crop_path=part.som_annotated_crop_path,
+                        latency_ms=part_latency_ms,
+                        vehicle_orientation=vlm_output.vehicle_orientation,
+                        harness_action=HarnessAction.QUARANTINE,
+                        reextraction_reason=vlm_output.reextraction_reason,
+                    )
+                )
+                continue
+
+            # 7. Deduplication Check
             is_duplicate = (
                 vlm_output.possible_duplicate
                 or part.canonical_part_key in seen_verified_keys
@@ -285,18 +374,20 @@ class Stage3VLMOrchestrator:
                         vehicle_orientation=vlm_output.vehicle_orientation,
                         is_duplicate=True,
                         duplicate_of_part=dup_target,
+                        harness_action=HarnessAction.QUARANTINE,
+                        reextraction_reason="Duplicate damage signature.",
                     )
                 )
                 duplicates_quarantined_count += 1
                 continue
 
-            # 7. Missing Parts Aggregation
+            # 8. Missing Parts Aggregation
             if vlm_output.missing_parts_detected:
                 for mp in vlm_output.missing_parts_detected:
                     if mp and mp not in missing_parts_discovered:
                         missing_parts_discovered.append(mp)
 
-            # 8. Evaluate result with ForensicDecisionEngine (may raise ESC-04 or ESC-06)
+            # 9. Evaluate result with ForensicDecisionEngine (may raise ESC-04 or ESC-06)
             decision = self.forensic_engine.validate_inspection_result(
                 part=part,
                 vlm_output=vlm_output,
@@ -304,7 +395,7 @@ class Stage3VLMOrchestrator:
                 claim_id=str(stage2_handoff.claim_id),
             )
 
-            # 9. Accumulate into verified or quarantined partition
+            # 10. Accumulate into verified or quarantined partition
             if isinstance(decision, VerifiedDamagedPart):
                 verified_parts.append(decision)
                 seen_verified_keys.add(decision.canonical_part_key)
@@ -349,6 +440,7 @@ class Stage3VLMOrchestrator:
             "parts_verified_count": len(verified_parts),
             "parts_quarantined_count": len(quarantined_parts),
             "duplicates_quarantined_count": duplicates_quarantined_count,
+            "dynamic_recrops_count": dynamic_recrops_count,
             "missing_parts_detected": missing_parts_discovered,
             "status": "S3_PASSED",
         }

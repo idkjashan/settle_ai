@@ -45,6 +45,13 @@ class VehicleOrientation(str, Enum):
     UNKNOWN = "UNKNOWN"
 
 
+class HarnessAction(str, Enum):
+    """Multi-perspective orchestrator harness judgment determining pipeline routing."""
+    PASS = "PASS"
+    QUARANTINE = "QUARANTINE"
+    REQUEST_DYNAMIC_RECROP = "REQUEST_DYNAMIC_RECROP"
+
+
 class FalsePositiveReason(str, Enum):
     """Taxonomy of non-physical surface contaminants and optical artifacts."""
     NONE = "NONE"
@@ -100,6 +107,7 @@ class InspectionContext(BaseModel):
     claim_id: Optional[str] = None
     som_annotated_crop_path: Optional[Path] = None
     som_raw_crop_path: Optional[Path] = None
+    som_full_annotated_path: Optional[Path] = None
 
     @model_validator(mode="before")
     @classmethod
@@ -109,19 +117,26 @@ class InspectionContext(BaseModel):
                 data["iop_ratio"] = data["final_iop_ratio"]
             if "part_display_name" not in data and "display_part_name" in data:
                 data["part_display_name"] = data["display_part_name"]
+            if "som_full_annotated_path" not in data and "som_full_frame_path" in data:
+                data["som_full_annotated_path"] = data["som_full_frame_path"]
         return data
 
     @property
     def final_iop_ratio(self) -> float:
         return self.iop_ratio
 
+    @property
+    def som_full_frame_path(self) -> Optional[Path]:
+        return self.som_full_annotated_path
+
 
 @dataclass(frozen=True)
 class InspectionCropPair:
-    """In-memory binary image buffers of the dual-crop pair."""
+    """In-memory binary image buffers of the dual-crop pair and optional full original frame."""
     annotated_som_bytes: bytes
     raw_crop_bytes: bytes
     part_key: str
+    full_frame_bytes: Optional[bytes] = None
 
 
 class VLMInspectionOutput(BaseModel):
@@ -197,6 +212,18 @@ class VLMInspectionOutput(BaseModel):
         default=None,
         description="Optional bounding box [x1, y1, x2, y2] or [ymin, xmin, ymax, xmax] within crop for targeted re-identification.",
     )
+    harness_action: HarnessAction = Field(
+        default=HarnessAction.PASS,
+        description="Multi-perspective orchestrator harness action: PASS, QUARANTINE, or REQUEST_DYNAMIC_RECROP.",
+    )
+    requested_crop_bbox: Optional[List[Union[float, int]]] = Field(
+        default=None,
+        description="Custom [ymin, xmin, ymax, xmax] coordinates from the full original frame requested for dynamic recrop/re-extraction.",
+    )
+    reextraction_reason: Optional[str] = Field(
+        default=None,
+        description="Forensic rationale when requesting dynamic recrop from the original full frame.",
+    )
 
 
 @dataclass
@@ -238,6 +265,8 @@ class VerifiedDamagedPart:
     possible_duplicate: bool = False
     missing_parts_detected: List[str] = field(default_factory=list)
     reidentified_by_model: bool = False
+    harness_action: HarnessAction = HarnessAction.PASS
+    reextraction_reason: Optional[str] = None
 
     @property
     def is_real_physical_damage(self) -> bool:
@@ -291,6 +320,8 @@ class VerifiedDamagedPart:
             possible_duplicate=getattr(vlm_output, "possible_duplicate", False),
             missing_parts_detected=list(getattr(vlm_output, "missing_parts_detected", [])),
             reidentified_by_model=False,
+            harness_action=getattr(vlm_output, "harness_action", HarnessAction.PASS),
+            reextraction_reason=getattr(vlm_output, "reextraction_reason", None),
         )
 
 
@@ -307,6 +338,8 @@ class QuarantinedPartRecord:
     vehicle_orientation: Optional[VehicleOrientation] = None
     is_duplicate: bool = False
     duplicate_of_part: Optional[str] = None
+    harness_action: HarnessAction = HarnessAction.QUARANTINE
+    reextraction_reason: Optional[str] = None
 
 
 @dataclass

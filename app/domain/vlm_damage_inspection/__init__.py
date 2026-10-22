@@ -45,6 +45,7 @@ from app.domain.vlm_damage_inspection.resilient_parser import ResilientJSONParse
 from app.domain.vlm_damage_inspection.schemas import (
     DepthGrade,
     FalsePositiveReason,
+    HarnessAction,
     InspectionContext,
     InspectionCropPair,
     QuarantinedPartRecord,
@@ -65,6 +66,7 @@ __all__ = [
     # Schemas & Enums
     "DepthGrade",
     "FalsePositiveReason",
+    "HarnessAction",
     "Stage3FailureCode",
     "VLMProviderType",
     "InspectionContext",

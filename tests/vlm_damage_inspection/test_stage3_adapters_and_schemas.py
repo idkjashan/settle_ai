@@ -20,6 +20,7 @@ from app.domain.vlm_damage_inspection import (
     DeterministicMockVLMAdapter,
     FalsePositiveReason,
     GeminiVisionAdapter,
+    HarnessAction,
     InspectionContext,
     InspectionCropPair,
     OllamaVisionAdapter,
@@ -76,6 +77,13 @@ def test_vehicle_orientation_enum_values():
     assert VehicleOrientation.UNKNOWN == "UNKNOWN"
 
 
+def test_harness_action_enum_values():
+    """Verify all orchestrator harness actions."""
+    assert HarnessAction.PASS == "PASS"
+    assert HarnessAction.QUARANTINE == "QUARANTINE"
+    assert HarnessAction.REQUEST_DYNAMIC_RECROP == "REQUEST_DYNAMIC_RECROP"
+
+
 def test_vlm_inspection_output_backward_compatibility_defaults():
     """Verify existing VLMInspectionOutput callers and payloads without new fields work seamlessly."""
     output = VLMInspectionOutput(
@@ -92,6 +100,9 @@ def test_vlm_inspection_output_backward_compatibility_defaults():
     assert output.missing_parts_detected == []
     assert output.needs_reidentification is False
     assert output.reidentification_roi_bbox is None
+    assert output.harness_action == HarnessAction.PASS
+    assert output.requested_crop_bbox is None
+    assert output.reextraction_reason is None
 
 
 def test_vlm_inspection_output_extended_fields():
@@ -109,6 +120,9 @@ def test_vlm_inspection_output_extended_fields():
         missing_parts_detected=["fog_lamp_bezel_left"],
         needs_reidentification=True,
         reidentification_roi_bbox=[0.15, 0.20, 0.75, 0.85],
+        harness_action=HarnessAction.REQUEST_DYNAMIC_RECROP,
+        requested_crop_bbox=[0.10, 0.15, 0.80, 0.90],
+        reextraction_reason="Expand crop to encompass full headlamp boundary from full frame.",
     )
     assert output.vehicle_orientation == VehicleOrientation.FRONT_LEFT_3_QUARTER
     assert output.detected_component == "front_left_fender"
@@ -118,6 +132,23 @@ def test_vlm_inspection_output_extended_fields():
     assert output.missing_parts_detected == ["fog_lamp_bezel_left"]
     assert output.needs_reidentification is True
     assert output.reidentification_roi_bbox == [0.15, 0.20, 0.75, 0.85]
+    assert output.harness_action == HarnessAction.REQUEST_DYNAMIC_RECROP
+    assert output.requested_crop_bbox == [0.10, 0.15, 0.80, 0.90]
+    assert output.reextraction_reason == "Expand crop to encompass full headlamp boundary from full frame."
+
+
+def test_inspection_crop_pair_with_full_frame():
+    """Verify InspectionCropPair carries optional full frame bytes."""
+    pair = InspectionCropPair(
+        annotated_som_bytes=b"som",
+        raw_crop_bytes=b"raw",
+        part_key="front_bumper",
+        full_frame_bytes=b"full_frame",
+    )
+    assert pair.annotated_som_bytes == b"som"
+    assert pair.raw_crop_bytes == b"raw"
+    assert pair.part_key == "front_bumper"
+    assert pair.full_frame_bytes == b"full_frame"
 
 
 def test_false_positive_reasons():
