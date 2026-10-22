@@ -7,6 +7,7 @@ from app.domain.vlm_damage_inspection.schemas import (
     DepthGrade,
     FalsePositiveReason,
     InspectionContext,
+    VehicleOrientation,
     VLMInspectionOutput,
 )
 
@@ -28,6 +29,23 @@ class DeterministicMockVLMAdapter(IVLMInspectionAdapter):
             context.primary_damage_class,
             context.part_display_name,
         ]).lower()
+
+        # Orientation inference heuristic for test fixtures
+        orientation = VehicleOrientation.FRONT
+        if any(w in text_corpus for w in ("rear", "back", "boot", "trunk", "tailgate")):
+            orientation = VehicleOrientation.REAR
+        elif "left" in text_corpus:
+            orientation = VehicleOrientation.LEFT_SIDE
+        elif "right" in text_corpus:
+            orientation = VehicleOrientation.RIGHT_SIDE
+        elif "roof" in text_corpus:
+            orientation = VehicleOrientation.OVERHEAD_ROOF
+
+        is_duplicate = "duplicate" in text_corpus
+        duplicate_of = context.canonical_part_key.replace("_duplicate", "") if is_duplicate else None
+        missing_parts = ["fog_lamp_bezel_left", "tow_eye_cap"] if "missing" in text_corpus else []
+        needs_reid = "reidentify" in text_corpus or "mismatch" in text_corpus
+        comp_matches = not ("mismatch" in text_corpus)
 
         # 1. Check for simulated pre-existing rust / oxidation fixture (ESC-04)
         if "rust" in text_corpus or "oxidation" in text_corpus or "corrosion" in text_corpus:
