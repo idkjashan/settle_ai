@@ -4,7 +4,9 @@ import uuid
 from pathlib import Path
 from typing import Optional, List, Union, Any, Dict
 from fastapi import APIRouter, Depends, File, Form, UploadFile, BackgroundTasks, HTTPException, Response, status
-from fastapi.responses import StreamingResponse, JSONResponse
+from fastapi.responses import StreamingResponse, JSONResponse, FileResponse
+from datetime import date
+from decimal import Decimal
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.infrastructure.db.session import get_db_session
@@ -454,6 +456,11 @@ async def upload_claim_video(
     photo_files: Optional[List[UploadFile]] = File(None),
     skip_stage_0: bool = Form(False),
     skip_stage_1: bool = Form(False),
+    vehicle_make: Optional[str] = Form(None),
+    vehicle_model: Optional[str] = Form(None),
+    registration_number: Optional[str] = Form(None),
+    manufacturing_year: Optional[int] = Form(None),
+    registered_color: Optional[str] = Form(None),
     db: AsyncSession = Depends(get_db_session),
 ):
     """
@@ -463,6 +470,51 @@ async def upload_claim_video(
     """
     policy_repo = PolicyRepository(db)
     claim_repo = ClaimRepository(db)
+
+    # Auto-provision policy if it doesn't exist in PostgreSQL
+    existing_policy = await policy_repo.get_by_id(policy_id)
+    if not existing_policy:
+        from app.infrastructure.db.models import InsuredPolicy, OemPart
+        from sqlalchemy import select
+        v_make = (vehicle_make or "Hyundai").strip().title()
+        v_model = (vehicle_model or "Creta").strip().title()
+        v_reg = (registration_number or f"MH12{uuid.uuid4().hex[:4].upper()}").strip()
+        v_color = (registered_color or "WHITE").strip().upper()
+        v_year = manufacturing_year or 2023
+        new_policy = InsuredPolicy(
+            policy_id=policy_id,
+            policy_status="ACTIVE",
+            policy_start_date=date(2026, 1, 1),
+            policy_end_date=date(2026, 12, 31),
+            max_cash_claims_per_year=2,
+            cash_claims_ytd=0,
+            registration_number=v_reg,
+            vin_last_6=uuid.uuid4().hex[:6].upper(),
+            make=v_make,
+            model=v_model,
+            manufacturing_year=v_year,
+            registered_color=v_color,
+            registered_color_hsv={"h_min": 0, "h_max": 180, "s_min": 0, "s_max": 60, "v_min": 100, "v_max": 240},
+            paint_type="metallic",
+            zero_dep_addon=True,
+            compulsory_deductible_inr=Decimal("1000.00"),
+            estimated_ncb_loss_inr=Decimal("3500.00"),
+        )
+        db.add(new_policy)
+        # Ensure OEM parts exist for this make & model
+        part_check = await db.execute(select(OemPart).where(OemPart.make == v_make, OemPart.model == v_model).limit(1))
+        if not part_check.scalar_one_or_none():
+            from app.infrastructure.db.seed import generate_scaled_parts
+            custom_parts = generate_scaled_parts(
+                make=v_make,
+                model=v_model,
+                part_num_prefix=f"{v_make[:3].upper()}-GEN",
+                multiplier=1.15,
+            )
+            db.add_all(custom_parts)
+        await db.commit()
+        logger.info(f"Auto-provisioned custom policy and OEM catalog for {policy_id} ({v_make} {v_model})")
+
     tier1_gate = PolicyAndDedupeGate(policy_repo, claim_repo)
 
     orchestrator = FastFailGateOrchestrator(
@@ -623,6 +675,52 @@ async def get_claim(claim_id: uuid.UUID, db: AsyncSession = Depends(get_db_sessi
             "settlement_voucher": claim.settlement_voucher,
         },
     }
+
+
+@router.get("/{claim_id}/video")
+async def stream_claim_video(claim_id: uuid.UUID, db: AsyncSession = Depends(get_db_session)):
+    """Streams the walkaround evidence video for a claim with HTTP Range request support."""
+    # 1. Primary location: persistent local storage
+    storage_path = Path("/tmp/autosettle_storage") / "claims" / str(claim_id) / "raw" / "walkaround.mp4"
+    if storage_path.exists():
+        return FileResponse(path=str(storage_path), media_type="video/mp4", headers={"Accept-Ranges": "bytes"})
+
+    # 2. Ingest scratch location
+    ingest_path = Path("/tmp/autosettle_ingest") / f"{claim_id}.mp4"
+    if ingest_path.exists():
+        return FileResponse(path=str(ingest_path), media_type="video/mp4", headers={"Accept-Ranges": "bytes"})
+
+    # 3. Check claim in DB to see if it's a known policy/vehicle demo
+    claim_repo = ClaimRepository(db)
+    claim = await claim_repo.get_by_id(claim_id)
+    repo_root = Path(__file__).resolve().parent.parent.parent.parent
+    if claim:
+        pol = (claim.policy_id or "").upper()
+        if "TOYOTA" in pol:
+            cand = repo_root / "test_assets" / "videos" / "simple" / "toyota-corolla-side-impact-damage-walkaround-houston.mp4"
+            if cand.exists():
+                return FileResponse(path=str(cand), media_type="video/mp4", headers={"Accept-Ranges": "bytes"})
+        elif "005" in pol:
+            cand = repo_root / "test_assets" / "videos" / "simple" / "car_005.mp4"
+            if cand.exists():
+                return FileResponse(path=str(cand), media_type="video/mp4", headers={"Accept-Ranges": "bytes"})
+
+    # 4. Default benchmark video fallback
+    default_vid = repo_root / "test_assets" / "videos" / "simple" / "happy_creta_white_h264.mp4"
+    if default_vid.exists():
+        return FileResponse(path=str(default_vid), media_type="video/mp4", headers={"Accept-Ranges": "bytes"})
+
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Video evidence not found for this claim")
+
+
+@router.get("/{claim_id}/keyframes/{filename}")
+async def get_claim_keyframe(claim_id: uuid.UUID, filename: str):
+    """Fetches an extracted keyframe JPEG for a claim."""
+    safe_name = Path(filename).name
+    kf_path = Path("/tmp/autosettle_keyframes") / str(claim_id) / safe_name
+    if kf_path.exists():
+        return FileResponse(path=str(kf_path), media_type="image/jpeg")
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Keyframe image not found")
 
 
 class AcceptOfferRequestDTO(BaseModel):

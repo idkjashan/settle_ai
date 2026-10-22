@@ -56,7 +56,27 @@ export function AssessmentTab({
 
   const billed = verified.filter((p) => (p.claim_status ?? "CLAIMED") === "CLAIMED" || p.is_claimed !== false);
 
-  const videoSrc = localVideoUrl ?? sampleVideoFor(claimId);
+  const videoSrc = localVideoUrl || `/api/v1/claims/${claimId}/video`;
+  const keyframes = useMemo(() => {
+    const list: Array<{ label: string; url: string }> = [];
+    const saved = cont?.tracking_report?.saved_keyframes as Record<string, string> | undefined;
+    if (saved) {
+      for (const [k, v] of Object.entries(saved)) {
+        const fname = v.split("/").pop();
+        if (fname) list.push({ label: k.replace(/_/g, " "), url: `/api/v1/claims/${claimId}/keyframes/${fname}` });
+      }
+    }
+    const curated = cont?.tracking_report?.curated_keyframes as string[] | undefined;
+    if (curated) {
+      for (const p of curated) {
+        const fname = p.split("/").pop();
+        if (fname && !list.some((item) => item.url.endsWith(fname))) {
+          list.push({ label: fname.replace(/\.jpg$/, "").replace(/_/g, " "), url: `/api/v1/claims/${claimId}/keyframes/${fname}` });
+        }
+      }
+    }
+    return list;
+  }, [cont, claimId]);
 
   return (
     <div className="assessment-layout">
@@ -92,15 +112,15 @@ export function AssessmentTab({
           </div>
           <figure className="evidence-figure" style={{ margin: 0 }}>
             {mode === "video" ? (
-              localVideoUrl ? (
-                <video className="media-video-element" src={localVideoUrl} controls loop playsInline muted />
-              ) : (
-                <div className="evidence-placeholder">
-                  <Icon name="video" size={30} />
-                  <span>Original evidence stream lives on object storage.</span>
-                  <span style={{ fontSize: "var(--font-2xs)", opacity: 0.7 }}>Frame telemetry &amp; keyframes verified below.</span>
-                </div>
-              )
+              <video
+                key={videoSrc}
+                className="media-video-element"
+                src={videoSrc}
+                controls
+                loop
+                playsInline
+                muted
+              />
             ) : mode === "yolo" ? (
               grounded.length || verified.length ? (
                 <DualMaskCanvas parts={verified.length ? verified : (grounded as never)} />
@@ -146,6 +166,41 @@ export function AssessmentTab({
               </span>
             ))}
           </div>
+
+          {keyframes.length > 0 && (
+            <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid var(--border)" }}>
+              <p style={{ margin: "0 0 8px", fontSize: "var(--font-xs)", color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 600 }}>
+                Extracted Evidence Keyframes ({keyframes.length})
+              </p>
+              <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 6 }}>
+                {keyframes.map((kf) => (
+                  <a
+                    key={kf.url}
+                    href={kf.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{
+                      flexShrink: 0,
+                      textDecoration: "none",
+                      color: "inherit",
+                      borderRadius: "var(--radius-sm)",
+                      overflow: "hidden",
+                      border: "1px solid var(--border)",
+                      background: "var(--surface2)",
+                      display: "flex",
+                      flexDirection: "column",
+                      width: 140,
+                    }}
+                  >
+                    <img src={kf.url} alt={kf.label} style={{ width: "100%", height: 80, objectFit: "cover", display: "block" }} />
+                    <span style={{ fontSize: "10px", padding: "4px 6px", textTransform: "capitalize", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {kf.label}
+                    </span>
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
         </section>
 
         <section className="panel damage-panel">

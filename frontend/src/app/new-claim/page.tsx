@@ -25,6 +25,15 @@ interface PresetContext {
 
 const PRESETS: { key: string; label: string; run: (ctx: PresetContext) => Promise<void> }[] = [
   {
+    key: "corolla",
+    label: "Toyota Corolla · Dual-Door Side Impact (Real Houston Video)",
+    run: async (ctx) => {
+      ctx.setPolicy("POL-TOYOTA-008");
+      ctx.setNote("Severe impact dent and crease across driver-side front door and rear left door from side collision.");
+      await ctx.loadUrls(["/test_assets/videos/simple/toyota-corolla-side-impact-damage-walkaround-houston.mp4"], true);
+    },
+  },
+  {
     key: "happy",
     label: "Creta White · Door Crease (Benchmark Video)",
     run: async (ctx) => {
@@ -89,6 +98,10 @@ export default function NewClaimPage() {
   const [policyId, setPolicyId] = useState("POL-HAPPY-001");
   const [registration, setRegistration] = useState("MH12DE1433");
   const [vehicleModel, setVehicleModel] = useState("Hyundai Creta");
+  const [isCustomVehicle, setIsCustomVehicle] = useState(false);
+  const [vehicleMake, setVehicleMake] = useState("Toyota");
+  const [vehicleYear, setVehicleYear] = useState(2022);
+  const [registeredColor, setRegisteredColor] = useState("SILVER");
   const [incidentDate, setIncidentDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [incidentLocation, setIncidentLocation] = useState("Bengaluru");
   const [note, setNote] = useState("Creased dent on driver-side front door from reversing near concrete parking pillar.");
@@ -182,6 +195,13 @@ export default function NewClaimPage() {
       form.append("claim_description", note);
       if (skipStage0) form.append("skip_stage_0", "true");
       if (skipStage1) form.append("skip_stage_1", "true");
+      if (isCustomVehicle) {
+        form.append("vehicle_make", vehicleMake);
+        form.append("vehicle_model", vehicleModel);
+        form.append("registration_number", registration);
+        form.append("manufacturing_year", String(vehicleYear));
+        form.append("registered_color", registeredColor);
+      }
       if (modality === "PHOTO_PACK") {
         media.filter((m) => !m.isVideo).forEach((m) => form.append("photo_files", m.file, m.file.name));
       } else {
@@ -360,25 +380,126 @@ export default function NewClaimPage() {
               <span className="optional-label">POLICY DATA</span>
             </div>
             <div className="form-grid">
-              <label className="field-label field-full">
-                Insured policy record <span>*</span>
-                <select value={policyId} onChange={(e) => resetVehicleFromPolicy(e.target.value)} required>
-                  {POLICY_OPTIONS.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <div className="field-full" style={{ display: "flex", gap: 10, marginBottom: 8 }}>
+                <button
+                  type="button"
+                  style={{
+                    padding: "7px 14px",
+                    fontSize: "var(--font-xs)",
+                    borderRadius: "var(--radius-sm)",
+                    border: !isCustomVehicle ? "1px solid var(--accent)" : "1px solid var(--border)",
+                    background: !isCustomVehicle ? "var(--accent-glow)" : "var(--surface2)",
+                    color: !isCustomVehicle ? "var(--accent)" : "var(--muted)",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                  onClick={() => setIsCustomVehicle(false)}
+                >
+                  Select Existing Policy
+                </button>
+                <button
+                  type="button"
+                  style={{
+                    padding: "7px 14px",
+                    fontSize: "var(--font-xs)",
+                    borderRadius: "var(--radius-sm)",
+                    border: isCustomVehicle ? "1px solid var(--accent)" : "1px solid var(--border)",
+                    background: isCustomVehicle ? "var(--accent-glow)" : "var(--surface2)",
+                    color: isCustomVehicle ? "var(--accent)" : "var(--muted)",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                  onClick={() => {
+                    setIsCustomVehicle(true);
+                    setPolicyId("POL-CUSTOM-001");
+                    setVehicleMake("Toyota");
+                    setVehicleModel("Corolla");
+                    setRegistration("TX-COROLLA-22");
+                  }}
+                >
+                  Custom / Enter My Own Vehicle
+                </button>
+              </div>
+
+              {!isCustomVehicle ? (
+                <label className="field-label field-full">
+                  Insured policy record <span>*</span>
+                  <select value={policyId} onChange={(e) => resetVehicleFromPolicy(e.target.value)} required>
+                    {POLICY_OPTIONS.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : (
+                <>
+                  <label className="field-label">
+                    Custom Policy ID <span>*</span>
+                    <input
+                      value={policyId}
+                      onChange={(e) => setPolicyId(e.target.value.toUpperCase())}
+                      placeholder="e.g. POL-MYCAR-101"
+                      required
+                    />
+                    <small>Auto-provisioned into database upon upload.</small>
+                  </label>
+                  <label className="field-label">
+                    Vehicle Make <span>*</span>
+                    <input
+                      value={vehicleMake}
+                      onChange={(e) => {
+                        setVehicleMake(e.target.value);
+                        setVehicleModel(`${e.target.value} ${vehicleModel.split(" ")[1] ?? "Sedan"}`);
+                      }}
+                      placeholder="e.g. Toyota, Honda, Hyundai"
+                      required
+                    />
+                  </label>
+                  <label className="field-label">
+                    Vehicle Model <span>*</span>
+                    <input
+                      value={vehicleModel}
+                      onChange={(e) => setVehicleModel(e.target.value)}
+                      placeholder="e.g. Corolla, Civic, Creta"
+                      required
+                    />
+                  </label>
+                  <label className="field-label">
+                    Manufacturing Year <span>*</span>
+                    <input
+                      type="number"
+                      value={vehicleYear}
+                      onChange={(e) => setVehicleYear(parseInt(e.target.value) || 2022)}
+                      min={2000}
+                      max={2026}
+                      required
+                    />
+                  </label>
+                  <label className="field-label">
+                    Registered Vehicle Color <span>*</span>
+                    <select value={registeredColor} onChange={(e) => setRegisteredColor(e.target.value)}>
+                      <option value="SILVER">Silver / Grey</option>
+                      <option value="WHITE">White</option>
+                      <option value="RED">Red</option>
+                      <option value="BLACK">Black</option>
+                      <option value="BLUE">Blue</option>
+                    </select>
+                  </label>
+                </>
+              )}
+
               <label className="field-label">
                 Registration number <span>*</span>
                 <input value={registration} onChange={(e) => setRegistration(e.target.value)} required autoComplete="off" />
                 <small>Matched against ANPR plate OCR extraction.</small>
               </label>
-              <label className="field-label">
-                Vehicle make &amp; model <span>*</span>
-                <input value={vehicleModel} onChange={(e) => setVehicleModel(e.target.value)} required />
-              </label>
+              {!isCustomVehicle && (
+                <label className="field-label">
+                  Vehicle make &amp; model <span>*</span>
+                  <input value={vehicleModel} onChange={(e) => setVehicleModel(e.target.value)} required />
+                </label>
+              )}
               <label className="field-label">
                 Incident date <span>*</span>
                 <input type="date" value={incidentDate} onChange={(e) => setIncidentDate(e.target.value)} required />
