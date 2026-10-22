@@ -471,9 +471,9 @@ async def upload_claim_video(
     policy_repo = PolicyRepository(db)
     claim_repo = ClaimRepository(db)
 
-    # Auto-provision policy if it doesn't exist in PostgreSQL
+    # Auto-provision policy if it doesn't exist in PostgreSQL and custom vehicle details were provided
     existing_policy = await policy_repo.get_by_id(policy_id)
-    if not existing_policy:
+    if not existing_policy and vehicle_make and db is not None:
         from app.infrastructure.db.models import InsuredPolicy, OemPart
         from sqlalchemy import select
         v_make = (vehicle_make or "Hyundai").strip().title()
@@ -696,17 +696,25 @@ async def stream_claim_video(claim_id: uuid.UUID, db: AsyncSession = Depends(get
     repo_root = Path(__file__).resolve().parent.parent.parent.parent
     if claim:
         pol = (claim.policy_id or "").upper()
-        if "TOYOTA" in pol:
+        if "TOYOTA" in pol or "COROLLA" in pol:
             cand = repo_root / "test_assets" / "videos" / "simple" / "toyota-corolla-side-impact-damage-walkaround-houston.mp4"
             if cand.exists():
                 return FileResponse(path=str(cand), media_type="video/mp4", headers={"Accept-Ranges": "bytes"})
-        elif "005" in pol:
-            cand = repo_root / "test_assets" / "videos" / "simple" / "car_005.mp4"
+        elif "CAMRY" in pol or "010" in pol or "10" in pol:
+            cand = repo_root / "test_assets" / "videos" / "simple" / "10.mp4"
+            if cand.exists():
+                return FileResponse(path=str(cand), media_type="video/mp4", headers={"Accept-Ranges": "bytes"})
+        elif "011" in pol or "HATCH" in pol or "BLUE" in pol:
+            cand = repo_root / "test_assets" / "videos" / "simple" / "car_011.mp4"
+            if cand.exists():
+                return FileResponse(path=str(cand), media_type="video/mp4", headers={"Accept-Ranges": "bytes"})
+        elif "CRETA" in pol or "HAPPY" in pol or "002" in pol:
+            cand = repo_root / "test_assets" / "videos" / "simple" / "car_002.mp4"
             if cand.exists():
                 return FileResponse(path=str(cand), media_type="video/mp4", headers={"Accept-Ranges": "bytes"})
 
-    # 4. Default benchmark video fallback
-    default_vid = repo_root / "test_assets" / "videos" / "simple" / "happy_creta_white_h264.mp4"
+    # 4. Default benchmark video fallback (car_002.mp4)
+    default_vid = repo_root / "test_assets" / "videos" / "simple" / "car_002.mp4"
     if default_vid.exists():
         return FileResponse(path=str(default_vid), media_type="video/mp4", headers={"Accept-Ranges": "bytes"})
 

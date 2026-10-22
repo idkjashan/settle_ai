@@ -124,7 +124,16 @@ class OemRepository:
             OemPart.canonical_part_key == canonical_part_key,
         )
         result = await self.session.execute(stmt)
-        return result.scalar_one_or_none()
+        part = result.scalar_one_or_none()
+        if not part and (make.lower() != "generic" or model.lower() != "generic"):
+            fallback_stmt = select(OemPart).where(
+                OemPart.make.ilike("Generic"),
+                OemPart.model.ilike("Generic"),
+                OemPart.canonical_part_key == canonical_part_key,
+            )
+            fallback_res = await self.session.execute(fallback_stmt)
+            part = fallback_res.scalar_one_or_none()
+        return part
 
 
 class UnrepairedClaimsRepository:

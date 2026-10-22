@@ -25,8 +25,17 @@ interface PresetContext {
 
 const PRESETS: { key: string; label: string; run: (ctx: PresetContext) => Promise<void> }[] = [
   {
+    key: "creta",
+    label: "car_002 · Hyundai Creta (Front Bumper & Headlamp Impact)",
+    run: async (ctx) => {
+      ctx.setPolicy("POL-HAPPY-001");
+      ctx.setNote("Front bumper lower valance dent and front left headlamp scuff from parking pillar touch.");
+      await ctx.loadUrls(["/test_assets/videos/simple/car_002.mp4"], true);
+    },
+  },
+  {
     key: "corolla",
-    label: "Toyota Corolla · Dual-Door Side Impact (Real Houston Video)",
+    label: "Toyota Corolla · Dual-Door Side Impact (Houston Walkaround)",
     run: async (ctx) => {
       ctx.setPolicy("POL-TOYOTA-008");
       ctx.setNote("Severe impact dent and crease across driver-side front door and rear left door from side collision.");
@@ -34,56 +43,29 @@ const PRESETS: { key: string; label: string; run: (ctx: PresetContext) => Promis
     },
   },
   {
-    key: "happy",
-    label: "Creta White · Door Crease (Benchmark Video)",
+    key: "nexon_pdr",
+    label: "car_011 · Tata Nexon Blue (Shallow Door Ding · PDR)",
     run: async (ctx) => {
-      ctx.setPolicy("POL-HAPPY-001");
-      ctx.setNote("Creased dent on driver-side front door");
-      await ctx.loadUrls(["/test_assets/videos/simple/happy_creta_white_h264.mp4"], true);
+      ctx.setPolicy("POL-BLUE-011");
+      ctx.setNote("Shallow door ding on front right door suitable for paintless dent repair (PDR).");
+      await ctx.loadUrls(["/test_assets/videos/simple/car_011.mp4"], true);
     },
   },
   {
-    key: "scuff",
-    label: "car_001 · Rear Bumper Scuff (Real Video)",
+    key: "camry_safety",
+    label: "10.mp4 · Toyota Camry (Windshield Shatter · ESC-06 Safety Gate)",
     run: async (ctx) => {
-      ctx.setPolicy("POL-HAPPY-001");
-      ctx.setNote("Light surface scuff on the rear bumper from a low-speed parking touch.");
-      await ctx.loadUrls(["/test_assets/videos/simple/car_001.mp4"], true);
-    },
-  },
-  {
-    key: "photopack",
-    label: "Photo Pack (5 Multi-Angle Photos)",
-    run: async (ctx) => {
-      ctx.setPolicy("POL-HAPPY-001");
-      ctx.setNote("Creased dent on driver-side front door, photographed from five angles.");
-      await ctx.loadUrls(
-        [
-          "/test_assets/images/keyframes_for_stage2/real_toyota_hilux_white_ute/keyframe_01.jpg",
-          "/test_assets/images/keyframes_for_stage2/real_toyota_hilux_white_ute/keyframe_02.jpg",
-          "/test_assets/images/keyframes_for_stage2/real_toyota_hilux_white_ute/keyframe_03.jpg",
-          "/test_assets/images/keyframes_for_stage2/real_toyota_hilux_white_ute/keyframe_04.jpg",
-          "/test_assets/images/keyframes_for_stage2/real_toyota_hilux_white_ute/damage_closeup_primary.jpg",
-        ],
-        false,
-      );
-    },
-  },
-  {
-    key: "safety",
-    label: "ESC-06 · Windshield Crack (Safety Escalation)",
-    run: async (ctx) => {
-      ctx.setPolicy("POL-HAPPY-001");
-      ctx.setNote("Crack across the front windshield after a stone hit on the highway.");
-      await ctx.loadUrls(["/test_assets/videos/simple/car_005.mp4"], true);
+      ctx.setPolicy("POL-CAMRY-010");
+      ctx.setNote("Front impact with shattered laminated windshield requiring certified OEM replacement.");
+      await ctx.loadUrls(["/test_assets/videos/simple/10.mp4"], true);
     },
   },
   {
     key: "expired",
-    label: "ESC-00 · Expired Policy (Fast-Fail)",
+    label: "ESC-00 · Expired Policy Fast-Fail (Rejection Test)",
     run: async (ctx) => {
       ctx.setPolicy("POL-EXPIRED-002");
-      ctx.setNote("Dent on the front left fender from a shopping trolley.");
+      ctx.setNote("Front bumper dent submitted against an expired policy.");
       await ctx.loadUrls(["/test_assets/videos/simple/car_002.mp4"], true);
     },
   },

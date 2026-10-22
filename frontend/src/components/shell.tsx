@@ -44,7 +44,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
   const showToast = useToast();
-  const { claims, apiOnline, refreshAll, resetDemoState } = useClaims();
+  const { claims, apiOnline, refreshAll, resetDemoState, seedDemoState } = useClaims();
   const [search, setSearch] = useState("");
 
   useEffect(() => {
@@ -147,6 +147,22 @@ export function Shell({ children }: { children: React.ReactNode }) {
                 }}
               >
                 <Icon name="clock" />
+              </button>
+              <button
+                className="icon-button"
+                type="button"
+                aria-label="Seed 4 demo video scenarios"
+                title="Seed 4 Demo Video Scenarios (Creta, Corolla, Nexon, Camry)"
+                onClick={async () => {
+                  try {
+                    await seedDemoState();
+                    showToast("Database seeded with 4 authentic video demo scenarios & generic parts!");
+                  } catch {
+                    showToast("Demo seed failed — backend may be offline.");
+                  }
+                }}
+              >
+                <Icon name="plus" />
               </button>
               <button
                 className="icon-button"
