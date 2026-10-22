@@ -35,6 +35,7 @@
 14. [Hardware Budget, Local RTX 4060 GPU & Training Toolchain](#-hardware-budget-local-rtx-4060-gpu--training-toolchain)
 15. [Comprehensive Test Suite](#-comprehensive-test-suite)
 16. [Quickstart & Installation](#-quickstart--installation)
+17. [Master Evaluation Harness & Output Artifacts](#-master-evaluation-harness-web-testbench--output-artifacts)
 
 ---
 
@@ -513,8 +514,45 @@ python -m app.infrastructure.db.seed
 pytest tests/ -v
 ```
 
-### 6. Run the End-to-End Scenario Evaluation Suite (20 Scenarios)
+### 6. Run the Master Evaluation Harness & Interactive Tools
+
+The test walkaround videos live in **`test_assets/videos/`**, split into two flat cohorts:
+- **`test_assets/videos/simple/`** (25 videos): Clear walkaround videos across sedans, SUVs, hatchbacks, and coupes with single/multi-panel damage (e.g. `toyota-corolla-side-impact-damage-walkaround-houston.mp4`, `toyota_hilux_white_ute.mp4`, `ferrari_360_silver_coupe.mp4`, `fiat_500_blue_hatchback.mp4`, `vw_golf_grey_hatchback.mp4`, `scenario_01_damaged_collision.mp4`, `1.mp4`–`10.mp4`).
+- **`test_assets/videos/difficult/`** (10 videos): High-stress conditions (e.g. `crowded_parking_lot_occlusion.mp4`, `high_speed_corner_whippan.mp4`, `macro_closeup_zoom.mp4`, `overcast_to_tree_canopy_shadow.mp4`, `reverse_walkaround_rear_start.mp4`, `undamaged_negative_control.mp4`).
+- **`test_assets/videos/manifest.json`**: Single source of truth cataloging every video's scenario ID, duration, resolution, SHA-256 hash, and ground-truth policy mapping.
+
 ```bash
+# A. Single Video Execution (e.g. Houston Corolla Side-Impact Walkaround)
+uv run python evals/eval_harness.py \
+  --video test_assets/videos/simple/toyota-corolla-side-impact-damage-walkaround-houston.mp4 \
+  --claim "Side impact collision damage to front right passenger door and rear door with heavy dent and scratches" \
+  --ignore-cuts \
+  --force-continue
+
+# B. Interactive CLI Wizard (Menu-driven selection of videos, policies, and negotiation styles)
+uv run python evals/eval_harness.py --interactive
+
+# C. Another Simple Walkaround Video (Toyota Hilux Ute)
+uv run python evals/eval_harness.py \
+  --video test_assets/videos/simple/toyota_hilux_white_ute.mp4 \
+  --claim "Deep scratch and dent along the front passenger door panel" \
+  --strategy accept_first
+
+# D. Stage Bypassing (e.g. bypass Stage 0 & 1 to test Stage 2 segmentation & Stage 3 VLM downstream)
+uv run python evals/eval_harness.py \
+  --video test_assets/videos/simple/scenario_01_damaged_collision.mp4 \
+  --claim "Right flank key scratch on front door" \
+  --bypass stage_0,stage_1 \
+  --ignore-cuts \
+  --strategy negotiate_max
+
+# E. Launch Standalone Web Testbench GUI (Browser interface on port 8080)
+uv run python evals/web_testbench.py --port 8080
+
+# F. Frontend End-to-End (E2E) Test Client (Simulates complete user flow against running API server)
+uv run python evals/frontend_e2e_runner.py --api-url http://localhost:8000 --download-pdf
+
+# G. Run the 20-Scenario Grounding Benchmark Suite
 uv run python evals/e2e_scenario_eval_harness.py --manifest evals/curated_test_manifest.json
 ```
 
@@ -527,15 +565,42 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
 ---
 
-## 🧪 End-to-End Scenario Evaluation Suite & Output Artifacts
+## 🧪 Master Evaluation Harness, Web Testbench & Output Artifacts
 
-The system includes a 20-scenario real-world evaluation suite covering walkaround videos and structured photo packs across 6 operational clusters.
+Auto-Settle AI provides a 7-stage master evaluation harness ([`evals/comprehensive_harness.py`](evals/comprehensive_harness.py)), an interactive CLI wizard ([`evals/eval_harness.py`](evals/eval_harness.py)), a browser testbench ([`evals/web_testbench.py`](evals/web_testbench.py)), a simulated frontend E2E client ([`evals/frontend_e2e_runner.py`](evals/frontend_e2e_runner.py)), and a 20-scenario real-world benchmark suite covering walkaround videos across 6 operational clusters.
 
-- **Full Evaluation Guide**: See [`docs/END_TO_END_EVALUATION_AND_HARNESS_GUIDE.md`](docs/END_TO_END_EVALUATION_AND_HARNESS_GUIDE.md)
-- **Latest Evaluation Report**: [`evals/eval_report_latest.json`](evals/eval_report_latest.json)
-- **Curated Dataset Manifest**: [`evals/curated_test_manifest.json`](evals/curated_test_manifest.json)
-- **Extracted Video Keyframes**: `/tmp/autosettle_keyframes/<claim_id>/`
-- **Set-of-Marks (SoM) Polygon Annotated Crops**: [`evals/artifacts/som_output/<claim_id>/`](evals/artifacts/som_output/)
+### Video Test Assets Directory
+All evaluation video assets are stored in a strictly flat structure under `test_assets/videos/`:
+```text
+test_assets/videos/
+├── manifest.json            # Authoritative video catalog (Scenario ID, SHA-256, Policy ID)
+├── README.md                # Video dataset documentation and ingestion rules
+├── simple/                  # 25 single-vehicle walkaround videos (MP4)
+│   ├── toyota-corolla-side-impact-damage-walkaround-houston.mp4
+│   ├── toyota_hilux_white_ute.mp4
+│   ├── ferrari_360_silver_coupe.mp4
+│   ├── fiat_500_blue_hatchback.mp4
+│   ├── vw_golf_grey_hatchback.mp4
+│   ├── scenario_01_damaged_collision.mp4
+│   └── 1.mp4 ... 10.mp4
+└── difficult/               # 10 stress-test challenge scenarios (MP4)
+    ├── crowded_parking_lot_occlusion.mp4
+    ├── high_speed_corner_whippan.mp4
+    ├── macro_closeup_zoom.mp4
+    ├── overcast_to_tree_canopy_shadow.mp4
+    ├── reverse_walkaround_rear_start.mp4
+    └── undamaged_negative_control.mp4
+```
+
+### Evaluation Artifacts Generated Per Claim
+Every evaluation run creates an isolated directory `evals/artifacts/<claim_id>/` containing full forensic and visual outputs:
+- **Full Annotated Composite Overlays**: `som/{part}_full_annotated.jpg` (Translucent segmentation masks for vehicle part & damage defects, boundary contours, labels, and status banner).
+- **Set-of-Marks (SoM) Dilated Crops**: `som/{part}_som.jpg` (15px dilated crop with cyan polygon bounding contour for VLM depth grading).
+- **Clean Raw Crops**: `som/{part}_raw.jpg` (Unaltered high-resolution damage region).
+- **Occlusion Re-ID Keyframes**: `keyframes/tr{id}_{defect}.jpg` (Sharpest keyframe for each confirmed physical track detected by the C4 RoIAlign + Hungarian cosine matching tracker).
+- **Granular Audit Trails**: `audit_trail.json` (Complete end-to-end telemetry: per-stage millisecond timings, IoP metrics, tracker ID switches, statutory pricing decisions, and failure reasons).
+- **Settlement Voucher PDFs**: `voucher_<claim_id>.pdf` (Formal PDF voucher with Indian rupee currency words, IMT statutory depreciation schedule, and SHA-256 digital seal).
+- **Surveyor Escalation Dossiers**: `dossier_<claim_id>.pdf` (Generated when `ESC-00`..`ESC-09` is tripped, with forensic telemetry and 6-point physical inspection checklist).
 
 ### 20-Scenario Scorecard Summary
 ```

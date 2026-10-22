@@ -48,4 +48,8 @@ weights/*.pt
 runs/
 data/
 
+# Transient Evaluation artifacts
+evals/artifacts/[0-9a-f]*
+evals/eval_report_20*.json
+
 

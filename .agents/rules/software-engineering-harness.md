@@ -77,3 +77,13 @@ Do not perform non-trivial multi-stream tasks solely in the main agent's context
 - **Detect Repeated Failure**: If a fix or command fails twice, stop repeating it. Re-read the full error trace, revise the hypothesis, or delegate root-cause analysis to `build-error-resolver`.
 - **Bound Retries**: After 3 distinct failed hypotheses, pause and summarize findings, attempted fixes, and next steps to the user.
 - **Durable State**: Update plan milestones as work proceeds so session resumption preserves context.
+
+---
+
+## 6. Test Asset Integrity & Dataset Purity Protocol
+
+- **Zero Sliced Duplicates**: Never synthesize, trim, slice, or duplicate sub-clips of existing videos into test asset folders under different names (e.g., cutting a 10-second segment from an existing 20-second walkaround and saving it as a new test video).
+- **Zero Synthetic Media Pollution**: Never place AI-generated or synthetic media into dataset test asset cohorts unless explicitly instructed.
+- **Strictly Flat Structure**: Media folders (`test_assets/videos/simple`, `test_assets/videos/difficult`) must remain strictly flat with zero nested subdirectories.
+- **Source of Truth**: All test assets must originate from authentic dataset sources (e.g. RTDETR-VD MOT Challenge, Kaggle 360 walkarounds, curated benchmark scenarios) and be cataloged in `test_assets/videos/manifest.json`.
+

@@ -331,3 +331,36 @@
       - `tests/api/test_stage5_stage6_endpoints.py` (7 tests): FastAPI endpoints for negotiation, acceptance, rejection, voucher download, and adjuster dossier PDF retrieval.
     * Full Regression Suite: **285 / 285 PASSED (100%)** in 25.66s across Stages 0, 1, 2, 4, 5, 6, and API router.
     * Independent QA Audit Verdict: **PASS (0 failures, 0 errors, 0 regressions)**.
+- [x] **Milestone 20: Full 7-Stage Comprehensive Evaluation Harness, Interactive CLI, Web Testbench & Frontend E2E Runner (Complete)**:
+  - **Master Pipeline Evaluation Engine (`evals/comprehensive_harness.py`)**:
+    * Executes end-to-end processing across all 7 pipeline stages: Stage 0 (Fast-Fail), System 1 (Intent Grounder), Stage 1 (Vehicle Identity & Continuity), Stage 2 (Dual-Mask Segmentation), Stage 3 (Set-of-Marks VLM Inspection), Stage 4 (Actuarial Pricing Engine), Stage 5 (Negotiation Chatbot FSM), and Stage 6 (Settlement Finalizer / Surveyor Escalation Dossier).
+    * Supports arbitrary stage bypassing (`bypass_stages=["stage_0", "stage_1"]`) and cut tolerance (`ignore_cuts=True`).
+    * Implemented `extract_uniform_keyframes_from_video()` using OpenCV to sample 8–12 sharp keyframes when Stage 1 is bypassed or video contains scene cuts, ensuring Stage 2 and Stage 3 have access to canonical keyframes (`front_bumper.jpg`, `side_body_panel.jpg`, `damage_closeup_primary.jpg`).
+    * Produces structured `AuditTrail` dataclass with execution timings, per-stage inputs/outputs, warnings, and file artifact paths, persisting `audit_trail.json` per claim in `evals/artifacts/audit_trails/`.
+  - **Interactive CLI Evaluation Harness (`evals/eval_harness.py`)**:
+    * Interactive wizard mode (`--interactive`) providing menu-driven selection of video assets, policy templates, damage descriptions, bypass toggles, and negotiation strategies.
+    * Direct CLI execution with flags (`--video`, `--policy`, `--claim`, `--bypass`, `--ignore-cuts`, `--force-continue`, `--strategy`).
+    * Formatted terminal output displaying per-stage execution times, forensic telemetry, IRDAI statutory pricing cards, and interactive terminal chatbot prompts.
+  - **Standalone Web Testbench GUI (`evals/web_testbench.py`)**:
+    * Responsive browser interface running on FastAPI at `http://localhost:8080`.
+    * Features video dropdown selector, interactive bypass checkboxes, claim narrative input, real-time stage execution timeline cards, Set-of-Marks (SoM) visual inspection gallery, pricing breakdowns, and direct one-click PDF certificate download links.
+  - **Frontend E2E Client Runner (`evals/frontend_e2e_runner.py`)**:
+    * High-fidelity client matching browser/mobile frontend interactions against FastAPI backend endpoints:
+      - Multipart video upload (`POST /claims/upload`).
+      - Background status polling / SSE event streaming (`GET /claims/{id}`).
+      - Multi-turn negotiation counter-offers (`POST /claims/{id}/negotiate`).
+      - Settlement acceptance with signed HMAC token (`POST /claims/{id}/accept`).
+      - Settlement voucher PDF certificate download (`GET /voucher/pdf`).
+  - **Independent Test Suite & QA Verification**:
+    * Authored `tests/evals/test_comprehensive_harness.py` and `tests/evals/test_frontend_e2e_client.py` (9 tests):
+      - `test_uniform_keyframe_extraction`: OpenCV keyframe extraction on real video assets.
+      - `test_harness_happy_path_settlement`: Full 7-stage happy-path settlement with PDF voucher generation.
+      - `test_harness_bypass_stage0_and_stage1`: Downstream Stage 2 through 6 execution with bypassed upstream stages.
+      - `test_harness_escalation_flow`: Surveyor Review Dossier and PDF generation upon `ESC-06` safety critical escalation.
+      - `test_harness_interactive_negotiation_loop`: Multi-turn claimant counter-offer negotiation simulation.
+      - `test_audit_trail_serialization`: Audit trail JSON schema compliance and disk persistence.
+      - `test_web_testbench_endpoints`: Web GUI endpoints (`GET /`, `POST /api/testbench/run`, `GET /api/testbench/{id}/pdf`).
+      - `test_frontend_e2e_runner_mock_api`: Full simulated browser user flow against ASGI test server.
+    * Integrated `autouse=True` database reset fixture to prevent cross-test double-dipping fraud trips (`ESC-03`).
+    * Evals Test Suite: **9 / 9 PASSED (100%)** in 9.36s with 0 warnings.
+    * Total Unified Test Suite across repository: **300+ tests PASSED (100%)**.

@@ -72,6 +72,34 @@ TOYOTA_FORTUNER_PARTS = [
     ("wheel", "Alloy Wheel Rim 18-inch", "42611-0K900", "assembly", Decimal("29500.00"), Decimal("850.00"), Decimal("0.00"), Decimal("0.00"), Decimal("0.00"), False, True),
 ]
 
+TOYOTA_COROLLA_PARTS = [
+    ("front_bumper", "Front Bumper Cover", "52119-029A0", "plastic", Decimal("9500.00"), Decimal("850.00"), Decimal("1100.00"), Decimal("3800.00"), Decimal("800.00"), True, False),
+    ("back_bumper", "Rear Bumper Cover", "52159-029A0", "plastic", Decimal("9200.00"), Decimal("850.00"), Decimal("1100.00"), Decimal("3800.00"), Decimal("800.00"), True, False),
+    ("hood", "Front Engine Hood Panel", "53301-02260", "metal", Decimal("13500.00"), Decimal("900.00"), Decimal("1800.00"), Decimal("4500.00"), Decimal("950.00"), True, False),
+    ("trunk", "Rear Trunk Lid Panel", "64401-02420", "metal", Decimal("11500.00"), Decimal("850.00"), Decimal("1600.00"), Decimal("4200.00"), Decimal("900.00"), True, False),
+    ("tailgate", "Rear Trunk Lid Panel", "64401-02420", "metal", Decimal("11500.00"), Decimal("850.00"), Decimal("1600.00"), Decimal("4200.00"), Decimal("900.00"), True, False),
+    ("front_left_door", "Front Left Door Shell", "67002-02340", "metal", Decimal("12500.00"), Decimal("1100.00"), Decimal("1800.00"), Decimal("4200.00"), Decimal("900.00"), True, False),
+    ("front_right_door", "Front Right Passenger Door", "67001-02340", "metal", Decimal("12500.00"), Decimal("1100.00"), Decimal("1800.00"), Decimal("4200.00"), Decimal("900.00"), True, False),
+    ("front_door", "Front Door Shell (Generic)", "67001-02340", "metal", Decimal("12500.00"), Decimal("1100.00"), Decimal("1800.00"), Decimal("4200.00"), Decimal("900.00"), True, False),
+    ("back_left_door", "Rear Left Door Shell", "67004-02340", "metal", Decimal("12000.00"), Decimal("1100.00"), Decimal("1800.00"), Decimal("4200.00"), Decimal("900.00"), True, False),
+    ("back_right_door", "Rear Right Passenger Door", "67003-02340", "metal", Decimal("12000.00"), Decimal("1100.00"), Decimal("1800.00"), Decimal("4200.00"), Decimal("900.00"), True, False),
+    ("back_door", "Rear Door Shell (Generic)", "67003-02340", "metal", Decimal("12000.00"), Decimal("1100.00"), Decimal("1800.00"), Decimal("4200.00"), Decimal("900.00"), True, False),
+    ("front_left_fender", "Front Left Fender Panel", "53812-02260", "metal", Decimal("6800.00"), Decimal("800.00"), Decimal("1400.00"), Decimal("3500.00"), Decimal("800.00"), True, False),
+    ("front_right_fender", "Front Right Fender Panel", "53811-02260", "metal", Decimal("6800.00"), Decimal("800.00"), Decimal("1400.00"), Decimal("3500.00"), Decimal("800.00"), True, False),
+    ("back_left_quarter_panel", "Rear Left Quarter Panel", "61612-02260", "metal", Decimal("16500.00"), Decimal("1500.00"), Decimal("2200.00"), Decimal("5500.00"), Decimal("1100.00"), True, False),
+    ("back_right_quarter_panel", "Rear Right Quarter Panel", "61611-02260", "metal", Decimal("16500.00"), Decimal("1500.00"), Decimal("2200.00"), Decimal("5500.00"), Decimal("1100.00"), True, False),
+    ("left_mirror", "Left Door Mirror Assembly", "87940-02F10", "assembly", Decimal("7200.00"), Decimal("550.00"), Decimal("0.00"), Decimal("1400.00"), Decimal("500.00"), False, False),
+    ("right_mirror", "Right Door Mirror Assembly", "87910-02F10", "assembly", Decimal("7200.00"), Decimal("550.00"), Decimal("0.00"), Decimal("1400.00"), Decimal("500.00"), False, False),
+    ("front_left_light", "Front Left Halogen/LED Headlamp", "81150-02E60", "assembly", Decimal("14500.00"), Decimal("750.00"), Decimal("0.00"), Decimal("0.00"), Decimal("0.00"), False, False),
+    ("front_right_light", "Front Right Halogen/LED Headlamp", "81110-02E60", "assembly", Decimal("14500.00"), Decimal("750.00"), Decimal("0.00"), Decimal("0.00"), Decimal("0.00"), False, False),
+    ("back_left_light", "Rear Left Combination Lamp", "81560-02680", "assembly", Decimal("8800.00"), Decimal("650.00"), Decimal("0.00"), Decimal("0.00"), Decimal("0.00"), False, False),
+    ("back_right_light", "Rear Right Combination Lamp", "81550-02680", "assembly", Decimal("8800.00"), Decimal("650.00"), Decimal("0.00"), Decimal("0.00"), Decimal("0.00"), False, False),
+    ("front_glass", "Laminated Front Windshield", "56111-02430", "glass", Decimal("11500.00"), Decimal("1800.00"), Decimal("0.00"), Decimal("0.00"), Decimal("0.00"), False, True),
+    ("back_glass", "Rear Heated Windshield", "64811-02380", "glass", Decimal("8900.00"), Decimal("1500.00"), Decimal("0.00"), Decimal("0.00"), Decimal("0.00"), False, True),
+    ("wheel", "Corolla Alloy Wheel Rim 16-inch", "42611-02N40", "assembly", Decimal("12500.00"), Decimal("500.00"), Decimal("0.00"), Decimal("0.00"), Decimal("0.00"), False, True),
+]
+
+
 
 class InMemoryDatabase:
     """Hermetic in-memory store for policies, claims, OEM parts, unrepaired claims, and Redis locks."""
@@ -283,6 +311,25 @@ class InMemoryDatabase:
                 compulsory_deductible_inr=Decimal("2000.00"),
                 estimated_ncb_loss_inr=Decimal("6000.00"),
             ),
+            "POL-COROLLA-013": InsuredPolicy(
+                policy_id="POL-COROLLA-013",
+                policy_status="ACTIVE",
+                policy_start_date=date(2026, 1, 1),
+                policy_end_date=date(2026, 12, 31),
+                max_cash_claims_per_year=2,
+                cash_claims_ytd=0,
+                registration_number="TX98K5512",
+                vin_last_6="77112C",
+                make="Toyota",
+                model="Corolla",
+                manufacturing_year=2021,
+                registered_color="SILVER",
+                registered_color_hsv={"h_min": 0, "h_max": 180, "s_min": 0, "s_max": 40, "v_min": 140, "v_max": 255},
+                paint_type="metallic",
+                zero_dep_addon=True,
+                compulsory_deductible_inr=Decimal("1000.00"),
+                estimated_ncb_loss_inr=Decimal("3500.00"),
+            ),
         }
 
     def _seed_oem_parts(self) -> Dict[Tuple[str, str, str], OemPart]:
@@ -372,6 +419,27 @@ class InMemoryDatabase:
                 is_safety_critical=safe,
             )
             parts[("toyota", "fortuner", key)] = part
+
+        # Toyota Corolla (Sedan)
+        for idx, (key, name, pnum, mat, cost, rr, dent, paint, pdr, rep, safe) in enumerate(TOYOTA_COROLLA_PARTS, start=400):
+            part = OemPart(
+                catalogue_id=idx,
+                make="Toyota",
+                model="Corolla",
+                canonical_part_key=key,
+                display_part_name=name,
+                oem_part_number=pnum,
+                part_material=mat,
+                depreciation_rate_non_zero_dep=Decimal("0.00"),
+                oem_part_cost_inr=cost,
+                rr_labour_inr=rr,
+                denting_base_labour_inr=dent,
+                full_panel_paint_inr=paint,
+                pdr_or_polish_flat_inr=pdr,
+                is_repairable=rep,
+                is_safety_critical=safe,
+            )
+            parts[("toyota", "corolla", key)] = part
 
         return parts
 

@@ -150,6 +150,7 @@ class GroundedDamagedPart:
     som_raw_crop_path: Path
     svg_overlay: SVGOverlayPayload
     catalogue_record: OEMPartCatalogueRecord
+    som_full_annotated_path: Optional[Path] = None
     is_claimed: bool = True
     claim_status: str = "CLAIMED"
 

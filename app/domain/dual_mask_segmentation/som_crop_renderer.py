@@ -54,7 +54,9 @@ class SoMCropRenderer:
         candidates_with_cat: List[Tuple[GroupedPartCandidate, OEMPartCatalogueRecord]],
         loaded_frames_bgr: Dict[str, np.ndarray],
     ) -> List[GroundedDamagedPart]:
-        claim_som_dir = self.settings.som_output_dir / str(claim_id)
+        claim_som_dir = self.settings.som_output_dir
+        if str(claim_id) not in str(self.settings.som_output_dir):
+            claim_som_dir = self.settings.som_output_dir / str(claim_id)
         claim_som_dir.mkdir(parents=True, exist_ok=True)
 
         grounded_parts: List[GroundedDamagedPart] = []
@@ -90,17 +92,42 @@ class SoMCropRenderer:
             # 3. Save clean raw crop and exterior-annotated SoM crop atomically
             raw_crop = frame_bgr[cy1:cy2, cx1:cx2].copy()
             annotated_full = frame_bgr.copy()
-            cv2.drawContours(annotated_full, ext_contours, -1, (255, 255, 0), thickness=2, lineType=cv2.LINE_AA)
+            
+            # Draw semi-transparent overlay on full image
+            overlay = annotated_full.copy()
+            if hasattr(area_hit, "part_polygon") and area_hit.part_polygon is not None:
+                part_contours = self._geometry_to_cv_contours(area_hit.part_polygon)
+                cv2.drawContours(overlay, part_contours, -1, (255, 180, 0), thickness=-1)
+            cv2.drawContours(overlay, cv_contours, -1, (0, 70, 255), thickness=-1)
+            cv2.addWeighted(overlay, 0.35, annotated_full, 0.65, 0, annotated_full)
+
+            # Draw crisp boundaries
+            cv2.drawContours(annotated_full, ext_contours, -1, (0, 255, 255), thickness=2, lineType=cv2.LINE_AA)
+            cv2.rectangle(annotated_full, (cx1, cy1), (cx2, cy2), (0, 255, 255), thickness=2, lineType=cv2.LINE_AA)
+
+            # Top info banner
+            banner_text = f"AUTO-SETTLE AI | PART: {cand.canonical_part_key.upper()} | DAMAGE: {cand.primary_damage_class.upper()} | IoP: {cand.final_iop_ratio*100:.1f}%"
+            cv2.rectangle(annotated_full, (0, 0), (w_img, 45), (20, 24, 33), -1)
+            cv2.putText(
+                annotated_full,
+                banner_text,
+                (20, 30),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.75,
+                (0, 255, 255),
+                2,
+                cv2.LINE_AA,
+            )
 
             label = f"[#{idx} {cand.canonical_part_key.upper()} | {cand.primary_damage_class.upper()}]"
-            label_y = max(24, ymin - r - 10)
+            label_y = max(65, ymin - r - 10)
             cv2.putText(
                 annotated_full,
                 label,
                 (max(10, xmin - r), label_y),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.6,
-                (255, 255, 0),
+                (0, 255, 255),
                 2,
                 cv2.LINE_AA,
             )
@@ -108,8 +135,10 @@ class SoMCropRenderer:
 
             raw_path = claim_som_dir / f"{cand.canonical_part_key}_raw.jpg"
             som_path = claim_som_dir / f"{cand.canonical_part_key}_som.jpg"
+            full_annotated_path = claim_som_dir / f"{cand.canonical_part_key}_full_annotated.jpg"
             self._atomic_imwrite(raw_path, raw_crop)
             self._atomic_imwrite(som_path, som_crop)
+            self._atomic_imwrite(full_annotated_path, annotated_full)
 
             # 4. Build normalized SVG overlay from the unclipped measurement frame
             svg_overlay = SVGOverlayPayload(
@@ -146,6 +175,7 @@ class SoMCropRenderer:
                     vlm_closeup_keyframe=vlm_hit.keyframe_key,
                     som_annotated_crop_path=som_path,
                     som_raw_crop_path=raw_path,
+                    som_full_annotated_path=full_annotated_path,
                     svg_overlay=svg_overlay,
                     catalogue_record=cat_rec,
                     is_claimed=getattr(cand, "is_claimed", True),

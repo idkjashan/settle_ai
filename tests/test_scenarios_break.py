@@ -56,25 +56,53 @@ from app.domain.vehicle_identity_continuity.config import stage1_settings
 from tests.vehicle_identity_continuity.conftest import encode_frames_to_mp4
 
 WORKSPACE_ROOT = Path("/home/jashan/settleai")
-SCENARIOS_DIR = WORKSPACE_ROOT / "test_assets" / "scenario_videos"
-REAL_VIDEOS_DIR = WORKSPACE_ROOT / "test_assets" / "real_videos"
+VIDEOS_DIR = WORKSPACE_ROOT / "test_assets" / "videos" / "difficult"
+SCENARIOS_DIR = VIDEOS_DIR
+REAL_VIDEOS_DIR = VIDEOS_DIR
 KEYFRAMES_STAGE2_DIR = WORKSPACE_ROOT / "test_assets" / "keyframes_for_stage2"
-SCENARIO_MANIFEST_PATH = SCENARIOS_DIR / "manifest.json"
-REAL_MANIFEST_PATH = REAL_VIDEOS_DIR / "manifest.json"
+MANIFEST_PATH = WORKSPACE_ROOT / "test_assets" / "videos" / "manifest.json"
 
 
 @pytest.fixture(scope="session")
 def scenario_manifest():
-    assert SCENARIO_MANIFEST_PATH.exists(), f"Missing scenario manifest: {SCENARIO_MANIFEST_PATH}"
-    data = json.loads(SCENARIO_MANIFEST_PATH.read_text())
-    return data if isinstance(data, list) else data.get("scenario_videos", data)
+    assert MANIFEST_PATH.exists(), f"Missing manifest at {MANIFEST_PATH}"
+    data = json.loads(MANIFEST_PATH.read_text())
+    diff_vids = data["categories"]["difficult"]["videos"]
+    scenario_keys = [
+        ("scenario_01_damaged_collision.mp4", "scenario_01"),
+        ("scenario_02_macro_closeup_scratch.mp4", "scenario_02"),
+        ("scenario_03_parking_lot_multicar.mp4", "scenario_03"),
+        ("scenario_04_reverse_walkaround_rear_start.mp4", "scenario_04"),
+        ("scenario_05_challenging_lighting_overcast_canopy.mp4", "scenario_05"),
+    ]
+    scenarios = []
+    for fname, sid in scenario_keys:
+        if fname in diff_vids:
+            meta = dict(diff_vids[fname])
+            meta["scenario_id"] = sid
+            meta["filepath"] = str(WORKSPACE_ROOT / "test_assets" / meta["rel_path"])
+            scenarios.append(meta)
+    return scenarios
 
 
 @pytest.fixture(scope="session")
 def real_videos_manifest():
-    assert REAL_MANIFEST_PATH.exists(), f"Missing real videos manifest: {REAL_MANIFEST_PATH}"
-    data = json.loads(REAL_MANIFEST_PATH.read_text())
-    return data["videos"]
+    assert MANIFEST_PATH.exists(), f"Missing manifest at {MANIFEST_PATH}"
+    data = json.loads(MANIFEST_PATH.read_text())
+    diff_vids = data["categories"]["difficult"]["videos"]
+    real_filenames = [
+        "toyota_hilux_white_ute.mp4",
+        "fiat_500_blue_hatchback.mp4",
+        "vw_golf_grey_hatchback.mp4",
+        "ferrari_360_silver_coupe.mp4",
+    ]
+    videos = []
+    for fname in real_filenames:
+        if fname in diff_vids:
+            meta = dict(diff_vids[fname])
+            meta["filepath"] = str(WORKSPACE_ROOT / "test_assets" / meta["rel_path"])
+            videos.append(meta)
+    return videos
 
 
 # ===========================================================================

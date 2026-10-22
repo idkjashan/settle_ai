@@ -16,15 +16,28 @@ from app.domain.vehicle_identity_continuity.color_grounding_validator import col
 from app.domain.vehicle_identity_continuity.plate_ocr_validator import plate_ocr_validator
 from app.domain.vehicle_identity_continuity.schemas import PolicyGroundingContext
 
-REAL_VIDEOS_DIR = Path("/home/jashan/settleai/test_assets/real_videos")
-MANIFEST_PATH = REAL_VIDEOS_DIR / "manifest.json"
+REAL_VIDEOS_DIR = Path("/home/jashan/settleai/test_assets/videos/difficult")
+MANIFEST_PATH = Path("/home/jashan/settleai/test_assets/videos/manifest.json")
 
 
 @pytest.fixture(scope="session")
 def real_videos_manifest():
     assert MANIFEST_PATH.exists(), f"Missing manifest at {MANIFEST_PATH}"
     data = json.loads(MANIFEST_PATH.read_text())
-    return data["videos"]
+    diff_vids = data["categories"]["difficult"]["videos"]
+    real_filenames = [
+        "toyota_hilux_white_ute.mp4",
+        "fiat_500_blue_hatchback.mp4",
+        "vw_golf_grey_hatchback.mp4",
+        "ferrari_360_silver_coupe.mp4",
+    ]
+    videos = []
+    for fname in real_filenames:
+        if fname in diff_vids:
+            meta = dict(diff_vids[fname])
+            meta["filepath"] = str(Path("/home/jashan/settleai/test_assets") / meta["rel_path"])
+            videos.append(meta)
+    return videos
 
 
 class TestRealVideosStage0:
