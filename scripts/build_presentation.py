@@ -1300,8 +1300,11 @@ def create_presentation():
             run.font.bold = False
             run.font.color.rgb = RGBColor(148, 163, 184)
 
-    output_path = r"c:\Users\Hp\Documents\GitHub\settle_ai\Auto_Settle_AI_Executive_Presentation.pptx"
-    prs.save(output_path)
+    from pathlib import Path
+    output_dir = Path(__file__).resolve().parent.parent / "docs" / "presentation"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_path = output_dir / "Auto_Settle_AI_Executive_Presentation.pptx"
+    prs.save(str(output_path))
     print(f"Presentation saved successfully to: {output_path}")
 
 if __name__ == "__main__":

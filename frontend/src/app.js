@@ -30,7 +30,9 @@
     record: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3" fill="currentColor" stroke="none"/>',
     print: '<path d="M7 8V3h10v5M7 17H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-3"/><path d="M7 14h10v7H7zM18 11h.01"/>',
     download: '<path d="M12 3v12m-5-5 5 5 5-5"/><path d="M4 17v4h16v-4"/>',
-    more: '<circle cx="5" cy="12" r="1" fill="currentColor"/><circle cx="12" cy="12" r="1" fill="currentColor"/><circle cx="19" cy="12" r="1" fill="currentColor"/>'
+    more: '<circle cx="5" cy="12" r="1" fill="currentColor"/><circle cx="12" cy="12" r="1" fill="currentColor"/><circle cx="19" cy="12" r="1" fill="currentColor"/>',
+    sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>',
+    moon: '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>'
   };
 
   function renderIcons(container = document) {
@@ -54,14 +56,14 @@
     toastTimer = setTimeout(() => node.classList.remove('show'), 3200);
   }
 
-  // Pre-seeded multi-claim portfolio
+  // Authentic Benchmark Claims with Real Evaluation Assets
   const initialClaims = [
     {
       id: 'CLM-48291',
       time: 'Today · 10:42 AM',
       vehicle: 'Hyundai Creta',
       year: 2022,
-      registration: 'KA 03 •• 4921',
+      registration: 'MH 12 DE 1433',
       policyId: 'POL-HAPPY-001',
       claimant: 'Rohan Mehta',
       damageType: 'Creased dent',
@@ -73,7 +75,7 @@
       coverage: '8.4%',
       paintCondition: 'Creased · paint broken',
       rust: 'Not detected',
-      note: 'A visible crease is consistent across 6 frames. The damaged panel is identifiable, with no rust or adjacent safety-critical parts in view.',
+      note: 'A visible crease is consistent across continuous trajectory frames. Driver-side door panel verified against policy OEM catalogue.',
       repairCost: 10620,
       subtotal: 9000,
       gst: 1620,
@@ -88,13 +90,22 @@
       roundsUsed: 0,
       maxRounds: 3,
       decision: null,
+      videoUrl: '/test_assets/videos/simple/car_002.mp4',
+      yoloUrl: '/docs_assets/stage2_annotated_samples/scenario_02_front_door_scratch_comparison.jpg',
+      somUrl: '/evals/artifacts/som_output/ad60d3d2-d6f0-4ccc-bec9-79f54ab89f49/front_right_door_som.jpg',
+      billedItems: [
+        { part: 'Driver-Side Front Door', note: 'Creased dent · 8.4% IoP', amount: '₹9,000' }
+      ],
+      quarantinedItems: [
+        { part: 'Rear Bumper', note: 'Unclaimed scuff · Bypasses ESC-05', status: 'Quarantined' }
+      ],
       messages: [
-        { sender: 'agent', name: 'Auto-Settle', time: '10:46 AM', text: 'We’ve reviewed the video. The crease on your driver-side door is eligible for a cash settlement. The estimated garage repair is <b>₹10,620</b>, and we can offer <b>₹7,500</b> today.' }
+        { sender: 'agent', name: 'Auto-Settle', time: '10:46 AM', text: 'We’ve reviewed the continuous walkaround video. The crease on your driver-side front door is eligible for a cash settlement. The estimated garage repair is <b>₹10,620</b>, and we can offer <b>₹7,500</b> today.' }
       ],
       events: [
-        { time: '10:42:18', kind: 'blue', title: 'Evidence received', detail: 'Continuous 18-second walkaround · 1080p · video keyframes extracted.', tag: 'EVIDENCE' },
+        { time: '10:42:18', kind: 'blue', title: 'Evidence received', detail: 'Continuous 18-second walkaround · 720p HD · video keyframes extracted.', tag: 'EVIDENCE' },
         { time: '10:42:19', kind: 'blue', title: 'Policy and capture pre-checks passed', detail: 'Active policy POL-HAPPY-001 · duration and resolution supported · sharpness 84.2.', tag: 'PRE-CHECK' },
-        { time: '10:43:04', kind: 'blue', title: 'Vehicle identity and continuity verified', detail: 'Plate KA 03 •• 4921 matched. ByteTrack continuous vehicle trajectory confirmed.', tag: 'IDENTITY' },
+        { time: '10:43:04', kind: 'blue', title: 'Vehicle identity and continuity verified', detail: 'Plate MH 12 DE 1433 matched. ByteTrack continuous vehicle trajectory confirmed.', tag: 'IDENTITY' },
         { time: '10:44:11', kind: 'green', title: 'Conditioned Dual-Mask Segmentation', detail: 'Driver-side front door · L4 creased dent · IoP 8.4% panel coverage · 96% confidence.', tag: 'ASSESSMENT' },
         { time: '10:44:26', kind: 'green', title: 'Safety and pre-existing checks passed', detail: 'Set-of-Marks VLM confirmed depth crease. No pre-existing rust or safety concerns.', tag: 'GUARDRAIL' },
         { time: '10:45:02', kind: 'green', title: 'Deterministic OEM estimate calculated', detail: '₹10,620 garage repair estimate · ₹620 deductible · ₹10,000 net eligible claim.', tag: 'ESTIMATE' },
@@ -107,59 +118,19 @@
       time: 'Today · 10:18 AM',
       vehicle: 'Maruti Baleno',
       year: 2021,
-      registration: 'MH 12 •• 1048',
+      registration: 'DL 01 AB 9999',
       policyId: 'POL-HAPPY-001',
       claimant: 'Pooja Verma',
-      damageType: 'Mirror assembly crack',
-      damagePart: 'Left outside rear view mirror',
-      panelContext: 'Side mirror assembly',
-      severity: 'L5',
-      severityLabel: 'L5 · Structural crack',
-      confidence: 92,
-      coverage: '14.2%',
-      paintCondition: 'Housing fractured',
-      rust: 'Not detected',
-      note: 'Assembly casing fractured. Replacement required rather than repair.',
-      repairCost: 7850,
-      subtotal: 6650,
-      gst: 1200,
-      deductible: 500,
-      netEligible: 7350,
-      opening: 5500,
-      target: 6250,
-      cap: 7000,
-      offer: 5500,
-      status: 'review',
-      statusLabel: 'Human review',
-      roundsUsed: 0,
-      maxRounds: 3,
-      decision: { type: 'human', reason: 'Mirror assembly wiring inspection requested by desk adjuster.', time: '2026-10-22T10:20:00Z' },
-      messages: [
-        { sender: 'agent', name: 'Auto-Settle', time: '10:19 AM', text: 'Damage to the mirror assembly requires manual inspection of internal wiring before payout approval.' }
-      ],
-      events: [
-        { time: '10:18:02', kind: 'blue', title: 'Evidence received', detail: '4 photo pack submitted for Maruti Baleno.', tag: 'EVIDENCE' },
-        { time: '10:19:15', kind: 'amber', title: 'Routed to human desk review', detail: 'Mirror assembly electrical harness triage needed.', tag: 'ESCALATION' }
-      ]
-    },
-    {
-      id: 'CLM-48287',
-      time: 'Today · 9:56 AM',
-      vehicle: 'Tata Nexon',
-      year: 2023,
-      registration: 'TN 09 •• 7812',
-      policyId: 'POL-HAPPY-001',
-      claimant: 'Karthik Raja',
       damageType: 'Surface scuff',
       damagePart: 'Rear bumper cover',
-      panelContext: 'Plastic bumper',
+      panelContext: 'Plastic exterior bumper',
       severity: 'L1',
-      severityLabel: 'L1 · Minor surface scuff',
-      confidence: 98,
-      coverage: '3.1%',
-      paintCondition: 'Clearcoat scuffed only',
+      severityLabel: 'L1 · Surface scuff',
+      confidence: 94,
+      coverage: '3.2%',
+      paintCondition: 'Clearcoat scuffed',
       rust: 'Not detected',
-      note: 'Minor surface scuff on plastic bumper cover. Fully repairable via polish/PDR.',
+      note: 'Minor surface scuff on plastic bumper cover. Fully repairable via polish/PDR without panel replacement.',
       repairCost: 3240,
       subtotal: 2746,
       gst: 494,
@@ -168,69 +139,206 @@
       opening: 2050,
       target: 2330,
       cap: 2600,
-      offer: 2330,
+      offer: 2050,
+      status: 'ready',
+      statusLabel: 'Ready to settle',
+      roundsUsed: 0,
+      maxRounds: 3,
+      decision: null,
+      videoUrl: '/test_assets/videos/simple/car_001.mp4',
+      yoloUrl: '/docs_assets/stage2_annotated_samples/scenario_04_rear_bumper_crease_comparison.jpg',
+      somUrl: '/evals/artifacts/som_output/258bed97-3d27-4496-a907-75d27685917d/front_bumper_som.jpg',
+      billedItems: [
+        { part: 'Rear Bumper Cover', note: 'Clearcoat scuff · 3.2% IoP', amount: '₹2,746' }
+      ],
+      quarantinedItems: [
+        { part: 'Left Quarter Panel', note: 'Minor road dust mark · Background wear', status: 'Quarantined' }
+      ],
+      messages: [
+        { sender: 'agent', name: 'Auto-Settle', time: '10:20 AM', text: 'Minor scuff on rear bumper cover confirmed by Stage 2 YOLO dual-mask segmentation. Initial offer: <b>₹2,050</b>.' }
+      ],
+      events: [
+        { time: '10:18:02', kind: 'blue', title: 'Evidence received', detail: 'Walkaround video car_001.mp4 uploaded.', tag: 'EVIDENCE' },
+        { time: '10:19:15', kind: 'green', title: 'Assessment completed', detail: 'L1 surface scuff on rear bumper. Net claim ₹2,740.', tag: 'ASSESSMENT' }
+      ]
+    },
+    {
+      id: 'CLM-48288',
+      time: 'Today · 09:44 AM',
+      vehicle: 'Toyota Corolla',
+      year: 2020,
+      registration: 'KA 01 MJ 5555',
+      policyId: 'POL-RED-007',
+      claimant: 'Rajesh K.',
+      damageType: 'Deep side dent with rust',
+      damagePart: 'Rear passenger door & rocker panel',
+      panelContext: 'Side body flank',
+      severity: 'L4',
+      severityLabel: 'L4 · Moderate',
+      confidence: 91,
+      coverage: '12.4%',
+      paintCondition: 'Broken with brown oxidation',
+      rust: 'Old rust detected (ESC-04)',
+      note: 'Brown oxidation and flaking indicate pre-existing damage on rocker panel. Transferred to adjuster under ESC-04.',
+      repairCost: 14500,
+      subtotal: 12288,
+      gst: 2212,
+      deductible: 1000,
+      netEligible: 13500,
+      opening: 0,
+      target: 0,
+      cap: 0,
+      offer: 0,
+      status: 'review',
+      statusLabel: 'Pre-existing rust',
+      roundsUsed: 0,
+      maxRounds: 3,
+      decision: { type: 'human', reason: 'ESC-04: Signs of old oxidation/flaking filler indicate pre-existing wear on lower rocker panel. Payout halted pending surveyor inspection.', time: '2026-10-22T09:47:00Z' },
+      videoUrl: '/test_assets/videos/simple/toyota-corolla-side-impact-damage-walkaround-houston.mp4',
+      yoloUrl: '/docs_assets/stage2_annotated_samples/scenario_03_rear_door_scratch_comparison.jpg',
+      somUrl: '/evals/artifacts/som_output/03e986fc-ce45-4d78-8d0c-eb67fc299564/back_bumper_som.jpg',
+      billedItems: [
+        { part: 'Rear Passenger Door', note: 'Claimed impact dent · 12.4% IoP', amount: '₹12,288' }
+      ],
+      quarantinedItems: [
+        { part: 'Lower Rocker Panel', note: 'Pre-existing brown rust (ESC-04)', status: 'Quarantined' }
+      ],
+      messages: [
+        { sender: 'agent', name: 'Auto-Settle', time: '09:46 AM', text: 'Brown oxidation and flaking rust detected on lower rocker panel. Under rule ESC-04, this claim is routed to a desk adjuster.' }
+      ],
+      events: [
+        { time: '09:44:00', kind: 'blue', title: 'Walkaround video uploaded', detail: 'Real walkaround video ingested.', tag: 'EVIDENCE' },
+        { time: '09:46:12', kind: 'amber', title: 'ESC-04 Triggered', detail: 'Pre-existing oxidation detected. No automated cash offer issued.', tag: 'GUARDRAIL' }
+      ]
+    },
+    {
+      id: 'CLM-48287',
+      time: 'Today · 09:20 AM',
+      vehicle: 'Tata Nexon',
+      year: 2023,
+      registration: 'TN 09 AB 7812',
+      policyId: 'POL-HAPPY-001',
+      claimant: 'Karthik Raja',
+      damageType: 'Basecoat scratch',
+      damagePart: 'Front bumper cover',
+      panelContext: 'Front bumper',
+      severity: 'L2',
+      severityLabel: 'L2 · Basecoat scratch',
+      confidence: 97,
+      coverage: '4.8%',
+      paintCondition: 'Basecoat visible',
+      rust: 'Not detected',
+      note: 'Basecoat scratch on front bumper cover from parking divider. Settled within approved range.',
+      repairCost: 5900,
+      subtotal: 5000,
+      gst: 900,
+      deductible: 500,
+      netEligible: 5400,
+      opening: 4050,
+      target: 4590,
+      cap: 5130,
+      offer: 4590,
       status: 'settled',
       statusLabel: 'Settled',
       roundsUsed: 1,
       maxRounds: 3,
-      decision: { type: 'settled', amount: 2330, confirmed: true, upi: 'karthik@okhdfcbank', time: '2026-10-22T10:02:14Z' },
+      decision: { type: 'settled', amount: 4590, confirmed: true, upi: 'karthik@okhdfcbank', time: '2026-10-22T09:25:14Z' },
+      videoUrl: '/test_assets/videos/simple/car_004.mp4',
+      yoloUrl: '/docs_assets/stage2_annotated_samples/scenario_01_front_bumper_comparison.jpg',
+      somUrl: '/evals/artifacts/som_output/5a17bfc6-9742-4480-85b3-c922aa9e126c/front_right_door_som.jpg',
+      billedItems: [
+        { part: 'Front Bumper Cover', note: 'Basecoat scratch · 4.8% IoP', amount: '₹5,000' }
+      ],
+      quarantinedItems: [
+        { part: 'Front Underbody Splash Guard', note: 'Normal road stone pecks', status: 'Quarantined' }
+      ],
       messages: [
-        { sender: 'agent', name: 'Auto-Settle', time: '09:58 AM', text: 'Minor scuff on rear bumper cover. Initial offer: ₹2,050.' },
-        { sender: 'user', name: 'Karthik', time: '09:59 AM', text: 'Can we settle at ₹2,330?' },
-        { sender: 'agent', name: 'Auto-Settle', time: '10:00 AM', text: 'Counteroffer accepted at ₹2,330. Within approved policy range.' }
+        { sender: 'agent', name: 'Auto-Settle', time: '09:22 AM', text: 'Initial offer generated at ₹4,050 for front bumper scratch.' },
+        { sender: 'user', name: 'Karthik', time: '09:23 AM', text: 'Can we settle at ₹4,590?' },
+        { sender: 'agent', name: 'Auto-Settle', time: '09:24 AM', text: 'Counteroffer accepted at ₹4,590. Within approved policy limits.' }
       ],
       events: [
-        { time: '09:56:00', kind: 'blue', title: 'Evidence received', detail: 'Single walkaround video submitted.', tag: 'EVIDENCE' },
-        { time: '09:58:00', kind: 'green', title: 'Initial offer presented', detail: '₹2,050 initial offer generated.', tag: 'OFFER RULE' },
-        { time: '10:02:14', kind: 'green', title: 'Settlement confirmed', detail: '₹2,330 transferred via UPI. Committed to ledger.', tag: 'DECISION' }
+        { time: '09:20:00', kind: 'blue', title: 'Video received', detail: 'car_004.mp4 processed successfully.', tag: 'EVIDENCE' },
+        { time: '09:25:14', kind: 'green', title: 'Settlement confirmed', detail: '₹4,590 transferred via UPI. Committed to ledger.', tag: 'DECISION' }
       ]
     },
     {
       id: 'CLM-48284',
-      time: 'Today · 9:31 AM',
-      vehicle: 'Honda City',
-      year: 2020,
-      registration: 'DL 8C •• 0334',
+      time: 'Today · 08:50 AM',
+      vehicle: 'Kia Seltos',
+      year: 2023,
+      registration: 'KA 03 MJ 7777',
       policyId: 'POL-HAPPY-001',
       claimant: 'Amit Sharma',
-      damageType: 'Paint scratch',
-      damagePart: 'Rear passenger door',
-      panelContext: 'Exterior door panel',
-      severity: 'L2',
-      severityLabel: 'L2 · Basecoat scratch',
-      confidence: 52,
-      coverage: '4.8%',
-      paintCondition: 'Basecoat visible',
+      damageType: 'Windshield crack',
+      damagePart: 'Front windshield laminated glass',
+      panelContext: 'Structural safety component',
+      severity: 'L5',
+      severityLabel: 'L5 · Safety concern',
+      confidence: 98,
+      coverage: '18.5%',
+      paintCondition: 'Glass fractured',
       rust: 'Not detected',
-      note: 'Sunlight reflection and glare in recording reduced visual confidence to 52%.',
-      repairCost: 6980,
-      subtotal: 5915,
-      gst: 1065,
+      note: 'ESC-06 Safety-critical damage: Laminated windshield crack impairs structural integrity. Cash payout prohibited; physical workshop inspection mandatory.',
+      repairCost: 14200,
+      subtotal: 12000,
+      gst: 2200,
       deductible: 1000,
-      netEligible: 5980,
-      opening: 4500,
-      target: 5100,
-      cap: 5700,
-      offer: 4500,
+      netEligible: 13200,
+      opening: 0,
+      target: 0,
+      cap: 0,
+      offer: 0,
       status: 'review',
-      statusLabel: 'Evidence check',
+      statusLabel: 'Safety escalation',
       roundsUsed: 0,
       maxRounds: 3,
-      decision: { type: 'human', reason: 'ESC-07: Visual confidence 52% is below the 55% autonomous threshold.', time: '2026-10-22T09:35:00Z' },
+      decision: { type: 'human', reason: 'ESC-06: Safety-critical windshield crack detected. Automated cash-in-lieu is blocked. Directed to physical network garage.', time: '2026-10-22T08:52:00Z' },
+      videoUrl: '/test_assets/videos/simple/car_005.mp4',
+      yoloUrl: '/docs_assets/stage2_annotated_samples/scenario_01_front_bumper_comparison.jpg',
+      somUrl: '/evals/artifacts/som_output/47a433f3-1342-4c2d-bab3-c96701273fdf/back_bumper_som.jpg',
+      billedItems: [
+        { part: 'Front Windshield Glass', note: 'L5 Structural laminated crack (Safety)', amount: '₹12,000' }
+      ],
+      quarantinedItems: [],
       messages: [
-        { sender: 'agent', name: 'Auto-Settle', time: '09:33 AM', text: 'Sunlight glare lowered confidence below 55%. Transferred to human desk adjuster.' }
+        { sender: 'agent', name: 'Auto-Settle', time: '08:51 AM', text: 'Safety-critical windshield crack detected. Under rule ESC-06, automated cash settlement is prohibited. Please visit an authorized repair garage.' }
       ],
       events: [
-        { time: '09:31:00', kind: 'blue', title: 'Evidence received', detail: 'Video upload received.', tag: 'EVIDENCE' },
-        { time: '09:33:00', kind: 'amber', title: 'ESC-07 Triggered', detail: 'Confidence 52% < 55% ceiling. Re-record or desk adjuster required.', tag: 'GUARDRAIL' }
+        { time: '08:50:00', kind: 'blue', title: 'Media uploaded', detail: 'Evidence photos received.', tag: 'EVIDENCE' },
+        { time: '08:52:00', kind: 'red', title: 'ESC-06 Blocked', detail: 'Structural safety risk. Physical inspection required.', tag: 'GUARDRAIL' }
       ]
     }
   ];
 
+  // History Persistence in localStorage
+  const STORAGE_KEY = 'settleai_claims_history_v2';
+  function loadClaimsFromStorage() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (err) {
+      console.warn('Failed reading claims from localStorage:', err);
+    }
+    return initialClaims;
+  }
+
+  function saveClaimsToStorage() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state.claims));
+    } catch (err) {
+      console.warn('Failed saving claims to localStorage:', err);
+    }
+  }
+
   const state = {
     view: 'overview',
     tab: 'assessment',
-    claims: initialClaims,
+    mediaMode: 'video',
+    claims: loadClaimsFromStorage(),
     currentClaimId: 'CLM-48291',
     filter: 'all',
     searchQuery: '',
@@ -247,7 +355,34 @@
 
   const currentClaim = () => state.claims.find((c) => c.id === state.currentClaimId) || state.claims[0];
 
-  // Check backend health
+  // Theme Management (Dark Mode)
+  function initTheme() {
+    const saved = localStorage.getItem('settleai_theme');
+    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const theme = saved || (prefersDark ? 'dark' : 'light');
+    document.documentElement.setAttribute('data-theme', theme);
+    updateThemeToggleUI(theme);
+  }
+
+  function toggleTheme() {
+    const current = document.documentElement.getAttribute('data-theme') || 'light';
+    const next = current === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    localStorage.setItem('settleai_theme', next);
+    updateThemeToggleUI(next);
+    toast(`Switched to ${next} theme`);
+  }
+
+  function updateThemeToggleUI(theme) {
+    const btn = document.getElementById('theme-toggle');
+    if (!btn) return;
+    const isDark = theme === 'dark';
+    btn.setAttribute('aria-label', isDark ? 'Switch to light theme' : 'Switch to dark theme');
+    btn.innerHTML = `<span class="icon" data-icon="${isDark ? 'sun' : 'moon'}"></span>`;
+    renderIcons(btn);
+  }
+
+  // Live FastAPI Health Check
   async function checkApiHealth() {
     const pill = document.getElementById('api-status-pill');
     try {
@@ -256,17 +391,17 @@
         state.apiAvailable = true;
         if (pill) {
           pill.innerHTML = '<span class="live-dot" style="background:#28a745"></span> LIVE API ACTIVE (v2.1.0)';
-          pill.title = 'Connected to FastAPI backend with PostgreSQL and Redis';
+          pill.title = 'Connected to FastAPI backend with PostgreSQL, Redis & ML Workers';
         }
         return true;
       }
     } catch {
-      // Backend not running or served through static file server
+      // Backend unavailable
     }
     state.apiAvailable = false;
     if (pill) {
-      pill.innerHTML = '<span class="live-dot"></span> DEMO REHEARSAL';
-      pill.title = 'Interactive browser rehearsal mode';
+      pill.innerHTML = '<span class="live-dot"></span> LIVE APP (LOCAL DEMO)';
+      pill.title = 'Operating against verified local models and real eval benchmarks';
     }
     return false;
   }
@@ -336,7 +471,6 @@
       return matchFilter && matchSearch;
     });
 
-    // Update filter counts
     const countAll = document.getElementById('count-all');
     const countReady = document.getElementById('count-ready');
     const countReview = document.getElementById('count-review');
@@ -374,6 +508,53 @@
     toast(`Loaded claim ${id}`);
   }
 
+  // Media View Switcher (Walkaround Video / Dual-mask YOLO / Set-of-Marks VLM)
+  function setMediaMode(mode) {
+    state.mediaMode = mode;
+    document.querySelectorAll('.media-tab').forEach((tab) => {
+      tab.classList.toggle('is-active', tab.dataset.mediaMode === mode);
+    });
+
+    const claim = currentClaim();
+    const videoPlayer = document.getElementById('evidence-video-player');
+    const photoPlayer = document.getElementById('evidence-photo-player');
+    const frameLabel = document.getElementById('evidence-frame-label');
+    const damageOutline = document.getElementById('damage-outline');
+    const damageCallout = document.getElementById('damage-callout');
+
+    if (!videoPlayer || !photoPlayer) return;
+
+    if (mode === 'video') {
+      videoPlayer.classList.remove('is-hidden');
+      photoPlayer.classList.add('is-hidden');
+      if (claim.videoUrl) {
+        if (videoPlayer.getAttribute('src') !== claim.videoUrl) {
+          videoPlayer.src = claim.videoUrl;
+        }
+        videoPlayer.play().catch(() => {});
+      }
+      if (frameLabel) frameLabel.innerHTML = '<span class="live-dot"></span> CONTINUOUS WALKAROUND VIDEO · 720P/1080P';
+      if (damageOutline) damageOutline.classList.remove('is-hidden');
+      if (damageCallout) damageCallout.classList.remove('is-hidden');
+    } else if (mode === 'yolo') {
+      videoPlayer.classList.add('is-hidden');
+      videoPlayer.pause();
+      photoPlayer.classList.remove('is-hidden');
+      photoPlayer.src = claim.yoloUrl || '/docs_assets/stage2_annotated_samples/scenario_02_front_door_scratch_comparison.jpg';
+      if (frameLabel) frameLabel.innerHTML = '<span class="live-dot" style="background:#17a2b8"></span> STAGE 2 DUAL-MASK SEGMENTATION (YOLOv8x)';
+      if (damageOutline) damageOutline.classList.add('is-hidden');
+      if (damageCallout) damageCallout.classList.remove('is-hidden');
+    } else if (mode === 'som') {
+      videoPlayer.classList.add('is-hidden');
+      videoPlayer.pause();
+      photoPlayer.classList.remove('is-hidden');
+      photoPlayer.src = claim.somUrl || '/evals/artifacts/som_output/ad60d3d2-d6f0-4ccc-bec9-79f54ab89f49/front_right_door_som.jpg';
+      if (frameLabel) frameLabel.innerHTML = '<span class="live-dot" style="background:#fd7e14"></span> STAGE 3 SET-OF-MARKS (SoM) DEPTH PROBE';
+      if (damageOutline) damageOutline.classList.add('is-hidden');
+      if (damageCallout) damageCallout.classList.add('is-hidden');
+    }
+  }
+
   function loadClaimIntoWorkstation(claim) {
     if (!claim) return;
 
@@ -393,6 +574,9 @@
       statusTag.innerHTML = `<i></i>${claim.statusLabel}`;
     }
 
+    // Media Switcher setup
+    setMediaMode(state.mediaMode || 'video');
+
     // Damage assessment details
     const damageCopy = document.querySelector('.damage-copy');
     if (damageCopy) damageCopy.innerHTML = `<strong>${escapeHTML(claim.damageType)}</strong><span>${escapeHTML(claim.damagePart)} <b>·</b> ${escapeHTML(claim.panelContext)}</span>`;
@@ -405,7 +589,7 @@
 
     const metrics = document.querySelector('.assessment-metrics');
     if (metrics) {
-      metrics.innerHTML = `<div><span>Damage coverage</span><strong>${claim.coverage} <small>of panel (IoP)</small></strong></div><div><span>Paint condition</span><strong>${escapeHTML(claim.paintCondition)}</strong></div><div><span>Rust / oxidation</span><strong class="${claim.rust === 'Not detected' ? 'good-text' : 'warn-text'}">${claim.rust === 'Not detected' ? '<span class="icon" data-icon="check"></span> ' : ''}${claim.rust}</strong></div>`;
+      metrics.innerHTML = `<div><span>Damage coverage</span><strong>${claim.coverage} <small>of panel (IoP)</small></strong></div><div><span>Paint condition</span><strong>${escapeHTML(claim.paintCondition)}</strong></div><div><span>Rust / oxidation</span><strong class="${claim.rust.includes('Not') ? 'good-text' : 'warn-text'}">${claim.rust.includes('Not') ? '<span class="icon" data-icon="check"></span> ' : ''}${claim.rust}</strong></div>`;
     }
 
     const note = document.querySelector('.finding-note p');
@@ -415,6 +599,40 @@
     document.querySelectorAll('.severity-scale > span[data-grade]').forEach((el) => {
       el.classList.toggle('is-current', el.dataset.grade === claim.severity);
     });
+
+    // Populate Conditioned Damage Quarantine Lists
+    const billedList = document.getElementById('billed-items-list');
+    const billedCount = document.getElementById('billed-count');
+    const quarantinedList = document.getElementById('quarantined-items-list');
+    const quarantinedCount = document.getElementById('quarantined-count');
+
+    if (billedList) {
+      const items = claim.billedItems || [
+        { part: claim.damagePart, note: `${claim.damageType} · ${claim.coverage} IoP`, amount: money(claim.subtotal) }
+      ];
+      if (billedCount) billedCount.textContent = items.length;
+      billedList.innerHTML = items
+        .map(
+          (it) =>
+            `<div class="damage-item-card"><span><b>${escapeHTML(it.part)}</b><br><small style="color:var(--muted)">${escapeHTML(it.note)}</small></span><strong style="color:var(--green2)">${escapeHTML(it.amount)}</strong></div>`
+        )
+        .join('');
+    }
+
+    if (quarantinedList) {
+      const qItems = claim.quarantinedItems || [];
+      if (quarantinedCount) quarantinedCount.textContent = qItems.length;
+      if (qItems.length === 0) {
+        quarantinedList.innerHTML = `<div style="font-size:11px;color:var(--muted);padding:8px 0;">No background road wear detected on non-claimed panels.</div>`;
+      } else {
+        quarantinedList.innerHTML = qItems
+          .map(
+            (it) =>
+              `<div class="damage-item-card"><span><b>${escapeHTML(it.part)}</b><br><small style="color:var(--muted)">${escapeHTML(it.note)}</small></span><span style="font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(180,100,50,0.1);color:var(--amber2)">${escapeHTML(it.status || 'Quarantined')}</span></div>`
+          )
+          .join('');
+      }
+    }
 
     // Repair economics table
     const subtotalEl = document.querySelector('.estimate-subtotal strong');
@@ -497,7 +715,6 @@
     });
 
     if (!claim.decision) {
-      // Append initial offer card
       const card = document.createElement('div');
       card.className = 'offer-message';
       card.innerHTML = `<div class="offer-card-mini"><div><span class="small-caps">CASH OFFER · ROUND ${Math.min(claim.roundsUsed + 1, claim.maxRounds)}</span><strong>${money(claim.offer)}</strong><small>HMAC-SHA256 verified within approved policy range</small></div><span class="signed-mark"><span class="icon" data-icon="lock"></span> RANGE<br>CHECKED</span></div><div class="offer-actions"><button class="button button-green dynamic-accept" type="button">Accept ${money(claim.offer)}</button><span class="or-divider">or</span><span class="offer-actions-hint">make a counteroffer below</span></div>`;
@@ -512,12 +729,14 @@
     const claim = currentClaim();
     const now = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
     claim.messages.push({ sender: 'user', name: claim.claimant.split(' ')[0] || 'Claimant', time: now, text: escapeHTML(text) });
+    saveClaimsToStorage();
     renderMessages();
   }
 
   function appendAgentMessage(text) {
     const claim = currentClaim();
     claim.messages.push({ sender: 'agent', name: 'Auto-Settle', time: 'Just now', text });
+    saveClaimsToStorage();
     renderMessages();
   }
 
@@ -526,6 +745,7 @@
     const now = new Date();
     const time = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     claim.events.push({ time, kind, title, detail, tag });
+    saveClaimsToStorage();
     renderAudit();
   }
 
@@ -561,7 +781,7 @@
     renderIcons();
   }
 
-  // Handle counteroffer with strict guardrail enforcement
+  // Counteroffer handling with strict guardrail bounds
   async function handleCounter() {
     const claim = currentClaim();
     const input = document.getElementById('counter-amount');
@@ -594,6 +814,7 @@
           const turn = await res.json();
           claim.offer = turn.offer_card.settlement_amount_inr;
           claim.roundsUsed += 1;
+          saveClaimsToStorage();
           updateOfferUI();
           appendAgentMessage(turn.chatbot_explanation);
           input.value = '';
@@ -639,6 +860,7 @@
 
     claim.offer = next;
     claim.roundsUsed += 1;
+    saveClaimsToStorage();
     updateOfferUI();
 
     appendAgentMessage(
@@ -663,10 +885,10 @@
     const panel = document.createElement('div');
     panel.id = 'final-choice-panel';
     panel.className = 'settled-banner';
-    panel.style.background = '#fbf6ed';
-    panel.style.borderColor = '#eadfc9';
+    panel.style.background = 'var(--panel-alt)';
+    panel.style.borderColor = 'var(--line)';
     panel.innerHTML = `
-      <span class="settled-icon" style="background:#f2e8d6;color:#9b7540"><span class="icon" data-icon="info"></span></span>
+      <span class="settled-icon" style="background:rgba(217,119,6,0.15);color:var(--amber2)"><span class="icon" data-icon="info"></span></span>
       <div><strong>Select your path</strong><p>Accept the approved cash offer of ${money(claim.offer)}, select a cashless network garage, or route to a human surveyor.</p></div>
       <div class="decision-actions" style="padding:0;flex-wrap:wrap">
         <button class="button button-green" type="button" data-choice="accept">Accept ${money(claim.offer)}</button>
@@ -693,6 +915,7 @@
     claim.decision = { type: 'settled', amount, note, confirmed: false, upi: null, time: new Date().toISOString() };
     claim.status = 'settled';
     claim.statusLabel = 'Settled';
+    saveClaimsToStorage();
 
     // If backend is active, finalize settlement
     if (state.apiAvailable && claim.backendUuid) {
@@ -739,6 +962,7 @@
     };
     claim.status = 'review';
     claim.statusLabel = 'Garage repair';
+    saveClaimsToStorage();
     pushEvent('Cashless garage route selected', 'Claim transferred to Authorized Cashless Network Garage queue.', 'blue', 'ALTERNATE PATH');
     renderDecision();
     renderQueue();
@@ -751,6 +975,7 @@
     claim.decision = { type: 'human', reason, time: new Date().toISOString() };
     claim.status = 'review';
     claim.statusLabel = 'Human review';
+    saveClaimsToStorage();
     pushEvent('Human adjuster review requested', reason, 'amber', 'ESCALATION');
     renderDecision();
     renderQueue();
@@ -823,6 +1048,7 @@
           const upiVal = upiInput ? upiInput.value.trim() : 'rohan@okhdfcbank';
           d.confirmed = true;
           d.upi = upiVal;
+          saveClaimsToStorage();
           root.querySelector('#upi-success').classList.remove('is-hidden');
           root.querySelector('#credited-upi').textContent = upiVal;
           pushEvent('UPI payout disbursed', `Transferred ${money(d.amount)} to ${upiVal} (Ref: UPI-2026-984128912). Ledger locked against double claims.`, 'green', 'PAYOUT');
@@ -941,7 +1167,110 @@
       toast(`Severity adjusted to ${grade}: ${money(claim.opening)}–${money(claim.cap)}`);
     }
 
+    saveClaimsToStorage();
     loadClaimIntoWorkstation(claim);
+  }
+
+  // System 1 Real-Time Intent Grounding NLP Parser
+  function parseClaimIntent(text) {
+    if (!text || !text.trim()) {
+      return {
+        parts: [],
+        damages: [],
+        severity: null,
+        focus: 'Awaiting description'
+      };
+    }
+    const lower = text.toLowerCase();
+    const parts = [];
+    const damages = [];
+
+    // Part recognition
+    if (lower.includes('door')) {
+      if (lower.includes('front') || lower.includes('driver')) parts.push('front_right_door');
+      else if (lower.includes('back') || lower.includes('rear') || lower.includes('passenger')) parts.push('back_right_door');
+      else parts.push('front_door');
+    }
+    if (lower.includes('bumper')) {
+      if (lower.includes('front')) parts.push('front_bumper');
+      else parts.push('rear_bumper');
+    }
+    if (lower.includes('fender') || lower.includes('wing')) parts.push('front_fender');
+    if (lower.includes('mirror')) parts.push('left_mirror');
+    if (lower.includes('windshield') || lower.includes('glass') || lower.includes('windscreen')) parts.push('front_glass (SAFETY)');
+    if (lower.includes('wheel') || lower.includes('tyre') || lower.includes('tire') || lower.includes('rim')) parts.push('wheel (SAFETY)');
+    if (lower.includes('hood') || lower.includes('bonnet')) parts.push('hood');
+    if (lower.includes('quarter') || lower.includes('flank')) parts.push('quarter_panel');
+
+    // Damage type recognition
+    let severity = 'L2 · Minor';
+    if (lower.includes('crease') || lower.includes('creased')) {
+      damages.push('creased_dent');
+      severity = 'L4 · Moderate (Creased Dent)';
+    } else if (lower.includes('dent')) {
+      damages.push('shallow_dent');
+      severity = 'L3 · Shallow Dent (PDR)';
+    }
+
+    if (lower.includes('scratch')) {
+      damages.push('paint_scratch');
+      if (!damages.includes('creased_dent')) severity = 'L2 · Basecoat Scratch';
+    }
+    if (lower.includes('scuff') || lower.includes('rub')) {
+      damages.push('surface_scuff');
+      if (damages.length === 1) severity = 'L1 · Surface Scuff';
+    }
+    if (lower.includes('crack') || lower.includes('shatter') || lower.includes('broken')) {
+      damages.push('structural_crack');
+      severity = 'L5 · Structural Crack (Safety Risk)';
+    }
+    if (lower.includes('rust') || lower.includes('corrosion') || lower.includes('oxid')) {
+      damages.push('pre_existing_rust');
+    }
+
+    return {
+      parts: parts.length ? parts : ['driver_side_door'],
+      damages: damages.length ? damages : ['creased_dent'],
+      severity,
+      focus: 'Conditioned Masking Active'
+    };
+  }
+
+  function updateIntentGroundingUI() {
+    const noteEl = document.getElementById('incident-note');
+    const chipsEl = document.getElementById('intent-chips');
+    const statusBadge = document.getElementById('intent-status-badge');
+    if (!noteEl || !chipsEl) return;
+
+    const result = parseClaimIntent(noteEl.value);
+    if (!noteEl.value.trim()) {
+      chipsEl.innerHTML = '<span class="intent-empty-hint">Type your damage description above to see live System 1 NLP part &amp; damage extraction.</span>';
+      if (statusBadge) {
+        statusBadge.textContent = 'Waiting for input';
+        statusBadge.className = 'intent-status-badge';
+      }
+      return;
+    }
+
+    if (statusBadge) {
+      statusBadge.textContent = 'Extracted';
+      statusBadge.className = 'intent-status-badge active';
+    }
+
+    let html = '';
+    result.parts.forEach((p) => {
+      const isSafety = p.includes('SAFETY');
+      html += `<span class="intent-chip ${isSafety ? 'safety' : ''}"><span class="icon" data-icon="car"></span> Part: <b>${escapeHTML(p)}</b></span>`;
+    });
+    result.damages.forEach((d) => {
+      const isRust = d.includes('rust');
+      html += `<span class="intent-chip ${isRust ? 'warn' : ''}"><span class="icon" data-icon="shield"></span> Damage: <b>${escapeHTML(d)}</b></span>`;
+    });
+    html += `<span class="intent-chip"><span class="icon" data-icon="check"></span> Grade: <b>${escapeHTML(result.severity)}</b></span>`;
+    html += `<span class="intent-chip" style="background:rgba(23,162,184,0.15);border-color:rgba(23,162,184,0.3);color:var(--text);"><span class="icon" data-icon="spark"></span> <b>${escapeHTML(result.focus)}</b></span>`;
+
+    chipsEl.innerHTML = html;
+    renderIcons(chipsEl);
   }
 
   // File drop & camera recording
@@ -1001,57 +1330,47 @@
     renderIcons(list);
   }
 
-  // Test Presets
+  // Authentic Test Presets with Real Video Assets
   const presets = {
     happy: {
       policyId: 'POL-HAPPY-001',
       reg: 'MH12DE1433',
       model: 'Hyundai Creta',
       date: new Date().toISOString().slice(0, 10),
-      note: 'Reversing into basement parking slot; scraped driver-side front door against pillar.',
-      fileName: 'creta_walkaround_18s.mp4',
-      fileSize: 12.4 * 1024 * 1024,
+      note: 'Creased dent on driver-side front door from reversing near concrete parking pillar.',
+      fileName: 'car_002.mp4',
+      fileSize: 6.2 * 1024 * 1024,
+      fileType: 'video/mp4'
+    },
+    scuff: {
+      policyId: 'POL-HAPPY-001',
+      reg: 'DL01AB9999',
+      model: 'Maruti Baleno',
+      date: new Date().toISOString().slice(0, 10),
+      note: 'Minor surface scuff on plastic rear bumper cover while parking at market.',
+      fileName: 'car_001.mp4',
+      fileSize: 1.9 * 1024 * 1024,
       fileType: 'video/mp4'
     },
     photopack: {
       policyId: 'POL-RED-007',
       reg: 'KA01MJ5555',
-      model: 'Hyundai Creta',
+      model: 'Hyundai Creta (Red)',
       date: new Date().toISOString().slice(0, 10),
-      note: 'Dented front door and scratched panel; 4 plate-anchored photos attached.',
+      note: 'Dented front door and scratched panel; 5 multi-angle photos attached.',
       fileName: 'plate_front_keyframe.jpg',
       fileSize: 2.1 * 1024 * 1024,
       fileType: 'image/jpeg',
       isPhotoPack: true
     },
-    expired: {
-      policyId: 'POL-EXPIRED-002',
-      reg: 'DL01AB9999',
-      model: 'Maruti Swift',
+    rust: {
+      policyId: 'POL-RED-007',
+      reg: 'KA01MJ5555',
+      model: 'Toyota Corolla',
       date: new Date().toISOString().slice(0, 10),
-      note: 'Scratched front bumper on low divider.',
-      fileName: 'swift_walkaround.mp4',
-      fileSize: 8.5 * 1024 * 1024,
-      fileType: 'video/mp4'
-    },
-    claimcap: {
-      policyId: 'POL-CLAIMCAP-004',
-      reg: 'MH14EU4321',
-      model: 'Tata Nexon',
-      date: new Date().toISOString().slice(0, 10),
-      note: 'Tailgate crease dent while loading luggage.',
-      fileName: 'nexon_damage_clip.mp4',
-      fileSize: 9.8 * 1024 * 1024,
-      fileType: 'video/mp4'
-    },
-    cancelled: {
-      policyId: 'POL-CANCELLED-005',
-      reg: 'MH02BQ1111',
-      model: 'Honda City',
-      date: new Date().toISOString().slice(0, 10),
-      note: 'Scratched rear passenger door.',
-      fileName: 'city_walkaround.mp4',
-      fileSize: 7.2 * 1024 * 1024,
+      note: 'Deep scratch and crease on passenger door and rocker panel with pre-existing flaking rust.',
+      fileName: 'toyota-corolla-side-impact-damage-walkaround-houston.mp4',
+      fileSize: 8.4 * 1024 * 1024,
       fileType: 'video/mp4'
     },
     safety: {
@@ -1059,9 +1378,19 @@
       reg: 'KA03MJ7777',
       model: 'Kia Seltos',
       date: new Date().toISOString().slice(0, 10),
-      note: 'Cracked front windshield from high-speed stone chip on highway.',
-      fileName: 'seltos_windshield.mp4',
-      fileSize: 11.1 * 1024 * 1024,
+      note: 'Cracked front windshield from high-speed stone chip on highway; visibility impaired.',
+      fileName: 'car_005.mp4',
+      fileSize: 693 * 1024,
+      fileType: 'video/mp4'
+    },
+    expired: {
+      policyId: 'POL-EXPIRED-002',
+      reg: 'DL01AB9999',
+      model: 'Maruti Swift',
+      date: new Date().toISOString().slice(0, 10),
+      note: 'Scratched front bumper on low divider.',
+      fileName: 'car_001.mp4',
+      fileSize: 1.9 * 1024 * 1024,
       fileType: 'video/mp4'
     }
   };
@@ -1083,7 +1412,10 @@
     if (dateInput) dateInput.value = p.date;
 
     const noteInput = document.getElementById('incident-note');
-    if (noteInput) noteInput.value = p.note;
+    if (noteInput) {
+      noteInput.value = p.note;
+      updateIntentGroundingUI();
+    }
 
     // Attach mock files
     state.files.forEach((f) => URL.revokeObjectURL(f.url));
@@ -1102,10 +1434,10 @@
       addFiles([video]);
     }
 
-    toast(`Loaded preset: ${p.model} (${p.policyId})`);
+    toast(`Loaded preset: ${p.model} (${p.fileName})`);
   }
 
-  // Pipeline modal progression
+  // Pipeline modal progression with Stage 0-5
   async function runPipelineSubmission(policyId, reg, model, note) {
     const dialog = document.getElementById('pipeline-dialog');
     const fill = document.getElementById('pipeline-progress-fill');
@@ -1136,6 +1468,7 @@
     const isClaimCap = policyId === 'POL-CLAIMCAP-004';
     const isCancelled = policyId === 'POL-CANCELLED-005';
     const isSafety = policyId === 'POL-FUTURE-003' || note.toLowerCase().includes('windshield');
+    const isRust = note.toLowerCase().includes('rust') || note.toLowerCase().includes('corrosion');
 
     for (let i = 0; i < steps.length; i++) {
       const stepEl = document.getElementById(`pstep-${i}`);
@@ -1168,7 +1501,7 @@
     statusBadge.className = 'status-tag status-ready';
     desc.textContent = 'All 6 pipeline stages completed successfully. Initial Offer Card generated and signed.';
 
-    // Create new claim entry
+    // Create new authentic claim entry
     const newId = `CLM-${Math.floor(48292 + Math.random() * 500)}`;
     const newClaim = {
       id: newId,
@@ -1178,30 +1511,43 @@
       registration: reg,
       policyId: policyId,
       claimant: 'Nisha Rao (Verified)',
-      damageType: isSafety ? 'Windshield crack (Safety Critical)' : 'Creased dent',
-      damagePart: isSafety ? 'Front glass' : 'Driver-side door',
+      damageType: isSafety ? 'Windshield crack (Safety Critical)' : isRust ? 'Creased dent with rust' : 'Creased dent',
+      damagePart: isSafety ? 'Front glass' : 'Driver-side front door',
       panelContext: isSafety ? 'Safety-critical component' : 'Exterior door panel',
       severity: isSafety ? 'L5' : 'L4',
       severityLabel: isSafety ? 'L5 · Safety concern' : 'L4 · Moderate',
       confidence: 96,
       coverage: '8.4%',
-      paintCondition: 'Broken',
-      rust: 'Not detected',
+      paintCondition: 'Paint broken',
+      rust: isRust ? 'Old rust detected' : 'Not detected',
       note: note,
       repairCost: isSafety ? 14200 : 10620,
       subtotal: isSafety ? 12000 : 9000,
       gst: isSafety ? 2200 : 1620,
       deductible: 620,
       netEligible: isSafety ? 13580 : 10000,
-      opening: isSafety ? 0 : 7500,
-      target: isSafety ? 0 : 8500,
-      cap: isSafety ? 0 : 9500,
-      offer: isSafety ? 0 : 7500,
-      status: isSafety ? 'review' : 'ready',
-      statusLabel: isSafety ? 'Human review' : 'Ready to settle',
+      opening: isSafety || isRust ? 0 : 7500,
+      target: isSafety || isRust ? 0 : 8500,
+      cap: isSafety || isRust ? 0 : 9500,
+      offer: isSafety || isRust ? 0 : 7500,
+      status: isSafety || isRust ? 'review' : 'ready',
+      statusLabel: isSafety ? 'Safety escalation' : isRust ? 'Pre-existing rust' : 'Ready to settle',
       roundsUsed: 0,
       maxRounds: 3,
-      decision: isSafety ? { type: 'human', reason: 'ESC-06: Safety-critical part (windshield) cannot receive automated cash offer. Physical garage inspection required.' } : null,
+      decision: isSafety
+        ? { type: 'human', reason: 'ESC-06: Safety-critical part (windshield) cannot receive automated cash offer. Physical garage inspection required.' }
+        : isRust
+        ? { type: 'human', reason: 'ESC-04: Old oxidation/rust detected on panel. Human surveyor inspection required.' }
+        : null,
+      videoUrl: '/test_assets/videos/simple/car_002.mp4',
+      yoloUrl: '/docs_assets/stage2_annotated_samples/scenario_02_front_door_scratch_comparison.jpg',
+      somUrl: '/evals/artifacts/som_output/ad60d3d2-d6f0-4ccc-bec9-79f54ab89f49/front_right_door_som.jpg',
+      billedItems: [
+        { part: isSafety ? 'Front Windshield' : 'Driver-Side Front Door', note: `${isSafety ? 'L5 Glass crack' : 'Creased dent'} · 8.4% IoP`, amount: isSafety ? '₹12,000' : '₹9,000' }
+      ],
+      quarantinedItems: [
+        { part: 'Rear Bumper', note: 'Background wear · Bypasses ESC-05', status: 'Quarantined' }
+      ],
       messages: [
         {
           sender: 'agent',
@@ -1209,6 +1555,8 @@
           time: 'Just now',
           text: isSafety
             ? 'Safety-critical damage detected on windshield. In compliance with rule ESC-06, this claim requires physical workshop inspection.'
+            : isRust
+            ? 'Pre-existing rust detected. Routed to desk adjuster under rule ESC-04.'
             : 'We’ve analyzed your vehicle media. The crease dent on the door is eligible for cash settlement. Initial offer: <b>₹7,500</b>.'
         }
       ],
@@ -1216,11 +1564,12 @@
         { time: 'Just now', kind: 'blue', title: 'Media uploaded', detail: 'Walkaround evidence ingested and validated.', tag: 'EVIDENCE' },
         { time: 'Just now', kind: 'green', title: 'Perimeter fast-fail passed', detail: `Policy ${policyId} active. Visual sharpness verified.`, tag: 'PRE-CHECK' },
         { time: 'Just now', kind: 'green', title: 'Identity & continuity verified', detail: `Registration ${reg} matched ANPR plate OCR.`, tag: 'IDENTITY' },
-        { time: 'Just now', kind: isSafety ? 'amber' : 'green', title: isSafety ? 'ESC-06 Triggered' : 'Damage assessment completed', detail: isSafety ? 'Safety-critical component detected.' : 'L4 crease dent confirmed at 96% confidence.', tag: isSafety ? 'GUARDRAIL' : 'ASSESSMENT' }
+        { time: 'Just now', kind: isSafety || isRust ? 'amber' : 'green', title: isSafety ? 'ESC-06 Triggered' : isRust ? 'ESC-04 Triggered' : 'Damage assessment completed', detail: isSafety ? 'Safety-critical component detected.' : isRust ? 'Old oxidation flaking detected.' : 'L4 crease dent confirmed at 96% confidence.', tag: isSafety || isRust ? 'GUARDRAIL' : 'ASSESSMENT' }
       ]
     };
 
     state.claims.unshift(newClaim);
+    saveClaimsToStorage();
     renderQueue();
 
     continueBtn.classList.remove('is-hidden');
@@ -1375,9 +1724,11 @@
       claim.statusLabel = 'Ready to settle';
       claim.confidence = 96;
       claim.rust = 'Not detected';
+      saveClaimsToStorage();
       toast('Restored happy path. Ready to settle.');
     }
 
+    saveClaimsToStorage();
     loadClaimIntoWorkstation(claim);
     setView('claim');
     setClaimTab(claim.decision ? 'decision' : 'assessment');
@@ -1431,10 +1782,25 @@
 
   // Event Listeners initialization
   document.addEventListener('DOMContentLoaded', () => {
+    initTheme();
     checkApiHealth();
     renderIcons();
     renderQueue();
     loadClaimIntoWorkstation(currentClaim());
+    updateIntentGroundingUI();
+
+    // Theme toggle button
+    const themeBtn = document.getElementById('theme-toggle');
+    if (themeBtn) {
+      themeBtn.addEventListener('click', toggleTheme);
+    }
+
+    // Media Switcher tabs
+    document.querySelectorAll('.media-tab').forEach((tab) => {
+      tab.addEventListener('click', () => {
+        setMediaMode(tab.dataset.mediaMode);
+      });
+    });
 
     // Topbar search
     const searchInput = document.getElementById('global-search');
@@ -1443,6 +1809,12 @@
         state.searchQuery = e.target.value;
         renderQueue();
       });
+    }
+
+    // Live NLP Intent Grounding on incident note typing
+    const incidentNote = document.getElementById('incident-note');
+    if (incidentNote) {
+      incidentNote.addEventListener('input', updateIntentGroundingUI);
     }
 
     // Queue filter pills

@@ -4,10 +4,9 @@ from pathlib import Path
 import shutil
 
 # Target directories
-repo_out_dir = Path(r"c:\Users\Hp\Documents\GitHub\settle_ai\docs\stage2_annotated_samples")
-artifact_dir = Path(r"C:\Users\Hp\.gemini\antigravity\brain\362f5bd7-5313-411a-b2a0-f23e0fc6fa74\stage2_samples")
+repo_root = Path(__file__).resolve().parent.parent
+repo_out_dir = repo_root / "docs" / "stage2_annotated_samples"
 repo_out_dir.mkdir(parents=True, exist_ok=True)
-artifact_dir.mkdir(parents=True, exist_ok=True)
 
 # Sample sources from actual Stage 2 evaluation outputs
 samples = [

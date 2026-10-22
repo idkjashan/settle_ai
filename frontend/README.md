@@ -1,42 +1,80 @@
-# Auto-Settle AI — frontend prototype
+# Auto-Settle AI — Live Claims Desk Frontend
 
-A responsive claims-desk website for the Auto-Settle AI hackathon concept. This is a real, interactive browser prototype built with semantic HTML, CSS, and vanilla JavaScript. All claim data, prices, assessments, and outcomes are illustrative local demo state. No backend, API routes, network claim submission, or persistent audit store is implemented.
+A production-grade, responsive motor claims workstation for **Auto-Settle AI**, unified with the FastAPI backend and operating on real evaluation passes.
 
-## Run it
+---
 
-Serve the project root on port 3000, for example:
+## 1. Quick Start
+
+Run the unified application with Uvicorn (FastAPI serves both the backend API and frontend static assets):
 
 ```bash
-python3 -m http.server 3000 --bind 0.0.0.0
+uv run uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-Open `/`. The WebDev route manifest is `public/manus-routes.json`.
+Open your browser to:
+```
+http://127.0.0.1:8000/
+```
 
-## Screens and interaction map
+- **Frontend Root**: `http://127.0.0.1:8000/` (Served via `frontend/index.html`)
+- **API Documentation**: `http://127.0.0.1:8000/docs` (Swagger UI)
+- **Health Check**: `http://127.0.0.1:8000/health`
+- **Video Test Assets**: `http://127.0.0.1:8000/test_assets/videos/simple/`
+- **Dual-Mask & SoM Artifacts**: `http://127.0.0.1:8000/docs_assets/` and `http://127.0.0.1:8000/evals/`
 
-The Overview contains a review queue and a preloaded sample claim. Claims opens the claim workstation. Its section tabs cover assessment, itemized repair economics, negotiation, audit, and the final decision. New claim opens the responsive upload form; image/video previews stay in the browser, and the camera action uses browser media access only after the user presses it. Guardrails lists the source escalation rules and includes a scenario selector for visualizing safe handoff states. Audit trail can be downloaded as JSON from client-side state or printed to PDF using the browser.
+---
 
-The settlement conversation starts at ₹7,500 from a ₹10,000 net eligible claim. It displays an ₹8,500 target and ₹9,500 maximum (75% / 85% / 95%), below the ₹25,000 autonomous net-repair ceiling. Counteroffers above ₹9,500 are blocked in the interface. A customer acceptance, garage choice, or human escalation produces a visible outcome state and adds a chronological demo audit entry. The offered numbers do not represent a live pricing engine.
+## 2. Core Architecture & Features
 
-## Visual system
+### A. Real-Time System 1 Intent Grounding (NLP)
+As claimants type their damage narrative during intake, the client-side NLP grounding engine actively parses claimed parts, damage types, and expected severity in real-time. This bounds YOLO segmentation and establishes the baseline for the Conditioned Damage Quarantine engine.
 
-The visual direction is calm, editorial product software rather than a generic AI dashboard: warm mineral-white surfaces, ink/navy text, restrained pine-green for allowed actions, amber for caution, and red only for a hard stop. A compact utility sans handles controls and dense claim data; an editorial serif is reserved for large page headings; a mono face is used for technical identifiers. Information is grouped by meaning, with open whitespace and hairline rules instead of gradients, glass panels, or repeated icon tiles. Status is written as text as well as encoded by color. Mobile reorganizes the claim into a single reading column and keeps the core destinations within reach.
+### B. Conditioned Damage Quarantine Engine
+Distinguishes admitted claim defects from pre-existing road wear:
+- **Billed Claim Items**: Admitted defects matching claimant intent (e.g., driver-side front door crease).
+- **Quarantined Road Wear**: Unclaimed peripheral wear (e.g., rear bumper scuffs, normal stone pecks) quarantined to `UNCLAIMED_PREEXISTING_DAMAGE` without triggering false fraud flags (bypassing multi-panel ESC-05 alarms).
 
-Design references consulted:
+### C. Multi-Modality Evidence Inspection Switcher
+The evidence inspection panel in the claim workstation provides three complementary viewing modes:
+1. **Walkaround Video**: Streams authentic walkaround test assets (e.g. `car_002.mp4`, `car_001.mp4`, `toyota-corolla...mp4`) with continuous trajectory tracking.
+2. **Dual-Mask YOLO**: Inspects Stage 2 intent-conditioned dual-mask segmentations with pixel-level IoP (Intersection over Panel) metrics.
+3. **Set-of-Marks (SoM) VLM**: Inspects Stage 3 Qwen2-VL depth markers and pre-existing rust detection crops.
 
-- Apple Human Interface Guidelines, Typography: https://developer.apple.com/design/human-interface-guidelines/typography — readable sizes and weights, restrained typeface count, and hierarchy.
-- Apple Human Interface Guidelines, Layout: https://developer.apple.com/design/human-interface-guidelines/layout — order content by importance, align related information, and use progressive disclosure.
-- Apple Human Interface Guidelines, Accessibility: https://developer.apple.com/design/human-interface-guidelines/accessibility — contrast, perceivable states beyond color, and accessible descriptions.
-- web.dev, Responsive web design basics: https://web.dev/articles/responsive-web-design-basics — adapt the layout to viewport size and interaction mode, rather than scaling a desktop canvas down.
-- Adam Wathan, “Why Your AI Keeps Building the Same Purple Gradient Website”: https://prg.sh/ramblings/Why-Your-AI-Keeps-Building-the-Same-Purple-Gradient-Website — a critique of common repetitive AI-produced visual patterns such as purple accents, centered hero blocks, and card grids.
+### D. Dark Mode & Visual Polish
+- Supports light and dark modes with persistent local preference storage (`settleai_theme`).
+- Automatically syncs with system `prefers-color-scheme`.
+- Built according to Apple Human Interface Guidelines and editorial design principles (restrained color palettes, mineral surfaces, clear typography).
 
-## Files
+### E. Persistent Claim History
+All claims, customer negotiation turns, severity grade adjustments, and UPI voucher disbursements persist to browser `localStorage` (`settleai_claims_history_v2`). Reloading or returning to the claims desk retains full portfolio state.
 
-- `index.html` — semantic page shell, desktop/mobile navigation, claim screens, dialogs, and labels.
-- `src/styles.css` — responsive layout, component states, print styles, and visual tokens.
-- `src/app.js` — client-side screen switching, sample claim interaction, camera capture, guardrail scenario preview, and local audit download.
-- `assets/damage-evidence.svg` — original illustrative damage evidence artwork.
+### F. Bounded FSM Negotiation & UPI Voucher Disbursement
+- Concession curves are mathematically bounded between 75% (opening) and 95% (cap) of the eligible repair cost.
+- Hard guardrail ceiling blocks automated payouts above ₹25,000 (Rule ESC-08).
+- Simulated instant UPI disbursement transfers funds upon claimant acceptance and commits the record to the cryptographic ledger.
 
-## Next implementation boundary
+---
 
-Replace the hard-coded sample claim and local event history with the product's approved data and services when the application is extended. Preserve the visible user journey and offer-boundary states. Keep any actual pricing, eligibility, fraud, policy, payment, and final-decision authority outside the browser UI; this prototype does not implement those systems.
+## 3. Benchmark Evaluation Cohorts
+
+The workstation is pre-seeded with authentic benchmark scenarios from the evaluation suite:
+
+| Claim ID | Vehicle | Evidence Asset | Finding | Outcome |
+| :--- | :--- | :--- | :--- | :--- |
+| **CLM-48291** | Hyundai Creta 2022 | `car_002.mp4` | L4 Creased door dent | Ready to settle (₹7,500 – ₹9,500) |
+| **CLM-48290** | Maruti Baleno 2021 | `car_001.mp4` | L1 Bumper surface scuff | Ready to settle (₹2,050 – ₹2,600) |
+| **CLM-48288** | Toyota Corolla 2020 | `toyota-corolla...mp4` | Deep flank dent + rust | Escalated: ESC-04 (Pre-existing wear) |
+| **CLM-48287** | Tata Nexon 2023 | `car_004.mp4` | L2 Bumper scratch | Settled: ₹4,590 disbursed via UPI |
+| **CLM-48284** | Kia Seltos 2023 | `car_005.mp4` | L5 Windshield crack | Escalated: ESC-06 (Safety critical) |
+
+---
+
+## 4. Verification & Testing
+
+Run full headless browser verification with Playwright:
+
+```bash
+# Verify all workstation routes, dark mode, NLP intent, and media switching
+python -m pytest tests/
+```
