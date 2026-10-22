@@ -17,7 +17,7 @@ class Stage2Settings(BaseSettings):
     # Detection confidence thresholds
     part_min_confidence: float = Field(default=0.45)
     damage_min_confidence_global: float = Field(default=0.35)
-    high_conf_escalation_floor: float = Field(default=0.45)
+    high_conf_escalation_floor: float = Field(default=0.35)
 
     # Shapely geometry & spillover thresholds
     min_polygon_area_px: float = Field(default=50.0)

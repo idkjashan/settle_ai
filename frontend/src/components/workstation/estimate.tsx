@@ -6,7 +6,7 @@ import { inr } from "@/lib/format";
 import { RangeMeter } from "./assessment";
 
 export function EstimateTab({ detail, onContinue }: { detail: ClaimDetail | null; onContinue: () => void }) {
-  const est = detail?.telemetry.actuarial_estimate;
+  const est = detail?.telemetry?.actuarial_estimate;
 
   if (!est) {
     return (

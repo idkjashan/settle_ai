@@ -12,7 +12,7 @@ from app.domain.actuarial_pricing.enums import (
 )
 
 TWOPLACES = Decimal("0.01")
-AUTONOMOUS_CEILING_INR = Decimal("25000.00")
+AUTONOMOUS_CEILING_INR = Decimal("75000.00")  # ponytail: raised for hackathon demo; upgrade path → per-policy ceiling from InsuredPolicy.sum_insured
 OVERLAP_DISCOUNT_FACTOR = Decimal("0.80")
 STANDARD_GST_RATE = Decimal("0.18")
 

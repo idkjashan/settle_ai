@@ -42,11 +42,34 @@ class PartSideResolverAndGrouper:
     def _resolve_generic_part(
         self, raw_part: str, frame_idx: int, frame_sides: List[Tuple[int, str]]
     ) -> Tuple[str, str]:
+        # Count overall trajectory side votes
+        left_votes = sum(1 for _, s in frame_sides if s == "LEFT")
+        right_votes = sum(1 for _, s in frame_sides if s == "RIGHT")
+        dominant = "RIGHT" if right_votes > left_votes else ("LEFT" if left_votes > right_votes else None)
+
+        # Harmonize isolated sided door/light misclassifications if trajectory is predominantly one side
+        if dominant == "RIGHT":
+            if raw_part == "front_left_door":
+                return "front_right_door", "TRAJECTORY_HARMONIZED_RIGHT"
+            if raw_part == "back_left_door":
+                return "back_right_door", "TRAJECTORY_HARMONIZED_RIGHT"
+            if raw_part == "front_left_light":
+                return "front_right_light", "TRAJECTORY_HARMONIZED_RIGHT"
+            if raw_part == "back_left_light":
+                return "back_right_light", "TRAJECTORY_HARMONIZED_RIGHT"
+        elif dominant == "LEFT":
+            if raw_part == "front_right_door":
+                return "front_left_door", "TRAJECTORY_HARMONIZED_LEFT"
+            if raw_part == "back_right_door":
+                return "back_left_door", "TRAJECTORY_HARMONIZED_LEFT"
+            if raw_part == "front_right_light":
+                return "front_left_light", "TRAJECTORY_HARMONIZED_LEFT"
+            if raw_part == "back_right_light":
+                return "back_left_light", "TRAJECTORY_HARMONIZED_LEFT"
+
         if (raw_part, "LEFT") not in GENERIC_TO_SIDED_PART_MAP:
             return raw_part, "DIRECT_EXPLICIT_CLASS"
 
-        left_votes = 0
-        right_votes = 0
         ordered_indices = [idx for idx, _ in frame_sides]
         try:
             pos = ordered_indices.index(frame_idx)
@@ -55,20 +78,19 @@ class PartSideResolverAndGrouper:
 
         r = self.settings.trajectory_side_window_radius
         window = frame_sides[max(0, pos - r) : min(len(frame_sides), pos + r + 1)]
-        for _, side in window:
-            if side == "LEFT":
-                left_votes += 1
-            elif side == "RIGHT":
-                right_votes += 1
+        win_left = sum(1 for _, s in window if s == "LEFT")
+        win_right = sum(1 for _, s in window if s == "RIGHT")
 
-        if left_votes == 0 and right_votes == 0:
-            left_votes = sum(1 for _, s in frame_sides if s == "LEFT")
-            right_votes = sum(1 for _, s in frame_sides if s == "RIGHT")
-
-        if left_votes > right_votes:
+        if win_left > win_right:
             return GENERIC_TO_SIDED_PART_MAP[(raw_part, "LEFT")], "TRAJECTORY_PROPAGATED_LEFT"
-        if right_votes > left_votes:
+        if win_right > win_left:
             return GENERIC_TO_SIDED_PART_MAP[(raw_part, "RIGHT")], "TRAJECTORY_PROPAGATED_RIGHT"
+
+        if dominant == "LEFT":
+            return GENERIC_TO_SIDED_PART_MAP[(raw_part, "LEFT")], "TRAJECTORY_PROPAGATED_LEFT"
+        if dominant == "RIGHT":
+            return GENERIC_TO_SIDED_PART_MAP[(raw_part, "RIGHT")], "TRAJECTORY_PROPAGATED_RIGHT"
+
         return raw_part, "GENERIC_FALLBACK_KEY"
 
     def resolve_and_group(
@@ -215,4 +237,33 @@ class PartSideResolverAndGrouper:
 
         # Conditioned Stage 2: Prioritize user-claimed parts first
         candidates.sort(key=lambda c: (not c.is_claimed, -c.final_iop_ratio))
+
+        # Symmetric-pair deduplication for front-view walkarounds.
+        # When trajectory dominant is UNKNOWN (vehicle filmed head-on), Carparts-Seg may
+        # detect both front_left_light and front_right_light simultaneously since both
+        # headlamps are visible. ESC-05 (opposite-side multi-hit) would wrongly fire.
+        # Fix: discard the lower-confidence member of each known symmetrical pair.
+        # ponytail: only front lights handled; extend list if back lights become an issue.
+        _SYMMETRIC_PAIRS = [
+            ("front_left_light", "front_right_light"),
+        ]
+        frame_sides_local = self._infer_frame_sides(predictions)
+        left_v = sum(1 for _, s in frame_sides_local if s == "LEFT")
+        right_v = sum(1 for _, s in frame_sides_local if s == "RIGHT")
+        traj_dominant = "RIGHT" if right_v > left_v else ("LEFT" if left_v > right_v else None)
+
+        if traj_dominant is None:
+            # Front-view: collapse symmetrical pairs to the higher-confidence side
+            candidate_map = {c.canonical_part_key: c for c in candidates}
+            to_remove: set = set()
+            for left_part, right_part in _SYMMETRIC_PAIRS:
+                if left_part in candidate_map and right_part in candidate_map:
+                    lc = candidate_map[left_part]
+                    rc = candidate_map[right_part]
+                    # Discard the lower-confidence member; keep the other intact
+                    loser = lc if rc.part_confidence >= lc.part_confidence else rc
+                    to_remove.add(loser.canonical_part_key)
+            if to_remove:
+                candidates = [c for c in candidates if c.canonical_part_key not in to_remove]
+
         return candidates

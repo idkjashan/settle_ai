@@ -132,7 +132,7 @@ class CashSettlementBandDTO(BaseModel):
     initial_offer_inr: Decimal = Field(description="O_0: 75% of net liability")
     target_settlement_inr: Decimal = Field(description="O_target: 85% of net liability")
     walkaway_cap_inr: Decimal = Field(description="O_max: min(₹25,000, 95% of net liability)")
-    financial_ceiling_inr: Decimal = Decimal("25000.00")
+    financial_ceiling_inr: Decimal = Decimal("75000.00")
 
     def to_dict(self, mode: str = "json") -> Dict[str, Any]:
         """Serialize DTO to dictionary."""

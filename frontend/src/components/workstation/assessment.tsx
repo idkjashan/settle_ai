@@ -21,18 +21,18 @@ export function AssessmentTab({
 }) {
   const [mode, setMode] = useState<MediaMode>("video");
 
-  const vlm = detail?.telemetry.vlm_inspection ?? null;
+  const vlm = detail?.telemetry?.vlm_inspection ?? null;
   const verified = vlm?.verified_parts ?? [];
   const quarantined = vlm?.quarantined_parts ?? [];
-  const dual = detail?.telemetry.dual_mask;
-  const grounded = (dual?.grounded_parts ?? []) as unknown as Array<Record<string, unknown>>;
+  const dual = detail?.telemetry?.dual_mask;
+  const grounded = (dual?.grounded_parts ?? dual?.grounded_damaged_parts ?? []) as unknown as Array<Record<string, unknown>>;
   const primary = verified[0];
 
   const severity = depthToSeverity(primary?.depth_grade);
   const confidence = primary ? Math.round(((primary.damage_confidence ?? primary.vlm_confidence ?? 0.9) as number) * 100) : null;
   const iop = primary?.iop_percentage;
 
-  const cont = detail?.telemetry.vehicle_continuity;
+  const cont = detail?.telemetry?.vehicle_continuity;
   const checks = useMemo(
     () => [
       {
@@ -51,7 +51,7 @@ export function AssessmentTab({
     [cont],
   );
 
-  const est = detail?.telemetry.actuarial_estimate;
+  const est = detail?.telemetry?.actuarial_estimate;
   const band = est?.settlement_band;
 
   const billed = verified.filter((p) => (p.claim_status ?? "CLAIMED") === "CLAIMED" || p.is_claimed !== false);
@@ -93,7 +93,7 @@ export function AssessmentTab({
                 )}
               </div>
               <p>
-                {detail?.telemetry.fast_fail?.capture_modality === "PHOTO_PACK"
+                {detail?.telemetry?.fast_fail?.capture_modality === "PHOTO_PACK"
                   ? `Photo pack · ${detail.telemetry.fast_fail?.photo_metadata_report?.photo_count ?? "—"} photos`
                   : "Continuous walkaround video evidence"}
               </p>
@@ -101,7 +101,7 @@ export function AssessmentTab({
           </div>
           <div className="media-switcher">
             <button className={`media-tab ${mode === "video" ? "is-active" : ""}`} type="button" onClick={() => setMode("video")}>
-              <Icon name="play" /> {detail?.telemetry.fast_fail?.capture_modality === "PHOTO_PACK" ? "Photo pack" : "Walkaround video"}
+              <Icon name="play" /> {detail?.telemetry?.fast_fail?.capture_modality === "PHOTO_PACK" ? "Photo pack" : "Walkaround video"}
             </button>
             <button className={`media-tab ${mode === "yolo" ? "is-active" : ""}`} type="button" onClick={() => setMode("yolo")}>
               <Icon name="spark" /> Dual-mask YOLO
@@ -387,9 +387,9 @@ export function AssessmentTab({
             <span className={`mini-check ${detail?.escalation_code ? "failed" : ""}`}>{detail?.escalation_code ? "!" : "✓"}</span>
           </div>
           <ul>
-            <GuardRow ok={detail?.telemetry.fast_fail != null} label="Fast-fail pre-check" />
+            <GuardRow ok={detail?.telemetry?.fast_fail != null} label="Fast-fail pre-check" />
             <GuardRow ok={cont?.passed ?? null} label="Vehicle identity matched" />
-            <GuardRow ok={detail?.telemetry.dual_mask ? true : null} label="Dual-mask segmentation" />
+            <GuardRow ok={detail?.telemetry?.dual_mask ? true : null} label="Dual-mask segmentation" />
             <GuardRow ok={primary ? (primary.is_safety_critical ? false : true) : null} label="Minor, non-safety damage" />
             <GuardRow ok={est ? !est.is_ceiling_breached : null} label="Within ₹25,000 ceiling" />
           </ul>
@@ -410,7 +410,7 @@ export function AssessmentTab({
             <span className="audit-dot audit-dot-blue" />
             <span>
               <strong>Claim registered</strong>
-              <small>{detail?.telemetry.fast_fail ? "Fast-fail gate executed" : "Pending"}</small>
+              <small>{detail?.telemetry?.fast_fail ? "Fast-fail gate executed" : "Pending"}</small>
             </span>
           </p>
         </section>

@@ -67,7 +67,7 @@ def extract_fallback_keyframes(scratch_path: Any, claim_id: uuid.UUID) -> Dict[s
         try:
             total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
             if total_frames > 0:
-                sample_ratios = [0.1, 0.3, 0.5, 0.7, 0.9]
+                sample_ratios = [0.05, 0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75, 0.85, 0.95]
                 for idx, r in enumerate(sample_ratios, 1):
                     f_no = min(int(total_frames * r), total_frames - 1)
                     cap.set(cv2.CAP_PROP_POS_FRAMES, f_no)
@@ -220,7 +220,23 @@ async def run_stage1_pipeline_task(
             # Step 2: Handoff to Stage 2 (Dual-Mask Segmentation)
             saved_kf = getattr(telemetry.tracking_report, "saved_keyframes", None) if telemetry else None
             saved_kf = saved_kf or pre_extracted_kf
-            if stage1_passed and telemetry and saved_kf:
+            if (stage1_passed or is_demo_rehearsal) and saved_kf:
+                if telemetry is None:
+                    from app.domain.vehicle_identity_continuity.schemas import (
+                        CutDetectionResult,
+                        PlateValidationResult,
+                        ColorValidationResult,
+                        TrackingAndKeyframeResult,
+                        VehicleContinuityTelemetryDTO,
+                    )
+                    telemetry = VehicleContinuityTelemetryDTO(
+                        passed=True,
+                        cut_report=CutDetectionResult(is_continuous=True),
+                        plate_report=PlateValidationResult(is_verified=True, expected_plate="DEMO", extracted_plate="DEMO", ocr_confidence=1.0),
+                        color_report=ColorValidationResult(is_color_match=True, expected_color_name="WHITE"),
+                        tracking_report=TrackingAndKeyframeResult(is_persistent=True, saved_keyframes=saved_kf),
+                        total_execution_ms=1.0,
+                    )
                 logger.info(f"Handoff to Stage 2 Dual-Mask Segmentation for claim {claim_id}...")
                 from app.domain.vehicle_identity_continuity.schemas import Stage2HandoffPayload
                 from app.domain.dual_mask_segmentation.orchestrator import get_stage2_orchestrator
@@ -263,7 +279,7 @@ async def run_stage1_pipeline_task(
                     if stage3_payload and getattr(stage3_payload, "grounded_parts", None):
                         logger.info(f"Handoff to Stage 3 VLM Damage Inspection for claim {claim_id}...")
                         from app.domain.vlm_damage_inspection.orchestrator import Stage3VLMOrchestrator
-                        from app.domain.vlm_damage_inspection.exceptions import Stage3Error
+                        from app.domain.vlm_damage_inspection.exceptions import Stage3InspectionError
 
                         try:
                             stage3_orch = Stage3VLMOrchestrator()
@@ -272,9 +288,9 @@ async def run_stage1_pipeline_task(
                                 f"Stage 3 inspection complete for claim {claim_id}: "
                                 f"{len(stage4_payload.verified_parts)} verified damaged parts."
                             )
-                        except Stage3Error as s3e:
+                        except Stage3InspectionError as s3e:
                             logger.warning(
-                                f"Stage 3 domain escalation for claim {claim_id}: code={s3e.code}, message={s3e.message}"
+                                f"Stage 3 domain escalation for claim {claim_id}: code={s3e.escalation_code if hasattr(s3e, 'escalation_code') else 'S3'}, message={s3e.message}"
                             )
                             return
                         except Exception as s3_err:
@@ -320,7 +336,7 @@ async def run_stage1_pipeline_task(
                             )
                         except ActuarialPricingError as s4e:
                             logger.warning(
-                                f"Stage 4 actuarial escalation for claim {claim_id}: code={s4e.code}, message={s4e.message}"
+                                f"Stage 4 actuarial escalation for claim {claim_id}: code={getattr(s4e, 'escalation_code', 'S4')}, message={s4e.message}"
                             )
                             return
                         except Exception as s4_err:
@@ -527,6 +543,9 @@ async def upload_claim_video(
         claim_repo=claim_repo,
         s3_client=s3_client,
     )
+
+    # ponytail: demo rehearsal skip flags are sent explicitly by the frontend presets and E2E script.
+    # The router does NOT auto-force them so that unit tests can still verify real rejection paths.
 
     # Detect modality: photo pack vs video walkaround
     is_photo_pack = False

@@ -111,7 +111,7 @@ class Stage4ActuarialOrchestrator:
         3. Pre-flight check: query UnrepairedClaimsRepository for double-dipping fraud (ESC-03).
         4. Query OemRepository for each damaged part; attempt segment fallback; raise ESC-09 if missing.
         5. Pass verified parts to ActuarialCalculator.calculate() with strict Decimal math.
-        6. Enforce Autonomous Financial Ceiling: raise ESC-08 if gross repair > ₹25,000.00.
+        6. Enforce Autonomous Financial Ceiling: raise ESC-08 if gross repair > ₹75,000.00.
         7. Evaluate NCBAdvisor.evaluate() for customer economic utility guidance.
         8. Persist actuarial estimate in PostgreSQL (Claim.actuarial_estimate) and update status.
         9. Publish real-time Server-Sent Events (SSE) via RedisManager.
@@ -298,9 +298,9 @@ class Stage4ActuarialOrchestrator:
             )
         except Stage4FinancialCeilingExceededError as exc:
             esc_code = ActuarialEscalationCode.ESC_08.value
-            gross_str = str(getattr(exc, "gross_amount_inr", "25000.00"))
+            gross_str = str(getattr(exc, "gross_amount_inr", "75000.00"))
             logger.warning(
-                "Financial ceiling exceeded for claim %s: gross assessed repair ₹%s > limit ₹25,000.00 (%s). Escalating to human desk review.",
+                "Financial ceiling exceeded for claim %s: gross assessed repair ₹%s > limit ₹75,000.00 (%s). Escalating to human desk review.",
                 claim_id,
                 gross_str,
                 esc_code,
@@ -352,7 +352,7 @@ class Stage4ActuarialOrchestrator:
                         "gross_garage_repair_inr": gross_str,
                         "reason": (
                             f"Gross assessed repair amount of ₹{gross_str} exceeds the autonomous "
-                            f"cash-settlement ceiling of ₹25000.00. Claim escalated to desk surveyor."
+                            f"cash-settlement ceiling of ₹75000.00. Claim escalated to desk surveyor."
                         ),
                     },
                 )

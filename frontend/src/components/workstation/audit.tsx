@@ -174,7 +174,7 @@ export function AuditTab({ claimId, detail }: { claimId: string; detail: ClaimDe
     );
   }
 
-  const voucher = detail.telemetry.settlement_voucher;
+  const voucher = detail?.telemetry?.settlement_voucher ?? null;
   const decision = voucher ? "Settled · cash-in-lieu" : detail.claim_status;
 
   return (

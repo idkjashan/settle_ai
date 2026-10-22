@@ -999,11 +999,24 @@ a {
   background: var(--pale);
 }
 
-.claim-row td small {
+.claims-table td small {
   display: block;
   color: var(--muted);
   font-size: var(--font-xs);
   margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+}
+
+.table-damage,
+.vehicle-name {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
 }
 
 .claim-id {

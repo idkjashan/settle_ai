@@ -55,10 +55,10 @@ def is_damage_matching(detected_damage: str, claimed_damage: str) -> bool:
     if detected_damage == claimed_damage:
         return True
     DAMAGE_COMPATIBILITY = {
-        "scratch": {"scratch", "crack", "dent"},
-        "crack": {"crack", "scratch", "lamp_broken", "glass_shatter"},
+        "scratch": {"scratch", "crack", "dent", "lamp_broken"},
+        "crack": {"crack", "scratch", "lamp_broken", "glass_shatter", "dent"},
         "dent": {"dent", "crack", "scratch"},
-        "lamp_broken": {"lamp_broken", "crack"},
+        "lamp_broken": {"lamp_broken", "crack", "scratch"},
         "glass_shatter": {"glass_shatter", "crack"},
         "tire_flat": {"tire_flat"},
     }

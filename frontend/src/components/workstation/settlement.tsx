@@ -89,7 +89,7 @@ export function SettlementTab({ claimId, detail, onDecision }: { claimId: string
           </div>
           <h3>{detail?.escalation_code || detail?.claim_status.startsWith("ESCALATED") ? "No negotiation session" : "Settlement not ready yet"}</h3>
           <p>
-            {detail?.telemetry.actuarial_estimate?.is_ceiling_breached
+            {detail?.telemetry?.actuarial_estimate?.is_ceiling_breached
               ? "The net repair estimate exceeded the ₹25,000 autonomous ceiling (ESC-08), so no cash offer can be negotiated."
               : "The bounded negotiation session opens once actuarial pricing completes and an initial offer card is signed."}
           </p>
@@ -127,7 +127,7 @@ export function SettlementTab({ claimId, detail, onDecision }: { claimId: string
           <p>
             <strong>Assessment explained</strong>
             <span>
-              {detail?.telemetry.actuarial_estimate
+              {detail?.telemetry?.actuarial_estimate
                 ? `Repair estimate ${inr(detail.telemetry.actuarial_estimate.summary.gross_garage_repair_inr)}`
                 : "Estimate pending"}
             </span>
@@ -355,7 +355,7 @@ export function SettlementTab({ claimId, detail, onDecision }: { claimId: string
         <section className="panel ncb-rail">
           <p className="eyebrow">CUSTOMER CONTEXT</p>
           <h3>No Claim Bonus</h3>
-          {detail?.telemetry.actuarial_estimate?.ncb_advisory ? (
+          {detail?.telemetry?.actuarial_estimate?.ncb_advisory ? (
             <>
               <p>{detail.telemetry.actuarial_estimate.ncb_advisory.advisory_message}</p>
               <p className="ncb-small">

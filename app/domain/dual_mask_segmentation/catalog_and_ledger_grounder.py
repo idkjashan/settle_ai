@@ -47,15 +47,16 @@ class CatalogAndLedgerGrounder:
                 failure_codes=[Stage2FailureCode.S2_NO_DAMAGE_DETECTED.value],
             )
 
-        for cand in candidates:
-            if (
-                cand.part_confidence < self.settings.high_conf_escalation_floor
-                or cand.damage_confidence < self.settings.high_conf_escalation_floor
-            ):
-                raise Stage2LowConfidenceOrNoDamageError(
-                    message=f"Low segmentation confidence on {cand.canonical_part_key}.",
-                    failure_codes=[Stage2FailureCode.S2_LOW_SEGMENTATION_CONFIDENCE.value],
-                )
+        max_part_conf = max(c.part_confidence for c in candidates)
+        max_dmg_conf = max(c.damage_confidence for c in candidates)
+        if (
+            max_part_conf < self.settings.high_conf_escalation_floor
+            or max_dmg_conf < self.settings.high_conf_escalation_floor
+        ):
+            raise Stage2LowConfidenceOrNoDamageError(
+                message="Low segmentation confidence across all detected exterior panels.",
+                failure_codes=[Stage2FailureCode.S2_LOW_SEGMENTATION_CONFIDENCE.value],
+            )
 
         # 2. Fetch Policy Context (registration_number, make, model)
         pol_stmt = select(InsuredPolicy).where(InsuredPolicy.policy_id == policy_id)
@@ -128,18 +129,33 @@ class CatalogAndLedgerGrounder:
             )
 
             # ESC-06 Safety-Critical Check
+            # A part is safety-critical if:
+            #   a) The OEM catalogue row marks it is_safety_critical (DB-driven), OR
+            #   b) It belongs to SAFETY_CRITICAL_PARTS (front_glass, back_glass, wheel)
+            # glass_shatter / tire_flat on non-structural parts (mirrors, door glass strips,
+            # lamp surrounds) is cosmetic damage — do NOT escalate those to physical inspection.
+            part_is_structural = (
+                cat_rec.is_safety_critical
+                or cand.canonical_part_key in SAFETY_CRITICAL_PARTS
+            )
+            # tire_flat anywhere is always safety-critical; glass_shatter only on structural glass
             has_safety_dmg_class = bool(
                 set(cand.detected_damage_classes).intersection(SAFETY_CRITICAL_DAMAGE_CLASSES)
             )
-            if (
-                cat_rec.is_safety_critical
-                or cand.canonical_part_key in SAFETY_CRITICAL_PARTS
-                or has_safety_dmg_class
-            ):
+            if part_is_structural and has_safety_dmg_class:
                 raise Stage2SafetyCriticalError(
                     message=(
                         f"Safety-critical damage detected on {cat_rec.display_part_name} "
                         f"({cand.primary_damage_class}). Routing to physical garage inspection."
+                    ),
+                    failure_codes=[Stage2FailureCode.S2_SAFETY_CRITICAL_PART_DAMAGED.value],
+                )
+            # tire_flat on any part is always a safety escalation regardless of part class
+            if "tire_flat" in cand.detected_damage_classes:
+                raise Stage2SafetyCriticalError(
+                    message=(
+                        f"Tire damage detected on {cat_rec.display_part_name}. "
+                        f"Routing to physical garage inspection."
                     ),
                     failure_codes=[Stage2FailureCode.S2_SAFETY_CRITICAL_PART_DAMAGED.value],
                 )

@@ -191,7 +191,11 @@ class PolygonIntersectionEngine:
                                 from app.domain.claim_intent.schemas import is_damage_matching
                                 damage_matches = any(is_damage_matching(d, cd) for d in accepted_damage_classes for cd in claimed_damages)
 
-                        is_claimed = part_matches and damage_matches
+                        if claimed_parts:
+                            is_claimed = part_matches
+                        else:
+                            is_claimed = damage_matches
+
                         claim_status = "CLAIMED" if is_claimed else "UNCLAIMED_PREEXISTING_DAMAGE"
 
                 valid_intersections.append(

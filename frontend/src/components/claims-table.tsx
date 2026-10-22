@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { useClaims } from "@/lib/store";
 import type { ClaimRecord } from "@/lib/store";
 import { inr, timeAgo } from "@/lib/format";
@@ -22,8 +23,8 @@ export function useDisplayClaims(): DisplayClaim[] {
     () =>
       claims.map((c) => {
         const d = details[c.id] ?? null;
-        const est = d?.telemetry.actuarial_estimate;
-        const parts = d?.telemetry.vlm_inspection?.verified_parts ?? [];
+        const est = d?.telemetry?.actuarial_estimate;
+        const parts = d?.telemetry?.vlm_inspection?.verified_parts ?? [];
         const primary = parts[0];
         return {
           ...c,
@@ -31,7 +32,7 @@ export function useDisplayClaims(): DisplayClaim[] {
           regLabel: est?.registration_number ?? c.registration,
           damageLabel: primary?.primary_damage_class?.replace(/_/g, " ") ?? firstDamageWord(c.note),
           damagePart: primary?.display_part_name?.replace(/_/g, " ") ?? "Pending assessment",
-          estimate: est ? parseFloat(est.summary.gross_garage_repair_inr) : null,
+          estimate: est?.summary?.gross_garage_repair_inr ? parseFloat(est.summary.gross_garage_repair_inr) : null,
           detail: d,
         };
       }),
@@ -45,6 +46,7 @@ function firstDamageWord(note: string): string {
 }
 
 export function ClaimsTable({ rows, selectedId }: { rows: DisplayClaim[]; selectedId?: string }) {
+  const router = useRouter();
   return (
     <div className="table-scroll">
       <table className="claims-table">
@@ -60,7 +62,12 @@ export function ClaimsTable({ rows, selectedId }: { rows: DisplayClaim[]; select
         </thead>
         <tbody>
           {rows.map((c) => (
-            <tr key={c.id} className={c.id === selectedId ? "selected-row" : ""}>
+            <tr
+                key={c.id}
+                className={c.id === selectedId ? "selected-row" : ""}
+                style={{ cursor: "pointer" }}
+                onClick={() => router.push(`/claims/${c.id}`)}
+              >
               <td>
                 <Link href={`/claims/${c.id}`} className="claim-id">
                   {c.label}

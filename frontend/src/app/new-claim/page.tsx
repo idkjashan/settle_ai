@@ -21,6 +21,7 @@ interface PresetContext {
   loadUrls: (urls: string[], isVideo: boolean) => Promise<void>;
   setPolicy: (id: string) => void;
   setNote: (note: string) => void;
+  setSkipGates: (skip: boolean) => void;
 }
 
 const PRESETS: { key: string; label: string; run: (ctx: PresetContext) => Promise<void> }[] = [
@@ -30,6 +31,7 @@ const PRESETS: { key: string; label: string; run: (ctx: PresetContext) => Promis
     run: async (ctx) => {
       ctx.setPolicy("POL-HAPPY-001");
       ctx.setNote("Front bumper lower valance dent and front left headlamp scuff from parking pillar touch.");
+      ctx.setSkipGates(true);
       await ctx.loadUrls(["/test_assets/videos/simple/car_002.mp4"], true);
     },
   },
@@ -39,6 +41,7 @@ const PRESETS: { key: string; label: string; run: (ctx: PresetContext) => Promis
     run: async (ctx) => {
       ctx.setPolicy("POL-TOYOTA-008");
       ctx.setNote("Severe impact dent and crease across driver-side front door and rear left door from side collision.");
+      ctx.setSkipGates(true);
       await ctx.loadUrls(["/test_assets/videos/simple/toyota-corolla-side-impact-damage-walkaround-houston.mp4"], true);
     },
   },
@@ -48,6 +51,7 @@ const PRESETS: { key: string; label: string; run: (ctx: PresetContext) => Promis
     run: async (ctx) => {
       ctx.setPolicy("POL-BLUE-011");
       ctx.setNote("Shallow door ding on front right door suitable for paintless dent repair (PDR).");
+      ctx.setSkipGates(true);
       await ctx.loadUrls(["/test_assets/videos/simple/car_011.mp4"], true);
     },
   },
@@ -57,6 +61,7 @@ const PRESETS: { key: string; label: string; run: (ctx: PresetContext) => Promis
     run: async (ctx) => {
       ctx.setPolicy("POL-CAMRY-010");
       ctx.setNote("Front impact with shattered laminated windshield requiring certified OEM replacement.");
+      ctx.setSkipGates(true);
       await ctx.loadUrls(["/test_assets/videos/simple/10.mp4"], true);
     },
   },
@@ -116,6 +121,7 @@ export default function NewClaimPage() {
       },
       setPolicy: (id) => setPolicyId(id),
       setNote: (n) => setNote(n),
+      setSkipGates: (skip) => { setSkipStage0(skip); setSkipStage1(skip); },
     }),
     [showToast],
   );

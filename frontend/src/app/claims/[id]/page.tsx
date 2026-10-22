@@ -64,11 +64,11 @@ export default function ClaimWorkstationPage({ params }: { params: Promise<{ id:
             <span className="eyebrow-divider">·</span> {record?.policyId ?? detail?.policy_id ?? "—"}
           </p>
           <h1>
-            {record?.vehicle ?? detail?.telemetry.actuarial_estimate?.vehicle_make ?? "Evaluating"}{" "}
-            <span className="title-muted">/</span> {detail?.telemetry.actuarial_estimate?.vehicle_year ?? ""}
+            {record?.vehicle ?? detail?.telemetry?.actuarial_estimate?.vehicle_make ?? "Evaluating"}{" "}
+            <span className="title-muted">/</span> {detail?.telemetry?.actuarial_estimate?.vehicle_year ?? ""}
           </h1>
           <p className="subhead">
-            {record?.registration ?? detail?.telemetry.actuarial_estimate?.registration_number ?? "—"} <span className="subhead-divider">·</span>{" "}
+            {record?.registration ?? detail?.telemetry?.actuarial_estimate?.registration_number ?? "—"} <span className="subhead-divider">·</span>{" "}
             {detail ? STAGE_LABELS[detail.current_stage] ?? detail.current_stage : "Fetching pipeline state…"}{" "}
             <span className="subhead-divider">·</span> {meta?.description ?? ""}
           </p>
