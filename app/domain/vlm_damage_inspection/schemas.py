@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -193,9 +193,9 @@ class VLMInspectionOutput(BaseModel):
         default=False,
         description="True if the image or sub-crop needs to be routed back to the identification model for re-verification.",
     )
-    reidentification_roi_bbox: Optional[List[int]] = Field(
+    reidentification_roi_bbox: Optional[List[Union[float, int]]] = Field(
         default=None,
-        description="Optional bounding box [x1, y1, x2, y2] within crop for targeted re-identification.",
+        description="Optional bounding box [x1, y1, x2, y2] or [ymin, xmin, ymax, xmax] within crop for targeted re-identification.",
     )
 
 

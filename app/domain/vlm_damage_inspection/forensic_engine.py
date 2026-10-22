@@ -104,6 +104,9 @@ class ForensicDecisionEngine:
                 vlm_confidence=vlm_output.confidence,
                 som_crop_path=part.som_annotated_crop_path,
                 latency_ms=latency_ms,
+                vehicle_orientation=getattr(vlm_output, "vehicle_orientation", None),
+                is_duplicate=getattr(vlm_output, "possible_duplicate", False),
+                duplicate_of_part=getattr(vlm_output, "duplicate_of_part_key", None),
             )
 
         # --- Gate 4: Depth Grade Validation (L1 .. L5) ---

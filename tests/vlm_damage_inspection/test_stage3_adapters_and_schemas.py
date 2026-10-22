@@ -37,6 +37,7 @@ from app.domain.vlm_damage_inspection import (
     Stage3StructuralMisalignmentError,
     Stage3Telemetry,
     Stage4HandoffPayload,
+    VehicleOrientation,
     VerifiedDamagedPart,
     VLMInspectionOutput,
     VLMProviderFactory,
@@ -59,6 +60,64 @@ def test_depth_grades():
     assert DepthGrade.L3_SHALLOW_DENT_PDR == "L3_SHALLOW_DENT_PDR"
     assert DepthGrade.L4_CREASED_DENT == "L4_CREASED_DENT"
     assert DepthGrade.L5_STRUCTURAL_TEAR == "L5_STRUCTURAL_TEAR"
+
+
+def test_vehicle_orientation_enum_values():
+    """Verify all vehicle orientation classifications for perspective analysis."""
+    assert VehicleOrientation.FRONT == "FRONT"
+    assert VehicleOrientation.REAR == "REAR"
+    assert VehicleOrientation.LEFT_SIDE == "LEFT_SIDE"
+    assert VehicleOrientation.RIGHT_SIDE == "RIGHT_SIDE"
+    assert VehicleOrientation.FRONT_LEFT_3_QUARTER == "FRONT_LEFT_3_QUARTER"
+    assert VehicleOrientation.FRONT_RIGHT_3_QUARTER == "FRONT_RIGHT_3_QUARTER"
+    assert VehicleOrientation.REAR_LEFT_3_QUARTER == "REAR_LEFT_3_QUARTER"
+    assert VehicleOrientation.REAR_RIGHT_3_QUARTER == "REAR_RIGHT_3_QUARTER"
+    assert VehicleOrientation.OVERHEAD_ROOF == "OVERHEAD_ROOF"
+    assert VehicleOrientation.UNKNOWN == "UNKNOWN"
+
+
+def test_vlm_inspection_output_backward_compatibility_defaults():
+    """Verify existing VLMInspectionOutput callers and payloads without new fields work seamlessly."""
+    output = VLMInspectionOutput(
+        is_real_physical_damage=True,
+        depth_grade=DepthGrade.L2_BASECOAT_SCRATCH,
+        confidence=0.95,
+        visual_reasoning_short="Surface scratch on basecoat.",
+    )
+    assert output.vehicle_orientation == VehicleOrientation.UNKNOWN
+    assert output.detected_component is None
+    assert output.component_matches_target is True
+    assert output.possible_duplicate is False
+    assert output.duplicate_of_part_key is None
+    assert output.missing_parts_detected == []
+    assert output.needs_reidentification is False
+    assert output.reidentification_roi_bbox is None
+
+
+def test_vlm_inspection_output_extended_fields():
+    """Verify full instantiation and validation of orientation and component-wise fields."""
+    output = VLMInspectionOutput(
+        is_real_physical_damage=True,
+        depth_grade=DepthGrade.L4_CREASED_DENT,
+        confidence=0.92,
+        visual_reasoning_short="Deep crease on left fender near headlamp seam.",
+        vehicle_orientation=VehicleOrientation.FRONT_LEFT_3_QUARTER,
+        detected_component="front_left_fender",
+        component_matches_target=False,
+        possible_duplicate=True,
+        duplicate_of_part_key="front_bumper",
+        missing_parts_detected=["fog_lamp_bezel_left"],
+        needs_reidentification=True,
+        reidentification_roi_bbox=[0.15, 0.20, 0.75, 0.85],
+    )
+    assert output.vehicle_orientation == VehicleOrientation.FRONT_LEFT_3_QUARTER
+    assert output.detected_component == "front_left_fender"
+    assert output.component_matches_target is False
+    assert output.possible_duplicate is True
+    assert output.duplicate_of_part_key == "front_bumper"
+    assert output.missing_parts_detected == ["fog_lamp_bezel_left"]
+    assert output.needs_reidentification is True
+    assert output.reidentification_roi_bbox == [0.15, 0.20, 0.75, 0.85]
 
 
 def test_false_positive_reasons():

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import List
+from unittest.mock import AsyncMock
 from uuid import uuid4
 
 import pytest
@@ -31,6 +32,7 @@ from app.domain.vlm_damage_inspection.schemas import (
     InspectionContext,
     QuarantinedPartRecord,
     Stage4HandoffPayload,
+    VehicleOrientation,
     VerifiedDamagedPart,
     VLMInspectionOutput,
 )
@@ -456,3 +458,166 @@ async def test_orchestrator_execute_alias_matches_inspect_claim():
     assert result_inspect.claim_id == result_execute.claim_id
     assert len(result_inspect.verified_parts) == len(result_execute.verified_parts)
     assert result_inspect.verified_parts[0].canonical_part_key == result_execute.verified_parts[0].canonical_part_key
+
+
+def test_prompt_engine_orientation_and_orchestrator_instructions():
+    """Verify system prompt and user prompt contain vehicle orientation, component, and missing part instructions."""
+    engine = VLMPromptEngine()
+    prompt = engine.system_prompt
+    assert "VEHICLE ORIENTATION" in prompt or "orientation" in prompt.lower()
+    assert "COMPONENT-WISE" in prompt or "component" in prompt.lower()
+    assert "duplicate" in prompt.lower()
+    assert "missing" in prompt.lower()
+
+    ctx = InspectionContext(
+        canonical_part_key="front_bumper",
+        part_display_name="Front Bumper",
+        primary_damage_class="scratch",
+        make="Hyundai",
+        model="Creta",
+        iop_ratio=0.08,
+    )
+    user_prompt = VLMPromptEngine.build_inspection_prompt(ctx)
+    assert "vehicle_orientation" in user_prompt
+    assert "component_matches_target" in user_prompt
+    assert "possible_duplicate" in user_prompt
+    assert "missing_parts_detected" in user_prompt
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_deduplicates_repeating_damage_candidates():
+    """Verify orchestrator filters out duplicate damage candidates so no duplicate parts are output to Stage 4."""
+    adapter = DeterministicMockVLMAdapter()
+    orchestrator = Stage3VLMOrchestrator(adapter=adapter)
+
+    claim_id = uuid4()
+    p1 = _make_grounded_part("front_bumper", "scratch", iop_ratio=0.08)
+    p2 = _make_grounded_part("front_bumper_duplicate", "scratch", iop_ratio=0.07)
+
+    async def mock_inspect_damage(som_crop_bytes, raw_crop_bytes, context):
+        if context.canonical_part_key == "front_bumper_duplicate":
+            return VLMInspectionOutput(
+                is_real_physical_damage=True,
+                depth_grade=DepthGrade.L2_BASECOAT_SCRATCH,
+                confidence=0.88,
+                visual_reasoning_short="Duplicate damage signature from adjacent crop.",
+                possible_duplicate=True,
+                duplicate_of_part_key="front_bumper",
+            )
+        return VLMInspectionOutput(
+            is_real_physical_damage=True,
+            depth_grade=DepthGrade.L2_BASECOAT_SCRATCH,
+            confidence=0.95,
+            visual_reasoning_short="Verified front bumper scratch.",
+            possible_duplicate=False,
+        )
+
+    adapter.inspect_damage = AsyncMock(side_effect=mock_inspect_damage)
+
+    handoff = Stage3HandoffPayload(
+        claim_id=claim_id,
+        policy_id="POL-DEDUP",
+        registration_number="MH12DD0001",
+        make="Hyundai",
+        model="Creta",
+        grounded_parts=[p1, p2],
+        telemetry={},
+    )
+
+    payload = await orchestrator.inspect_claim(handoff)
+
+    assert len(payload.verified_parts) == 1
+    assert payload.verified_parts[0].canonical_part_key == "front_bumper"
+    assert len(payload.quarantined_parts) == 1
+    assert payload.quarantined_parts[0].canonical_part_key == "front_bumper_duplicate"
+    assert "duplicate" in payload.quarantined_parts[0].visual_reasoning_short.lower()
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_reidentification_loop_on_component_mismatch():
+    """Verify orchestrator sends sub-crop to re-identification service when component mismatch is detected."""
+    adapter = DeterministicMockVLMAdapter()
+
+    reid_service = AsyncMock()
+    reid_service.reidentify_component = AsyncMock(return_value="front_left_fender")
+
+    orchestrator = Stage3VLMOrchestrator(
+        adapter=adapter,
+        reidentification_service=reid_service,
+    )
+
+    claim_id = uuid4()
+    p1 = _make_grounded_part("front_bumper", "dent", iop_ratio=0.10)
+
+    async def mock_inspect_damage(som_crop_bytes, raw_crop_bytes, context):
+        return VLMInspectionOutput(
+            is_real_physical_damage=True,
+            depth_grade=DepthGrade.L3_SHALLOW_DENT_PDR,
+            confidence=0.93,
+            visual_reasoning_short="Damage is physically located on adjacent fender panel.",
+            vehicle_orientation=VehicleOrientation.FRONT_LEFT_3_QUARTER,
+            detected_component="front_left_fender",
+            component_matches_target=False,
+            needs_reidentification=True,
+            reidentification_roi_bbox=[0.1, 0.2, 0.6, 0.8],
+        )
+
+    adapter.inspect_damage = AsyncMock(side_effect=mock_inspect_damage)
+
+    handoff = Stage3HandoffPayload(
+        claim_id=claim_id,
+        policy_id="POL-REID",
+        registration_number="KA05RE1111",
+        make="Kia",
+        model="Seltos",
+        grounded_parts=[p1],
+        telemetry={},
+    )
+
+    payload = await orchestrator.inspect_claim(handoff)
+
+    reid_service.reidentify_component.assert_awaited_once()
+    assert len(payload.verified_parts) == 1
+    assert payload.verified_parts[0].canonical_part_key == "front_left_fender"
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_telemetry_captures_missing_parts():
+    """Verify missing parts detected across crops are aggregated and tracked in telemetry."""
+    adapter = DeterministicMockVLMAdapter()
+    orchestrator = Stage3VLMOrchestrator(adapter=adapter)
+
+    claim_id = uuid4()
+    p1 = _make_grounded_part("front_bumper", "tear", iop_ratio=0.15)
+
+    async def mock_inspect_damage(som_crop_bytes, raw_crop_bytes, context):
+        return VLMInspectionOutput(
+            is_real_physical_damage=True,
+            depth_grade=DepthGrade.L5_STRUCTURAL_TEAR,
+            confidence=0.96,
+            visual_reasoning_short="Bumper fascia fractured with fog lamp bezel missing.",
+            vehicle_orientation=VehicleOrientation.FRONT,
+            detected_component="front_bumper",
+            component_matches_target=True,
+            missing_parts_detected=["fog_lamp_bezel_left", "tow_eye_cap"],
+        )
+
+    adapter.inspect_damage = AsyncMock(side_effect=mock_inspect_damage)
+
+    handoff = Stage3HandoffPayload(
+        claim_id=claim_id,
+        policy_id="POL-MISSING",
+        registration_number="DL02MI2222",
+        make="Toyota",
+        model="Fortuner",
+        grounded_parts=[p1],
+        telemetry={},
+    )
+
+    payload = await orchestrator.inspect_claim(handoff)
+
+    assert len(payload.verified_parts) == 1
+    s3_telemetry = payload.telemetry.get("stage3_telemetry", {})
+    assert "missing_parts_detected" in s3_telemetry
+    assert "fog_lamp_bezel_left" in s3_telemetry["missing_parts_detected"]
+    assert "tow_eye_cap" in s3_telemetry["missing_parts_detected"]
