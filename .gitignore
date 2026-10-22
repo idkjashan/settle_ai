@@ -47,6 +47,5 @@ weights/*.pt
 # Training run logs
 runs/
 data/
-stage2_edge_case_dataset_kit/quarantined_garbage/
 
 
