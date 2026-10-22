@@ -126,6 +126,14 @@ class DeterministicMockVLMAdapter(IVLMInspectionAdapter):
             misalignment_details=None,
             confidence=0.92,
             visual_reasoning_short=f"Verified real {dmg} damage requiring {grade.value} repair intervention.",
+            vehicle_orientation=orientation,
+            detected_component=context.canonical_part_key if comp_matches else "adjacent_panel",
+            component_matches_target=comp_matches,
+            possible_duplicate=is_duplicate,
+            duplicate_of_part_key=duplicate_of,
+            missing_parts_detected=missing_parts,
+            needs_reidentification=needs_reid,
+            reidentification_roi_bbox=[0.1, 0.1, 0.9, 0.9] if needs_reid else None,
         )
 
     async def health_check(self) -> bool:
