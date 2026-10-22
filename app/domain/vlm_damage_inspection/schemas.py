@@ -30,6 +30,21 @@ class DepthGrade(str, Enum):
     L5_STRUCTURAL_TEAR = "L5_STRUCTURAL_TEAR"
 
 
+class VehicleOrientation(str, Enum):
+    """Vehicle aspect / viewpoint orientation relative to the camera."""
+    FRONT = "FRONT"
+    REAR = "REAR"
+    LEFT_SIDE = "LEFT_SIDE"
+    RIGHT_SIDE = "RIGHT_SIDE"
+    FRONT_LEFT_3_QUARTER = "FRONT_LEFT_3_QUARTER"
+    FRONT_RIGHT_3_QUARTER = "FRONT_RIGHT_3_QUARTER"
+    REAR_LEFT_3_QUARTER = "REAR_LEFT_3_QUARTER"
+    REAR_RIGHT_3_QUARTER = "REAR_RIGHT_3_QUARTER"
+    ROOF = "ROOF"
+    OVERHEAD_ROOF = "OVERHEAD_ROOF"
+    UNKNOWN = "UNKNOWN"
+
+
 class FalsePositiveReason(str, Enum):
     """Taxonomy of non-physical surface contaminants and optical artifacts."""
     NONE = "NONE"
@@ -40,6 +55,8 @@ class FalsePositiveReason(str, Enum):
     WATER_DROPLET = "WATER_DROPLET"
     SPECULAR_GLARE = "SPECULAR_GLARE"
     ASPHALT_REFLECTION = "ASPHALT_REFLECTION"
+    DUPLICATE_DAMAGE = "DUPLICATE_DAMAGE"
+    ORIENTATION_OR_PART_MISMATCH = "ORIENTATION_OR_PART_MISMATCH"
     OTHER_NON_DAMAGE = "OTHER_NON_DAMAGE"
 
 
@@ -49,6 +66,9 @@ class Stage3FailureCode(str, Enum):
     S3_RUST_OR_OXIDATION_DETECTED = "S3_RUST_OR_OXIDATION_DETECTED"
     S3_STRUCTURAL_MISALIGNMENT_DETECTED = "S3_STRUCTURAL_MISALIGNMENT_DETECTED"
     S3_NO_REAL_DAMAGE_DETECTED = "S3_NO_REAL_DAMAGE_DETECTED"
+    S3_DUPLICATE_DAMAGE_DISMISSED = "S3_DUPLICATE_DAMAGE_DISMISSED"
+    S3_ORIENTATION_MISMATCH_QUARANTINED = "S3_ORIENTATION_MISMATCH_QUARANTINED"
+    S3_COMPONENT_MISMATCH_QUARANTINED = "S3_COMPONENT_MISMATCH_QUARANTINED"
     S3_PROVIDER_TIMEOUT = "S3_PROVIDER_TIMEOUT"
     S3_PROVIDER_UNREACHABLE = "S3_PROVIDER_UNREACHABLE"
     S3_MALFORMED_OUTPUT = "S3_MALFORMED_OUTPUT"
@@ -145,6 +165,38 @@ class VLMInspectionOutput(BaseModel):
         max_length=512,
         description="One concise sentence explaining the physical and tactile visual findings.",
     )
+    vehicle_orientation: VehicleOrientation = Field(
+        default=VehicleOrientation.UNKNOWN,
+        description="Observed orientation / perspective of the vehicle in the crop (FRONT, REAR, LEFT_SIDE, RIGHT_SIDE, etc.).",
+    )
+    detected_component: Optional[str] = Field(
+        default=None,
+        description="Physical component observed under inspection (e.g. front_bumper, front_left_door).",
+    )
+    component_matches_target: bool = Field(
+        default=True,
+        description="True if the visual evidence matches the target component; False if misidentified or adjacent.",
+    )
+    possible_duplicate: bool = Field(
+        default=False,
+        description="True if this damage appears identical or duplicate with an adjacent/previously inspected component.",
+    )
+    duplicate_of_part_key: Optional[str] = Field(
+        default=None,
+        description="Canonical key of the part this damage is suspected of duplicating, if applicable.",
+    )
+    missing_parts_detected: List[str] = Field(
+        default_factory=list,
+        description="Adjacent or visible components in the crop with ungrounded damage left out of inspection.",
+    )
+    needs_reidentification: bool = Field(
+        default=False,
+        description="True if the image or sub-crop needs to be routed back to the identification model for re-verification.",
+    )
+    reidentification_roi_bbox: Optional[List[int]] = Field(
+        default=None,
+        description="Optional bounding box [x1, y1, x2, y2] within crop for targeted re-identification.",
+    )
 
 
 @dataclass
@@ -180,6 +232,12 @@ class VerifiedDamagedPart:
     is_claimed: bool = True
     claim_status: str = "CLAIMED"
     latency_ms: float = 0.0
+    vehicle_orientation: VehicleOrientation = VehicleOrientation.UNKNOWN
+    detected_component: Optional[str] = None
+    component_matches_target: bool = True
+    possible_duplicate: bool = False
+    missing_parts_detected: List[str] = field(default_factory=list)
+    reidentified_by_model: bool = False
 
     @property
     def is_real_physical_damage(self) -> bool:
@@ -227,6 +285,12 @@ class VerifiedDamagedPart:
             visual_reasoning_short=vlm_output.visual_reasoning_short,
             raw_vlm_output=vlm_output,
             latency_ms=latency_ms,
+            vehicle_orientation=getattr(vlm_output, "vehicle_orientation", VehicleOrientation.UNKNOWN),
+            detected_component=getattr(vlm_output, "detected_component", None),
+            component_matches_target=getattr(vlm_output, "component_matches_target", True),
+            possible_duplicate=getattr(vlm_output, "possible_duplicate", False),
+            missing_parts_detected=list(getattr(vlm_output, "missing_parts_detected", [])),
+            reidentified_by_model=False,
         )
 
 
@@ -240,6 +304,9 @@ class QuarantinedPartRecord:
     vlm_confidence: float
     som_crop_path: Optional[Path] = None
     latency_ms: float = 0.0
+    vehicle_orientation: Optional[VehicleOrientation] = None
+    is_duplicate: bool = False
+    duplicate_of_part: Optional[str] = None
 
 
 @dataclass

@@ -31,6 +31,8 @@ class VLMPromptEngine:
         - Intersection over Part (IoP) ratio and percentage
         - Explicit instructions on contrasting Image 1 (dilated cyan Set-of-Marks outline)
           against Image 2 (unmarked pristine raw crop)
+        - Vehicle orientation, component-wise verification, duplicate damage detection,
+          missing parts detection, and re-identification routing
         - Mandatory JSON schema field population instructions for VLMInspectionOutput
         """
         iop_val = getattr(context, "final_iop_ratio", getattr(context, "iop_ratio", 0.0))
@@ -72,6 +74,25 @@ INSPECTION INSTRUCTIONS & DUAL-CROP CONTRAST:
    - Inspect adjacent body panel margins and seams.
    - If seams are pinched, overlapping, or wedged (e.g., tapering unevenly from top to bottom) indicating unibody chassis twist or pillar displacement, you MUST flag has_panel_gap_misalignment = true and detail findings in misalignment_details.
 
-7. STRUCTURED JSON OUTPUT:
+7. VEHICLE ORIENTATION & PERSPECTIVE GROUNDING:
+   - Determine the visual orientation of the vehicle (FRONT, REAR, LEFT_SIDE, RIGHT_SIDE, FRONT_LEFT_3_QUARTER, FRONT_RIGHT_3_QUARTER, REAR_LEFT_3_QUARTER, REAR_RIGHT_3_QUARTER, OVERHEAD_ROOF, UNKNOWN) in vehicle_orientation.
+   - Verify if this viewpoint geometrically matches the candidate component.
+
+8. COMPONENT-WISE VERIFICATION:
+   - Verify whether the damage is actually on the designated component ({context.canonical_part_key}).
+   - Populate detected_component with the physical part name observed, and set component_matches_target to true or false.
+
+9. DUPLICATE DAMAGE DETECTION:
+   - Verify if this damage is a repeated or duplicate observation of damage from an overlapping view/keyframe.
+   - Set possible_duplicate to true and specify duplicate_of_part_key if repeating.
+
+10. MISSING / UNSEGMENTED PART DISCOVERY:
+   - Check the surrounding panel area in Image 2 for adjacent missing, detached, or damaged parts that were left out.
+   - List any omitted damaged parts in missing_parts_detected.
+
+11. RE-IDENTIFICATION ORCHESTRATION:
+   - If component identity is ambiguous or needs sub-crop re-verification, set needs_reidentification to true and supply reidentification_roi_bbox.
+
+12. STRUCTURED JSON OUTPUT:
    - Output STRICTLY valid JSON matching the VLMInspectionOutput schema:
-     {{"is_real_physical_damage": bool, "false_positive_reason": str, "depth_grade": str, "has_rust_or_oxidation": bool, "rust_details": str | null, "has_panel_gap_misalignment": bool, "misalignment_details": str | null, "confidence": float, "visual_reasoning_short": str}}"""
+     {{"is_real_physical_damage": bool, "false_positive_reason": str, "depth_grade": str, "has_rust_or_oxidation": bool, "rust_details": str | null, "has_panel_gap_misalignment": bool, "misalignment_details": str | null, "confidence": float, "visual_reasoning_short": str, "vehicle_orientation": str, "detected_component": str | null, "component_matches_target": bool, "possible_duplicate": bool, "duplicate_of_part_key": str | null, "missing_parts_detected": list[str], "needs_reidentification": bool, "reidentification_roi_bbox": list[float] | null}}"""

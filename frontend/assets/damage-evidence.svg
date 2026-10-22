@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720" role="img" aria-labelledby="title desc">
+  <title id="title">Illustrative vehicle damage evidence</title>
+  <desc id="desc">Side view of a graphite SUV with a highlighted crease dent on the driver-side front door.</desc>
+  <defs>
+    <linearGradient id="body" x1="0" x2="0.1" y1="0" y2="1"><stop stop-color="#87918e"/><stop offset=".23" stop-color="#697572"/><stop offset=".52" stop-color="#515e5a"/><stop offset=".77" stop-color="#394743"/><stop offset="1" stop-color="#293530"/></linearGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#d3ded9"/><stop offset=".55" stop-color="#879994"/><stop offset="1" stop-color="#52625e"/></linearGradient>
+    <linearGradient id="ground" x2="0" y2="1"><stop stop-color="#e3e2d9"/><stop offset="1" stop-color="#c8cbc3"/></linearGradient>
+    <filter id="shadow" x="-.2" y="-.2" width="1.4" height="1.5"><feGaussianBlur stdDeviation="18"/></filter>
+  </defs>
+  <rect width="1200" height="720" fill="#d9dcd5"/>
+  <rect y="450" width="1200" height="270" fill="url(#ground)"/>
+  <path d="M0 505H1200" stroke="#b5bbb4" stroke-width="2"/>
+  <path d="M0 630h1200" stroke="#bfc4bc" stroke-width="1" opacity=".7"/>
+  <path d="M106 489c113 24 791 33 1000-3" fill="none" stroke="#313a36" stroke-width="26" opacity=".19" filter="url(#shadow)"/>
+  <!-- modern unbranded compact SUV, side profile -->
+  <path d="M97 438c15-44 42-79 85-101l121-59 101-122c20-25 48-39 81-40l254 1c36 1 63 16 88 44l102 117 90 34c32 12 51 32 61 62l18 53c6 17-2 35-20 39l-39 7H154c-40-1-70-14-57-35Z" fill="#272f2c"/>
+  <path d="M118 429c18-42 39-70 77-89l122-61 104-124c16-20 39-31 67-31l250 1c29 0 51 12 71 35l101 119 88 33c25 9 38 24 46 48l13 42c5 16-4 26-20 29l-46 9H157c-29 0-48-5-39-11Z" fill="url(#body)"/>
+  <path d="m335 275 107-128c12-15 28-23 48-23l82 1v151H335Z" fill="url(#glass)" stroke="#404b47" stroke-width="9"/>
+  <path d="m584 125 151 1c19 0 35 8 49 24l95 113H584V125Z" fill="url(#glass)" stroke="#404b47" stroke-width="9"/>
+  <path d="M568 125v305M827 258l18 167M337 275l-11 156M260 304l20 127" fill="none" stroke="#303b37" stroke-width="8"/>
+  <path d="M115 429h936" stroke="#929c95" stroke-width="3" opacity=".65"/>
+  <path d="M353 314h205M610 314h184" stroke="#aab2ab" stroke-width="2" opacity=".42"/>
+  <path d="M365 341h26m252 0h30" stroke="#d6d9d0" stroke-width="7" stroke-linecap="round" opacity=".9"/>
+  <path d="M133 376 210 356" stroke="#dde2db" stroke-width="6" stroke-linecap="round" opacity=".8"/>
+  <path d="m1022 356 37 11" stroke="#d4ddd8" stroke-width="10" stroke-linecap="round"/>
+  <path d="m112 412 45-6 13 12-67 8" fill="#d9e0da"/>
+  <path d="M268 430c3-63 44-110 101-110s97 47 100 110" fill="#2d3632"/>
+  <path d="M802 430c3-63 44-110 101-110s97 47 100 110" fill="#2d3632"/>
+  <circle cx="369" cy="431" r="61" fill="#202724"/><circle cx="369" cy="431" r="43" fill="#99a19b"/><circle cx="369" cy="431" r="29" fill="#d1d4cd"/><circle cx="369" cy="431" r="10" fill="#7d8781"/>
+  <circle cx="903" cy="431" r="61" fill="#202724"/><circle cx="903" cy="431" r="43" fill="#99a19b"/><circle cx="903" cy="431" r="29" fill="#d1d4cd"/><circle cx="903" cy="431" r="10" fill="#7d8781"/>
+  <path d="M469 258c-4 56-7 115-8 166M764 258c11 50 20 111 24 166" fill="none" stroke="#24312c" stroke-width="3" opacity=".8"/>
+  <!-- physical crease and scuff, intentionally modest -->
+  <path d="M510 354c27 8 43 21 65 19 19-2 37-15 58-11" fill="none" stroke="#242e2a" stroke-width="11" stroke-linecap="round" opacity=".55"/>
+  <path d="M519 350c30 5 37 14 54 13 20-2 37-12 56-10" fill="none" stroke="#c7c9bd" stroke-width="3" stroke-linecap="round" opacity=".8"/>
+  <path d="M497 333c34-15 120-20 163 2 20 11 20 48 0 61-29 19-124 22-160 5-24-12-27-55-3-68Z" fill="none" stroke="#e6efc8" stroke-width="2" stroke-dasharray="7 6"/>
+  <circle cx="500" cy="333" r="5" fill="#e6efc8"/><circle cx="660" cy="396" r="5" fill="#e6efc8"/>
+  <rect x="883" y="590" width="250" height="54" rx="8" fill="#f7f7f2" opacity=".95"/>
+  <circle cx="904" cy="617" r="5" fill="#779b77"/>
+  <text x="921" y="613" fill="#78847b" font-family="Arial,sans-serif" font-size="12" letter-spacing="1.4">SAMPLE DAMAGE AREA</text>
+  <text x="921" y="631" fill="#34443a" font-family="Arial,sans-serif" font-size="15" font-weight="600">Driver-side door · L4</text>
+</svg>
