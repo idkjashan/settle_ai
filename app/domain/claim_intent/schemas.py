@@ -52,7 +52,7 @@ class ClaimedDamagePartPair:
 
 def is_damage_matching(detected_damage: str, claimed_damage: str) -> bool:
     """Returns True if detected damage class matches or is colloquially compatible with claimed damage."""
-    if detected_damage == claimed_damage:
+    if detected_damage == claimed_damage or claimed_damage in ("damage", "defect", "all", "any"):
         return True
     DAMAGE_COMPATIBILITY = {
         "scratch": {"scratch", "crack", "dent", "lamp_broken"},
@@ -74,19 +74,30 @@ def is_part_matching(part_a: str, part_b: str) -> bool:
     if not part_a or not part_b:
         return False
 
+    norm_a = part_a.replace("rear", "back")
+    norm_b = part_b.replace("rear", "back")
+    if norm_a == norm_b:
+        return True
+
     generic_to_sided = {
         "front_door": {"front_left_door", "front_right_door"},
         "back_door": {"back_left_door", "back_right_door"},
+        "door": {"front_door", "back_door", "front_left_door", "front_right_door", "back_left_door", "back_right_door"},
+        "doors": {"front_door", "back_door", "front_left_door", "front_right_door", "back_left_door", "back_right_door"},
         "front_light": {"front_left_light", "front_right_light"},
         "back_light": {"back_left_light", "back_right_light"},
+        "light": {"front_left_light", "front_right_light", "back_left_light", "back_right_light"},
+        "lights": {"front_left_light", "front_right_light", "back_left_light", "back_right_light"},
+        "bumper": {"front_bumper", "back_bumper"},
+        "bumpers": {"front_bumper", "back_bumper"},
     }
-    if part_a in generic_to_sided and part_b in generic_to_sided[part_a]:
+    if norm_a in generic_to_sided and norm_b in generic_to_sided[norm_a]:
         return True
-    if part_b in generic_to_sided and part_a in generic_to_sided[part_b]:
+    if norm_b in generic_to_sided and norm_a in generic_to_sided[norm_b]:
         return True
 
-    tokens_a = set(part_a.split("_"))
-    tokens_b = set(part_b.split("_"))
+    tokens_a = set(norm_a.split("_"))
+    tokens_b = set(norm_b.split("_"))
     if tokens_a.issubset(tokens_b) or tokens_b.issubset(tokens_a):
         # Prevent opposing sides or opposite ends from matching
         if ("left" in tokens_a and "right" in tokens_b) or ("right" in tokens_a and "left" in tokens_b):

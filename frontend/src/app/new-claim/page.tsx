@@ -91,7 +91,7 @@ export default function NewClaimPage() {
   const [registeredColor, setRegisteredColor] = useState("SILVER");
   const [incidentDate, setIncidentDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [incidentLocation, setIncidentLocation] = useState("Bengaluru");
-  const [note, setNote] = useState("Creased dent on driver-side front door from reversing near concrete parking pillar.");
+  const [note, setNote] = useState("");
   const [dragOver, setDragOver] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [skipStage0, setSkipStage0] = useState(false);
@@ -497,18 +497,25 @@ export default function NewClaimPage() {
                 <input value={incidentLocation} onChange={(e) => setIncidentLocation(e.target.value)} />
               </label>
               <label className="field-label field-full">
-                What happened? (Claim Intent Grounding) <span>*</span>
-                <textarea rows={3} value={note} onChange={(e) => setNote(e.target.value)} required maxLength={1000} />
+                What happened? (Claim Intent Grounding) <span>OPTIONAL</span>
+                <textarea
+                  rows={3}
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  maxLength={1000}
+                  placeholder="Optional: Describe vehicle damage (e.g. 'front and back door damage'), or leave blank to automatically detect all exterior damages..."
+                />
                 <small>
-                  System 1 Intent Grounding extracts claimed parts &amp; damage types in real-time to condition YOLO segmentation &amp;
-                  quarantine background road wear.
+                  System 1 Intent Grounding extracts claimed parts &amp; damage types in real-time. If left blank, SettleAI autonomously detects all vehicle damages across all panels.
                 </small>
               </label>
               <div className="intent-grounding-box field-full">
                 <div className="intent-grounding-head">
                   <Icon name="spark" />
                   <strong>Live Intent Grounding (NLP Extraction)</strong>
-                  <span className="intent-status-badge">{intent.parts.length || intent.damages.length ? "Extracted" : "Waiting"}</span>
+                  <span className="intent-status-badge">
+                    {intent.parts.length || intent.damages.length ? "Extracted" : "Autonomous Search"}
+                  </span>
                 </div>
                 <div className="intent-chips">
                   {intent.parts.map((p) => (
@@ -521,9 +528,20 @@ export default function NewClaimPage() {
                       <Icon name="shield" /> Damage: <b>{d}</b>
                     </span>
                   ))}
-                  <span className="intent-chip">
-                    <Icon name="check" /> Focus: <b>Conditioned Masking</b>
-                  </span>
+                  {intent.parts.length || intent.damages.length ? (
+                    <span className="intent-chip">
+                      <Icon name="check" /> Focus: <b>Conditioned Masking</b>
+                    </span>
+                  ) : (
+                    <>
+                      <span className="intent-chip">
+                        <Icon name="spark" /> Mode: <b>Autonomous Search (All Panels)</b>
+                      </span>
+                      <span className="intent-chip">
+                        <Icon name="shield" /> Target: <b>Full Perimeter Auto-Detect</b>
+                      </span>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -694,15 +712,20 @@ function PipelineModal({ claimId, onClose, onOpenClaim }: { claimId: string; onC
 const PART_KEYWORDS: [RegExp, string][] = [
   [/\bfront[- ]?left door\b|\bdriver[- ]side (?:front )?door\b/i, "front_left_door"],
   [/\bfront[- ]?right door\b|\bpassenger[- ]side (?:front )?door\b/i, "front_right_door"],
-  [/\brear[- ]left door\b/i, "rear_left_door"],
-  [/\brear[- ]right door\b/i, "rear_right_door"],
+  [/\bfront\s*(?:and|&|\+)?\s*(?:back|rear)\s*doors?\b|\b(?:both|two|dual|side)\s*doors?\b/i, "front_door"],
+  [/\bfront\s*(?:and|&|\+)?\s*(?:back|rear)\s*doors?\b|\b(?:both|two|dual|side)\s*doors?\b/i, "back_door"],
+  [/\bfront[- ]?door\b/i, "front_door"],
+  [/\b(?:back|rear)[- ]?left door\b/i, "back_left_door"],
+  [/\b(?:back|rear)[- ]?right door\b/i, "back_right_door"],
+  [/\b(?:back|rear)[- ]?door\b/i, "back_door"],
+  [/\bdoor(s)?\b/i, "door"],
   [/\bfront bumper\b/i, "front_bumper"],
-  [/\brear bumper\b/i, "rear_bumper"],
+  [/\b(?:rear|back) bumper\b/i, "back_bumper"],
   [/\bbonnet\b|\bhood\b/i, "bonnet"],
   [/\bboot\b|\btrunk\b|\btailgate\b/i, "boot_door"],
   [/\bwindshield\b|\bwindscreen\b/i, "front_windshield"],
   [/\b(?:front|left|right)? ?(?:head\s?light|headlamp)s?\b/i, "headlight"],
-  [/\b(?:tail|rear) ?lights?\b/i, "tail_light"],
+  [/\b(?:tail|rear|back) ?lights?\b/i, "tail_light"],
   [/\bfender\b|\bwing\b/i, "fender"],
   [/\broof\b/i, "roof"],
   [/\bmirror\b/i, "side_mirror"],
@@ -718,6 +741,7 @@ const DAMAGE_KEYWORDS: [RegExp, string][] = [
   [/\brust\b|\boxid(ation|ized)?\b/i, "rust"],
   [/\bpebble(s)? (damage|dents?)\b|\bstone (chip|peck)s?\b/i, "stone_peck"],
   [/\bpaint (peel|chip)/i, "paint_peel"],
+  [/\b(?:damage|impact|collision|hit)\b/i, "damage"],
 ];
 
 function extractIntent(note: string): { parts: string[]; damages: string[] } {

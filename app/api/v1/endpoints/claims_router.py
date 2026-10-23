@@ -112,13 +112,30 @@ async def run_stage1_pipeline_task(
         if claim_description and claim_description.strip():
             try:
                 from app.domain.claim_intent.intent_grounder import get_claim_intent_grounder
-                claim_intent = get_claim_intent_grounder().ground(claim_description)
-                logger.info(
-                    f"Grounded claim intent for {claim_id}: parts={claim_intent.claimed_parts}, "
-                    f"damages={claim_intent.claimed_damages} in {claim_intent.extraction_latency_ms}ms"
-                )
+                grounded = get_claim_intent_grounder().ground(claim_description)
+                if not getattr(grounded, "is_empty", False) and (
+                    bool(getattr(grounded, "claimed_parts", [])) or bool(getattr(grounded, "claimed_damages", []))
+                ):
+                    claim_intent = grounded
+                    logger.info(
+                        f"Grounded claim intent for {claim_id}: parts={claim_intent.claimed_parts}, "
+                        f"damages={claim_intent.claimed_damages} in {claim_intent.extraction_latency_ms}ms"
+                    )
+                else:
+                    logger.info(
+                        f"Unconstrained NLP claim description for {claim_id} ('{claim_description}'). "
+                        f"Autonomous mode active: system will search for damage itself across all exterior panels."
+                    )
+                    claim_intent = None
             except Exception as intent_err:
-                logger.warning(f"Claim intent grounding failed for {claim_id}: {intent_err}")
+                logger.warning(f"Claim intent grounding failed for {claim_id}: {intent_err}. Falling back to autonomous search.")
+                claim_intent = None
+        else:
+            logger.info(
+                f"No NLP claim description provided for {claim_id}. "
+                f"Autonomous mode active: system will search for damage itself across all exterior panels."
+            )
+            claim_intent = None
 
         # Ensure fallback keyframes are extracted early while scratch_path is guaranteed available
         pre_extracted_kf = extract_fallback_keyframes(scratch_path, claim_id)
@@ -497,39 +514,52 @@ async def upload_claim_video(
         v_reg = (registration_number or f"MH12{uuid.uuid4().hex[:4].upper()}").strip()
         v_color = (registered_color or "WHITE").strip().upper()
         v_year = manufacturing_year or 2023
-        new_policy = InsuredPolicy(
-            policy_id=policy_id,
-            policy_status="ACTIVE",
-            policy_start_date=date(2026, 1, 1),
-            policy_end_date=date(2026, 12, 31),
-            max_cash_claims_per_year=2,
-            cash_claims_ytd=0,
-            registration_number=v_reg,
-            vin_last_6=uuid.uuid4().hex[:6].upper(),
-            make=v_make,
-            model=v_model,
-            manufacturing_year=v_year,
-            registered_color=v_color,
-            registered_color_hsv={"h_min": 0, "h_max": 180, "s_min": 0, "s_max": 60, "v_min": 100, "v_max": 240},
-            paint_type="metallic",
-            zero_dep_addon=True,
-            compulsory_deductible_inr=Decimal("1000.00"),
-            estimated_ncb_loss_inr=Decimal("3500.00"),
-        )
-        db.add(new_policy)
-        # Ensure OEM parts exist for this make & model
-        part_check = await db.execute(select(OemPart).where(OemPart.make == v_make, OemPart.model == v_model).limit(1))
-        if not part_check.scalar_one_or_none():
-            from app.infrastructure.db.seed import generate_scaled_parts
-            custom_parts = generate_scaled_parts(
+
+        # Check if registration number already belongs to another policy in database
+        existing_by_reg = await policy_repo.get_by_registration(v_reg)
+        if existing_by_reg:
+            policy_id = existing_by_reg.policy_id
+            existing_policy = existing_by_reg
+            logger.info(f"Reusing existing policy {policy_id} for registration {v_reg}")
+        else:
+            new_policy = InsuredPolicy(
+                policy_id=policy_id,
+                policy_status="ACTIVE",
+                policy_start_date=date(2026, 1, 1),
+                policy_end_date=date(2026, 12, 31),
+                max_cash_claims_per_year=2,
+                cash_claims_ytd=0,
+                registration_number=v_reg,
+                vin_last_6=uuid.uuid4().hex[:6].upper(),
                 make=v_make,
                 model=v_model,
-                part_num_prefix=f"{v_make[:3].upper()}-GEN",
-                multiplier=1.15,
+                manufacturing_year=v_year,
+                registered_color=v_color,
+                registered_color_hsv={"h_min": 0, "h_max": 180, "s_min": 0, "s_max": 60, "v_min": 100, "v_max": 240},
+                paint_type="metallic",
+                zero_dep_addon=True,
+                compulsory_deductible_inr=Decimal("1000.00"),
+                estimated_ncb_loss_inr=Decimal("3500.00"),
             )
-            db.add_all(custom_parts)
-        await db.commit()
-        logger.info(f"Auto-provisioned custom policy and OEM catalog for {policy_id} ({v_make} {v_model})")
+            db.add(new_policy)
+            # Ensure OEM parts exist for this make & model
+            part_check = await db.execute(select(OemPart).where(OemPart.make == v_make, OemPart.model == v_model).limit(1))
+            if not part_check.scalar_one_or_none():
+                from app.infrastructure.db.seed import generate_scaled_parts
+                custom_parts = generate_scaled_parts(
+                    make=v_make,
+                    model=v_model,
+                    part_num_prefix=f"{v_make[:3].upper()}-GEN",
+                    multiplier=1.15,
+                )
+                db.add_all(custom_parts)
+            try:
+                await db.commit()
+                logger.info(f"Auto-provisioned custom policy and OEM catalog for {policy_id} ({v_make} {v_model})")
+            except Exception as pe:
+                await db.rollback()
+                logger.warning(f"Policy auto-provision collision or error: {pe}")
+                existing_policy = await policy_repo.get_by_id(policy_id) or await policy_repo.get_by_registration(v_reg)
 
     tier1_gate = PolicyAndDedupeGate(policy_repo, claim_repo)
 

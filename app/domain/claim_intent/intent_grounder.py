@@ -152,6 +152,21 @@ class ClaimIntentGrounder:
             damage_map = {d.canonical_key: [d.canonical_key.replace("_", " "), d.display_name] + d.aliases for d in self.registry.list_damages()}
             self._semantic_router.build_index({**part_map, **damage_map})
 
+    def _expand_compound_phrases(self, text: str) -> str:
+        t = text
+        # Coordinate doors: e.g. "front and back door", "front back door", "front & rear doors", "both doors", "side doors"
+        t = re.sub(r'\bfront\s*(?:and|&|\+)?\s*(?:back|rear)\s*doors?\b', 'front door and back door', t, flags=re.I)
+        t = re.sub(r'\b(?:back|rear)\s*(?:and|&|\+)?\s*front\s*doors?\b', 'front door and back door', t, flags=re.I)
+        t = re.sub(r'\b(?:both|two|dual|all)\s*doors?\b', 'front door and back door', t, flags=re.I)
+        t = re.sub(r'(?<!driver\s)(?<!driver-)(?<!passenger\s)(?<!passenger-)\bside\s*doors?\b', 'front door and back door', t, flags=re.I)
+        # Coordinate bumpers: e.g. "front and back bumper"
+        t = re.sub(r'\bfront\s*(?:and|&|\+)?\s*(?:back|rear)\s*bumpers?\b', 'front bumper and back bumper', t, flags=re.I)
+        t = re.sub(r'\b(?:back|rear)\s*(?:and|&|\+)?\s*front\s*bumpers?\b', 'front bumper and back bumper', t, flags=re.I)
+        # Coordinate lights/lamps: e.g. "front and back lights"
+        t = re.sub(r'\bfront\s*(?:and|&|\+)?\s*(?:back|rear)\s*(?:lights?|lamps?|headlights?|taillights?)\b', 'front light and back light', t, flags=re.I)
+        t = re.sub(r'\b(?:back|rear)\s*(?:and|&|\+)?\s*front\s*(?:lights?|lamps?|headlights?|taillights?)\b', 'front light and back light', t, flags=re.I)
+        return t
+
     def ground(self, description: Optional[str], driver_side_is_left: Optional[bool] = None) -> ClaimIntent:
         """Grounds a natural language claim description into structured ClaimIntent."""
         if driver_side_is_left is not None:
@@ -171,7 +186,7 @@ class ClaimIntentGrounder:
                 engine_used="NONE_EMPTY",
             )
 
-        raw_text = description.strip()
+        raw_text = self._expand_compound_phrases(description.strip())
         clauses = self._split_into_clauses(raw_text)
         global_pos = self._detect_position(raw_text.lower())
         global_side = self._detect_side(raw_text.lower())
@@ -234,6 +249,7 @@ class ClaimIntentGrounder:
             else "SYNTACTIC_REGEX_ROUTER"
         )
 
+        is_empty_intent = (not all_part_intents and not all_damage_intents)
         return ClaimIntent(
             raw_text=raw_text,
             claimed_parts=claimed_parts,
@@ -243,7 +259,7 @@ class ClaimIntentGrounder:
             paired_intents=paired_intents,
             extraction_latency_ms=latency_ms,
             engine_used=engine_used,
-            is_empty=False,
+            is_empty=is_empty_intent,
         )
 
     def _split_into_clauses(self, text: str) -> List[str]:
@@ -406,9 +422,13 @@ class ClaimIntentGrounder:
         return None
 
     def _detect_position(self, text: str) -> Optional[str]:
-        if re.search(r"\b(?:rear|back|behind|tail)\b", text):
+        has_rear = bool(re.search(r"\b(?:rear|back|behind|tail)\b", text))
+        has_front = bool(re.search(r"\b(?:front|fore)\b", text))
+        if has_rear and has_front:
+            return None  # Both positions present, do not bias toward one
+        if has_rear:
             return "REAR"
-        if re.search(r"\b(?:front|fore)\b", text):
+        if has_front:
             return "FRONT"
         return None
 
